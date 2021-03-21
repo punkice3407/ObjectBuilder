@@ -37,11 +37,13 @@ THE SOFTWARE.
             import mx.resources.ResourceManager;
 
             import nail.logging.Log;
+			import otlib.animation.FrameGroup;
             import otlib.components.ListBase;
             import otlib.components.ThingList;
             import otlib.core.otlib_internal;
             import otlib.events.ThingListEvent;
             import otlib.things.ThingType;
+			import otlib.things.FrameGroupType;
             import otlib.utils.ThingListItem;
             import nail.utils.isNullOrEmpty;
 

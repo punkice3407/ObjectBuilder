@@ -1,12 +1,15 @@
 # Build and Release Folders
 bin/
 bin-debug/
+bin-debug-temp/
 bin-release/
+bin-release-temp/
 workerswfs/
 
 # Other files and folders
 *.swf
 .settings/
+.vscode/
 
 # Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
 # should NOT be excluded as they contain compiler settings and other important

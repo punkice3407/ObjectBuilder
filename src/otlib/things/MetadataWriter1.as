@@ -22,6 +22,10 @@
 
 package otlib.things
 {
+    import otlib.animation.FrameGroup;
+    import otlib.things.FrameGroupType;
+	import otlib.utils.DictionaryUtil;
+
     /**
      * Writer for versions 7.10 - 7.30
      */
@@ -155,51 +159,80 @@ package otlib.things
             if (type.animateAlways)
                 writeByte(MetadataFlags1.ANIMATE_ALWAYS);
 
+            if (type.topEffect && type.category == ThingCategory.EFFECT)
+                writeByte(MetadataFlags1.TOP_EFFECT);
+
             if (type.isLensHelp) {
                 writeByte(MetadataFlags1.LENS_HELP);
                 writeShort(type.lensHelp);
             }
+
+            if (type.wrappable)
+                writeByte(MetadataFlags1.WRAPPABLE);
+
+            if (type.unwrappable)
+                writeByte(MetadataFlags1.UNWRAPPABLE);
 
             writeByte(MetadataFlags1.LAST_FLAG);
 
             return true;
         }
 
-        public override function writeTexturePatterns(type:ThingType, extended:Boolean, frameDurations:Boolean):Boolean
+        public override function writeTexturePatterns(type:ThingType, extended:Boolean, frameDurations:Boolean, frameGroups:Boolean):Boolean
         {
+            var groupCount:uint = 1;
+			if(frameGroups && type.category == ThingCategory.OUTFIT) {
+                groupCount = type.frameGroups.length;
+				writeByte(groupCount);
+			}
+
             var i:uint;
+            var groupType:uint;
+			var frameGroup:FrameGroup;
+            for(groupType = 0; groupType < groupCount; groupType++) 
+            {
+                if(frameGroups && type.category == ThingCategory.OUTFIT)
+                {
+                    var group:uint = groupType;
+                    if(groupCount < 2)
+                        group = 1;
 
-            writeByte(type.width);  // Write width
-            writeByte(type.height); // Write height
-
-            if (type.width > 1 || type.height > 1) {
-                writeByte(type.exactSize); // Write exact size
-            }
-
-            writeByte(type.layers);   // Write layers
-            writeByte(type.patternX); // Write pattern X
-            writeByte(type.patternY); // Write pattern Y
-            writeByte(type.frames);   // Write frames
-
-            if (frameDurations && type.isAnimation) {
-                writeByte(type.animationMode);   // Write animation type
-                writeInt(type.loopCount);        // Write loop count
-                writeByte(type.startFrame);      // Write start frame
-
-                for (i = 0; i < type.frames; i++) {
-                    writeUnsignedInt(type.frameDurations[i].minimum); // Write minimum duration
-                    writeUnsignedInt(type.frameDurations[i].maximum); // Write maximum duration
+                    writeByte(group);
                 }
-            }
 
-            var spriteIndex:Vector.<uint> = type.spriteIndex;
-            var length:uint = spriteIndex.length;
-            for (i = 0; i < length; i++) {
-                // Write sprite index
-                if (extended)
-                    writeUnsignedInt(spriteIndex[i]);
-                else
-                    writeShort(spriteIndex[i]);
+                frameGroup = type.getFrameGroup(groupType);
+                writeByte(frameGroup.width);  // Write width
+                writeByte(frameGroup.height); // Write height
+
+                if (frameGroup.width > 1 || frameGroup.height > 1) {
+                    writeByte(frameGroup.exactSize); // Write exact size
+                }
+
+                writeByte(frameGroup.layers);   // Write layers
+                writeByte(frameGroup.patternX); // Write pattern X
+                writeByte(frameGroup.patternY); // Write pattern Y
+                writeByte(frameGroup.frames);   // Write frames
+
+                if (frameDurations && frameGroup.isAnimation) {
+                    writeByte(frameGroup.animationMode);   // Write animation type
+                    writeInt(frameGroup.loopCount);        // Write loop count
+                    writeByte(frameGroup.startFrame);      // Write start frame
+
+                    for (i = 0; i < frameGroup.frames; i++) {
+                        writeUnsignedInt(frameGroup.frameDurations[i].minimum); // Write minimum duration
+                        writeUnsignedInt(frameGroup.frameDurations[i].maximum); // Write maximum duration
+                    }
+                }
+
+                var spriteIndex:Vector.<uint> = frameGroup.spriteIndex;
+                var length:uint = spriteIndex.length;
+                for (i = 0; i < length; i++) {
+                    // Write sprite index
+                    if (extended)
+                        writeUnsignedInt(spriteIndex[i]);
+                    else
+                        writeShort(spriteIndex[i]);
+                }
             }
 
             return true;

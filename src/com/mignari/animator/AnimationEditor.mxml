@@ -71,6 +71,7 @@ THE SOFTWARE.
             import ob.utils.ObUtils;
             
             import otlib.animation.FrameDuration;
+			import otlib.animation.FrameGroup;
             import otlib.assets.Assets;
             import otlib.components.ExportWindow;
             import otlib.components.SurfaceCells;
@@ -80,9 +81,11 @@ THE SOFTWARE.
             import otlib.sprites.SpriteData;
             import otlib.things.ThingCategory;
             import otlib.things.ThingData;
+			import otlib.things.FrameGroupType;
             import otlib.things.ThingType;
             import otlib.utils.OTFormat;
             import otlib.utils.SpriteUtils;
+			import flash.utils.Dictionary;
 
             //--------------------------------------------------------------------------
             // PROPERTIES
@@ -193,7 +196,7 @@ THE SOFTWARE.
 
                     var helper:SaveHelper = new SaveHelper();
                     if (ImageFormat.hasImageFormat(format)) {
-                        bitmap = thingView.thingData.getSpriteSheet(null, backgoundColor);
+                        bitmap = thingView.thingData.getSpriteSheet(thingView.thingData.getFrameGroup(FrameGroupType.DEFAULT), null, backgoundColor);
                         bytes = ImageCodec.encode(bitmap, format);
                     } else if (format == OTFormat.OBD) {
                         bytes = new OBDEncoder().encode(thingView.thingData);
@@ -348,51 +351,55 @@ THE SOFTWARE.
                 var width:uint = _size.width;
                 var height:uint = _size.height;
                 var thing:ThingType = new ThingType();
+				var frameGroup:FrameGroup = new FrameGroup();
+				
                 thing.category = getCurrentCategory();
                 thing.id = 0;
-                thing.width = (width / 32);
-                thing.height = (height / 32);
-                thing.layers = 1;
-                thing.frames = framesList.length;
-                thing.patternX = 1;
-                thing.patternY = 1;
-                thing.patternZ = 1;
-                thing.exactSize = Math.max(width, height);
+				frameGroup.width = (width / 32);
+				frameGroup.height = (height / 32);
+				frameGroup.layers = 1;
+				frameGroup.frames = framesList.length;
+				frameGroup.patternX = 1;
+				frameGroup.patternY = 1;
+				frameGroup.patternZ = 1;
+				frameGroup.exactSize = Math.max(width, height);
                 thing.animateAlways = (thing.category == ThingCategory.OUTFIT);
-                thing.isAnimation = (thing.frames > 1)
+				frameGroup.isAnimation = (frameGroup.frames > 1)
 
-                var spriteCount:uint = thing.width * thing.height * thing.frames;
+                var spriteCount:uint = frameGroup.width * frameGroup.height * frameGroup.frames;
                 var spriteIndices:Vector.<uint> = new Vector.<uint>(spriteCount);
-                thing.spriteIndex = spriteIndices;
+				frameGroup.spriteIndex = spriteIndices;
 
-                var sprites:Vector.<SpriteData> = new Vector.<SpriteData>(spriteCount);
+				var sprites:Dictionary = new Dictionary();
+				sprites[FrameGroupType.DEFAULT] = new Vector.<SpriteData>(spriteCount);
+				
                 var id:uint = uint.MAX_VALUE;
                 var rect:Rectangle = new Rectangle(0, 0, 32, 32);
                 var f:uint;
 
-                if (thing.frames > 1) {
-                    thing.isAnimation = true;
-                    thing.frameDurations = new Vector.<FrameDuration>(thing.frames, true);
+                if (frameGroup.frames > 1) {
+					frameGroup.isAnimation = true;
+					frameGroup.frameDurations = new Vector.<FrameDuration>(frameGroup.frames, true);
 
                     var duration:uint = FrameDuration.getDefaultDuration(thing.category);
 
-                    for (f = 0; f < thing.frames; f++) {
+                    for (f = 0; f < frameGroup.frames; f++) {
                         var frame:Frame = framesList.getObjectAt(f) as Frame;
                         if (frame && frame.duration)
-                            thing.frameDurations[f] = frame.duration;
+							frameGroup.frameDurations[f] = frame.duration;
                         else
-                            thing.frameDurations[f] = new FrameDuration(duration, duration);
+							frameGroup.frameDurations[f] = new FrameDuration(duration, duration);
                     }
                 }
 
-                for (f = 0; f < thing.frames; f++) {
+                for (f = 0; f < frameGroup.frames; f++) {
                     var bmp:BitmapData = framesList.getObjectAt(f).getBitmap();
-                    for (var w:uint = 0; w < thing.width; w++) {
-                        for (var h:uint = 0; h < thing.height; h++) {
+                    for (var w:uint = 0; w < frameGroup.width; w++) {
+                        for (var h:uint = 0; h < frameGroup.height; h++) {
 
-                            var index:uint = thing.getSpriteIndex(w, h, 0, 0, 0, 0, f);
-                            rect.x = (thing.width - w - 1) * rect.width;
-                            rect.y = (thing.height - h - 1) * rect.height;
+                            var index:uint = frameGroup.getSpriteIndex(w, h, 0, 0, 0, 0, f);
+                            rect.x = (frameGroup.width - w - 1) * rect.width;
+                            rect.y = (frameGroup.height - h - 1) * rect.height;
                             var spriteData:SpriteData = new SpriteData();
                             spriteData.id = id;
                             spriteData.pixels = bmp.getPixels(rect);
@@ -402,8 +409,9 @@ THE SOFTWARE.
                     }
                 }
 
+                thing.setFrameGroup(FrameGroupType.DEFAULT, frameGroup);
                 // TODO temporary version
-                this.thingView.thingData = ThingData.create(OBDVersions.OBD_VERSION_2, 1041, thing, sprites);
+                this.thingView.thingData = ThingData.create(OBDVersions.OBD_VERSION_3, 1041, thing, sprites);
                 toolbar.saveButton.enabled = true;
             }
 
@@ -535,7 +543,7 @@ THE SOFTWARE.
                 if (!thingData)
                     return;
 
-                var bitmap:BitmapData = thingData.getSpriteSheet();
+                var bitmap:BitmapData = thingData.getSpriteSheet(thingData.getFrameGroup(FrameGroupType.DEFAULT));
                 setBitmap(bitmap);
             }
 

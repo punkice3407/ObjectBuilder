@@ -5,7 +5,7 @@
           xmlns:mx="library://ns.adobe.com/flex/mx"
           xmlns:ns="library://ns.nail.com/naillib"
           width="400"
-          height="370"
+          height="410"
           backgroundColor="0x494949"
           showStatusBar="false"
           systemChrome="standard"
@@ -18,11 +18,11 @@
     <fx:Script>
         <![CDATA[
             import mx.events.FlexEvent;
-            
+
             import flashx.textLayout.conversion.TextConverter;
             import flashx.textLayout.elements.LinkElement;
             import flashx.textLayout.formats.TextDecoration;
-            
+
             import nail.utils.Descriptor;
             import nail.utils.StringUtil;
 
@@ -72,12 +72,18 @@
                 this.close();
             }
 
+            protected function dbrButtonClickHandler(event:MouseEvent):void
+            {
+                // Please, dont remove or change it.
+                navigateToURL(new URLRequest("https://dbroyale.com/"));
+            }
+
             protected function otpButtonClickHandler(event:MouseEvent):void
             {
                 // Please, dont remove or change it.
                 navigateToURL(new URLRequest("https://otpokemon.com/"));
             }
-            
+
         ]]>
     </fx:Script>
 
@@ -133,11 +139,18 @@
                         textAlign="justify" />
 
     <ns:ShadowLine width="100%"/>
-    
+
     <s:VGroup width="100%" height="100%" top="249" padding="10">
-        
+
         <s:Label text="Supported By:" />
-        
+
+        <mx:LinkButton id="dbrButton"
+                  label="dbroyale.com"
+                  fontWeight="bold"
+                  fontSize="18"
+                  color="0x03fcd7"
+                  click="dbrButtonClickHandler(event)" />
+
         <mx:LinkButton id="otpButton"
                   label="otpokemon.com"
                   fontWeight="bold"
@@ -145,7 +158,7 @@
                   color="0xe3d10a"
                   click="otpButtonClickHandler(event)" />
     </s:VGroup>
-    
+
     <s:Group width="100%" height="50" bottom="0">
         <s:Rect left="0" right="0" top="0" bottom="0">
             <s:stroke>

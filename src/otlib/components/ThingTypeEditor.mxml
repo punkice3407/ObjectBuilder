@@ -53,17 +53,19 @@ THE SOFTWARE.
             import mx.events.FlexEvent;
             import mx.events.PropertyChangeEvent;
             import mx.managers.DragManager;
-            
+
             import spark.components.Button;
             import spark.events.IndexChangeEvent;
-            
+
             import otlib.animation.FrameDuration;
+            import otlib.animation.FrameGroup;
             import otlib.components.skins.SpriteButtonSkin;
             import otlib.events.ThingEditorEvent;
             import otlib.geom.Direction;
             import otlib.sprites.Sprite;
             import otlib.sprites.SpriteData;
             import otlib.things.BindableThingType;
+            import otlib.things.FrameGroupType;
             import otlib.things.ThingCategory;
             import otlib.things.ThingData;
             import otlib.things.ThingType;
@@ -91,6 +93,9 @@ THE SOFTWARE.
             private var _filesInfoChanged:Boolean;
             private var _previewMode:Boolean;
             private var _lastAnimationFrame:uint;
+
+            [Bindable]
+            private var _frameGroup:FrameGroup;
 
             //--------------------------------------
             // Getters / Setters
@@ -122,6 +127,8 @@ THE SOFTWARE.
                 }
             }
 
+            public function setCurrentFrameGroup(value:FrameGroup):void { _frameGroup = value; }
+
             //--------------------------------------------------------------------------
             // METHODS
             //--------------------------------------------------------------------------
@@ -133,7 +140,7 @@ THE SOFTWARE.
             public function saveChanges():Boolean
             {
                 if (_thingData && _changed) {
-                    if (_thingBinding.copyToThingData(_thingData)) {
+                    if (_thingBinding.copyToThingData(_thingData, _thingBinding.groups)) {
                         _changed = false;
                         dispatchEvent(new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, this.thingData));
                         return true;
@@ -146,12 +153,35 @@ THE SOFTWARE.
             {
                 if (_thingData) {
                     var thing:ThingType = new ThingType();
-                    if (_thingBinding.copyToThingType(thing)) {
+                    if (_thingBinding.copyToThingType(thing, _thingBinding.groups)) {
                         return thing;
                     }
                 }
                 return null;
             }
+
+			public function updateFrameGroupNameLabel():void
+			{
+				if(frameGroupSlider.value == 0) {
+					frameGroupNameLabel.text = "Idle / Stand";
+				} else {
+					frameGroupNameLabel.text = "Walking";
+				}
+			}
+
+			public function frameGroupSliderChange():void
+			{
+                var group:FrameGroup = _thingBinding.getFrameGroup(frameGroupSlider.value);
+                if(group)
+                    setCurrentFrameGroup(group);
+
+				updateFrameGroupNameLabel();
+                animationSlider.value = 0;
+                mountSlider.value = 0;
+                addonsSlider.value = 0;
+				updateAnimationControls()
+				updatePreview();
+			}
 
             public function updatePreview():void
             {
@@ -163,8 +193,9 @@ THE SOFTWARE.
                     thingView.patternX = _patternX;
                     thingView.patternY = _patternY;
                     thingView.patternZ = mountSlider.value;
+					thingView.frameGroupType = frameGroupSlider.value;
 
-                    var frameDuration:FrameDuration = _thingBinding.getFrameDuration(animationSlider.value);
+                    var frameDuration:FrameDuration = _frameGroup.getFrameDuration(animationSlider.value);
                     if (frameDuration) {
                         minimumNumericStepper.value = frameDuration.minimum;
                         maximumNumericStepper.value = frameDuration.maximum;
@@ -172,6 +203,7 @@ THE SOFTWARE.
 
                     if (_thingData.category == ThingCategory.OUTFIT || _thingData.category == ThingCategory.MISSILE) {
                         addonGroup.visible = (_thingData.category == ThingCategory.OUTFIT && patternYNumericStepper.value > 1);
+						frameGroupSlider.visible = (_thingData.category == ThingCategory.OUTFIT && frameGroupsNumericStepper.value > 1);
                         updateViewWithDirection();
                     } else {
                         updateView();
@@ -218,7 +250,8 @@ THE SOFTWARE.
             {
                 _loading = true;
                 _lastAnimationFrame = 0;
-                thingView.thingData = thingData;
+
+				thingView.thingData = thingData;
 
                 _thingBinding.reset();
                 animationSlider.value = 0;
@@ -227,32 +260,41 @@ THE SOFTWARE.
                 addonGroup.visible = false;
                 layerSlider.value = 0;
                 layerGroup.visible = false;
-                setPreviewMode(false);
+                frameGroupSlider.visible = false;
+				frameGroupSlider.value = 0;
+				updateFrameGroupNameLabel()
 
                 if (thingData) {
-
                     var isOutfit:Boolean = (thingData.category == ThingCategory.OUTFIT);
                     var isMissile:Boolean = (thingData.category == ThingCategory.MISSILE);
                     directionGroup.visible = (isOutfit || isMissile);
                     topLeftButton.visible = isMissile;
-                    topRightButton.visible = isMissile;
+                    topRightButton.visible = isMissile;6
                     bottomRightButton.visible = isMissile;
                     bottomLeftButton.visible = isMissile;
-                    addonGroup.visible = (isOutfit && thingData.thing.patternY > 1);
-                    cropSizeNumericStepper.maximum = Math.max(thingData.thing.width * 32, thingData.thing.height * 32);
+
+					var thing:ThingType = thingData.thing;
+                    thingView.frameGroupType = FrameGroupType.DEFAULT;
 
                     _thingBinding.copyFrom(thingData);
+                    setCurrentFrameGroup(_thingBinding.getFrameGroup(thingView.frameGroupType))
 
-                    animationModeDropDownList.selectedIndex = _thingBinding.animationMode;
-                    loopCountNumericStepper.value = _thingBinding.loopCount;
-                    startFrameNumericStepper.value = _thingBinding.startFrame;
-                    frameStrategyDropDownList.selectedIndex = _thingBinding.loopCount != -1 ? 0 : 1;
+                    addonGroup.visible = (isOutfit && _frameGroup.patternY > 1);
+                    cropSizeNumericStepper.maximum = Math.max(_frameGroup.width * 32, _frameGroup.height * 32);
+
+					frameGroupSlider.visible = (isOutfit && _thingBinding.groups > 1);
+                    animationModeDropDownList.selectedIndex = _frameGroup.animationMode;
+                    loopCountNumericStepper.value = _frameGroup.loopCount;
+                    startFrameNumericStepper.value = _frameGroup.startFrame;
+                    frameStrategyDropDownList.selectedIndex = _frameGroup.loopCount != -1 ? 0 : 1;
 
                     if (isOutfit || isMissile)
                         selectDirectionButton(bottomCenterButton);
                     else
                         updatePreview();
                 }
+
+				setPreviewMode(false);
 
                 _changed = false;
                 _loading = false;
@@ -265,7 +307,7 @@ THE SOFTWARE.
                 if (!this.thingData || !info) return;
 
                 var category:String = thingData.category;
-                var visible:Boolean = (category == ThingCategory.ITEM || category == ThingCategory.OUTFIT);
+                var visible:Boolean = category != ThingCategory.MISSILE;
                 flagsGroupBox.visible = visible;
                 flagsGroupBox.includeInLayout = visible;
 
@@ -359,6 +401,18 @@ THE SOFTWARE.
                 usableCheckBox.visible = visible;
                 usableCheckBox.includeInLayout = visible;
 
+                visible = (info.clientVersion >= 710 && info.clientVersion <= 792) || (info.clientVersion >= 1092);
+                wrappableCheckBox.visible = isItem && visible;
+                wrappableCheckBox.includeInLayout = isItem && visible;
+                unwrappableCheckBox.visible = isItem && visible;
+                unwrappableCheckBox.includeInLayout = isItem && visible;
+                topEffectCheckBox.visible = visible && category == ThingCategory.EFFECT;
+                topEffectCheckBox.includeInLayout = visible && category == ThingCategory.EFFECT;
+
+				visible = (_thingBinding.category == ThingCategory.OUTFIT && info.frameGroups);
+				frameGroupsLabel.visible = visible;
+				frameGroupsNumericStepper.visible = visible;
+
                 updateAnimationControls();
             }
 
@@ -367,8 +421,8 @@ THE SOFTWARE.
                 var category:String = _thingBinding.category;
                 var visible:Boolean = false;
 
-                if (_thingBinding && _filesInfo && _filesInfo.improvedAnimations && _thingBinding.frames > 1) {
-                    if (category == ThingCategory.ITEM || (category == ThingCategory.OUTFIT && _thingBinding.animateAlways)) {
+                if (_thingBinding && _filesInfo && _filesInfo.improvedAnimations && _frameGroup.frames > 1 && _frameGroup.type == FrameGroupType.DEFAULT) {
+                    if (category == ThingCategory.ITEM || category == ThingCategory.EFFECT || (category == ThingCategory.OUTFIT && (_thingBinding.animateAlways || _thingBinding.groups > 1))) {
                         visible = true;
                     }
                 }
@@ -385,27 +439,27 @@ THE SOFTWARE.
             {
                 removeButtons();
 
-                if (!_thingData) return;
+                if (!_thingData || !_frameGroup) return;
 
-                var width:uint = _thingBinding.width;
-                var height:uint = _thingBinding.height;
+                var width:uint = _frameGroup.width;
+                var height:uint = _frameGroup.height;
                 var size:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
                 var bitmapWidth:Number = Math.max(size, width * size);
                 var bitmapHeight:Number = Math.max(size, height * size);
                 var bitmap:BitmapData = new BitmapData(bitmapWidth, bitmapHeight, true, 0x00FF00FF);
                 var f:uint = animationSlider.value;
                 var l:uint = layerSlider.value;
-                var x:uint = _patternX % _thingBinding.patternX;
-                var y:uint = (_patternY + addonsSlider.value) % _thingBinding.patternY;
+                var x:uint = _patternX % _frameGroup.patternX;
+                var y:uint = (_patternY + addonsSlider.value) % _frameGroup.patternY;
                 var z:uint = mountSlider.value;
 
                 for (var w:uint = 0; w < width; w++) {
                     for (var h:uint = 0; h < height; h++) {
-                        var index:int = getSpriteIndex(_thingBinding, w, h, l, x, y, z, f);
-                        var id:uint = _thingBinding.spriteIndex[index];
+                        var index:int = _frameGroup.getSpriteIndex(w, h, l, x, y, z, f);
+                        var id:uint = _frameGroup.spriteIndex[index];
                         var px:int = ((width - w - 1) * size);
                         var py:int = ((height - h - 1) * size);
-                        copyPixels(index, bitmap, px, py);
+                        copyPixels(_frameGroup.type, index, bitmap, px, py);
                         addButton(index, id, px, py);
                     }
                 }
@@ -424,11 +478,11 @@ THE SOFTWARE.
 
                 if (!_thingData) return;
 
-                var width:uint = _thingBinding.width;
-                var height:uint = _thingBinding.height;
-                var layers:uint = _thingBinding.layers;
-                var patternX:uint = _thingBinding.patternX;
-                var patternY:uint = _thingBinding.patternY;
+                var width:uint = _frameGroup.width;
+                var height:uint = _frameGroup.height;
+                var layers:uint = _frameGroup.layers;
+                var patternX:uint = _frameGroup.patternX;
+                var patternY:uint = _frameGroup.patternY;
                 var size:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
                 var bitmapWidth:Number  = Math.max(size, (patternX * width) * size);
                 var bitmapHeight:Number = Math.max(size, (patternY * height) * size);
@@ -445,11 +499,11 @@ THE SOFTWARE.
                         var fy:int = y * pixelsHeight;
                         for (var w:uint = 0; w < width; w++) {
                             for (var h:uint = 0; h < height; h++) {
-                                var index:int = getSpriteIndex(_thingBinding, w, h, l, x, y, z, f);
-                                var id:uint = _thingBinding.spriteIndex[index];
+                                var index:int = _frameGroup.getSpriteIndex(w, h, l, x, y, z, f);
+                                var id:uint = _frameGroup.spriteIndex[index];
                                 var px:int = ((width - w - 1) * size) + fx;
                                 var py:int = ((height - h - 1) * size) + fy;
-                                copyPixels(index, bitmap, px, py);
+                                copyPixels(frameGroupSlider.value, index, bitmap, px, py);
                                 addButton(index, id, px, py);
                             }
                         }
@@ -493,8 +547,8 @@ THE SOFTWARE.
                     size > 0 &&
                     buttonsContainer.width > 0 &&
                     buttonsContainer.height > 0) {
-                    var w:uint = Math.min(_thingBinding.width * 32, size);
-                    var h:uint = Math.min(_thingBinding.height * 32, size);
+                    var w:uint = Math.min(_frameGroup.width * 32, size);
+                    var h:uint = Math.min(_frameGroup.height * 32, size);
                     var px:int = bitmapView.width - w;
                     var py :int = bitmapView.height - h;
                     buttonsContainer.graphics.lineStyle(1, 0x00FF00);
@@ -525,20 +579,9 @@ THE SOFTWARE.
                 }
             }
 
-            private function getSpriteIndex(thing:BindableThingType, w:int, h:int, l:int, x:int, y:int, z:int, f:int):uint
+            private function copyPixels(groupType:uint, index:uint, bitmap:BitmapData, x:uint, y:uint):void
             {
-                return ((((((f % thing.frames)
-                    * thing.patternZ + z)
-                    * thing.patternY + y)
-                    * thing.patternX + x)
-                    * thing.layers + l)
-                    * thing.height + h)
-                    * thing.width + w;
-            }
-
-            private function copyPixels(index:uint, bitmap:BitmapData, x:uint, y:uint):void
-            {
-                var bmp:BitmapData = _thingBinding.getSpriteBitmap(index);
+                var bmp:BitmapData = _thingBinding.getSpriteBitmap(groupType, index);
                 if (bmp) {
                     _point.x = x;
                     _point.y = y;
@@ -618,10 +661,13 @@ THE SOFTWARE.
             private function setPreviewMode(enabled:Boolean):void
             {
                 var thingData:ThingData;
+                var frameGroupType:uint = FrameGroupType.DEFAULT;
 
                 _previewMode = enabled;
                 if (_previewMode) {
                     thingData = _thingBinding.toThingData(_thingData.clientVersion);
+                    frameGroupType = _frameGroup.type;
+
                     thingView.outfitData = new OutfitData(0, 0, 0, 0, addonsSlider.value);
                     _lastAnimationFrame = animationSlider.value;
                 } else {
@@ -632,6 +678,8 @@ THE SOFTWARE.
                     playAnimationButton.selected = _previewMode;
 
                 thingView.thingData = thingData;
+                thingView.frameGroupType = frameGroupType;
+
                 thingView.visible = _previewMode;
                 if (_previewMode) thingView.play();
 
@@ -645,6 +693,7 @@ THE SOFTWARE.
                 maximumGroup.enabled = controlsEnabled;
                 layerGroup.enabled = controlsEnabled;
                 animationTileGroup.enabled = controlsEnabled;
+				frameGroup.enabled = controlsEnabled;
             }
 
             private function setAnimationSlide(value:uint):void
@@ -656,8 +705,6 @@ THE SOFTWARE.
             private function propertyChanged(property:String, oldValue:Object, newValue:Object):void
             {
                 _changed = true;
-
-                //trace(property, oldValue, newValue);
 
                 var evt:ThingEditorEvent = new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, this.thingData);
                 evt.property = BindableThingType.toLabel(property);
@@ -703,7 +750,7 @@ THE SOFTWARE.
                 var source:DragSource = event.dragSource;
                 var spriteData:SpriteData = source.dataForFormat(source.formats[0])[0] as SpriteData;
                 if (spriteData) {
-                    _thingBinding.setSprite(index, spriteData);
+                    _thingBinding.setSprite(frameGroupSlider.value, index, spriteData);
                     updatePreview();
                 }
             }
@@ -728,9 +775,25 @@ THE SOFTWARE.
                 }
             }
 
+            protected function checkFrameGroups(event:Event):void
+            {
+                if(_thingBinding.groups > 1)
+                {
+                    var group:FrameGroup = _thingBinding.getFrameGroup(FrameGroupType.WALKING)
+                    if(!group)
+                    {
+                        group = new FrameGroup();
+                        group.type = FrameGroupType.WALKING;
+                        group.makeOutfitGroup();
+
+                        _thingBinding.setFrameGroup(FrameGroupType.WALKING, group)
+                    }
+                }
+            }
+
             protected function textureUpdate(event:Event):void
             {
-                _thingBinding.updateSpriteCount();
+                _thingBinding.updateSpriteCount(_frameGroup);
                 updatePreview();
             }
 
@@ -763,18 +826,81 @@ THE SOFTWARE.
                 setPreviewMode(false);
             }
 
+            protected function groupsNumericStepperChangeHandler(event:Event):void
+            {
+                var oldValue:int = _thingBinding.groups;
+				_thingBinding.groups = frameGroupsNumericStepper.value;
+                propertyChanged("frameGroups", oldValue, _frameGroup.width);
+            }
+
+            protected function widthNumericStepperChangeHandler(event:Event):void
+            {
+                var oldValue:int = _frameGroup.width;
+				_frameGroup.width = widthNumericStepper.value;
+                propertyChanged("width", oldValue, _frameGroup.width);
+            }
+
+            protected function heightNumericStepperChangeHandler(event:Event):void
+            {
+                var oldValue:int = _frameGroup.height;
+				_frameGroup.height = heightNumericStepper.value;
+                propertyChanged("height", oldValue, _frameGroup.height);
+            }
+
+            protected function exactSizeNumericStepperChangeHandler(event:Event):void
+            {
+                var oldValue:int = _frameGroup.exactSize;
+				_frameGroup.exactSize = cropSizeNumericStepper.value;
+                propertyChanged("exactSize", oldValue, _frameGroup.exactSize);
+            }
+
+            protected function layersNumericStepperChangeHandler(event:Event):void
+            {
+                var oldValue:int = _frameGroup.layers;
+				_frameGroup.layers = layersNumericStepper.value;
+                propertyChanged("layers", oldValue, _frameGroup.layers);
+            }
+
+            protected function patternXNumericStepperChangeHandler(event:Event):void
+            {
+                var oldValue:int = _frameGroup.patternX;
+				_frameGroup.patternX = patternXNumericStepper.value;
+                propertyChanged("patternX", oldValue, _frameGroup.patternX);
+            }
+
+            protected function patternYNumericStepperChangeHandler(event:Event):void
+            {
+                var oldValue:int = _frameGroup.patternY;
+				_frameGroup.patternY = patternYNumericStepper.value;
+                propertyChanged("patternY", oldValue, _frameGroup.patternY);
+            }
+
+            protected function patternZNumericStepperChangeHandler(event:Event):void
+            {
+                var oldValue:int = _frameGroup.patternZ;
+				_frameGroup.patternZ = patternZNumericStepper.value;
+                propertyChanged("patternZ", oldValue, _frameGroup.patternZ);
+            }
+
+            protected function framesNumericStepperChangeHandler(event:Event):void
+            {
+                var oldValue:int = _frameGroup.frames;
+				_frameGroup.frames = framesNumericStepper.value;
+                propertyChanged("frames", oldValue, _frameGroup.frames);
+            }
+
             protected function minimumNumericStepperChangeHandler(event:Event):void
             {
                 if (minimumNumericStepper.value > maximumNumericStepper.value)
                     maximumNumericStepper.value = minimumNumericStepper.value;
 
-                var oldDuration:FrameDuration = _thingBinding.frameDurations[animationSlider.value];
+                var oldDuration:FrameDuration = _frameGroup.frameDurations[animationSlider.value];
                 var newDuration:FrameDuration = oldDuration.clone();
                 newDuration.minimum = minimumNumericStepper.value;
                 newDuration.maximum = maximumNumericStepper.value;
 
                 if (!oldDuration.equals(newDuration)) {
-                    _thingBinding.frameDurations[animationSlider.value] = newDuration;
+					_frameGroup.frameDurations[animationSlider.value] = newDuration;
 
                     if (oldDuration.minimum != newDuration.minimum)
                         propertyChanged("minimumDuration", oldDuration.minimum, newDuration.minimum);
@@ -789,13 +915,13 @@ THE SOFTWARE.
                 if (maximumNumericStepper.value < minimumNumericStepper.value)
                     minimumNumericStepper.value = maximumNumericStepper.value;
 
-                var oldDuration:FrameDuration = _thingBinding.frameDurations[animationSlider.value];
+                var oldDuration:FrameDuration = _frameGroup.frameDurations[animationSlider.value];
                 var newDuration:FrameDuration = oldDuration.clone();
                 newDuration.minimum = minimumNumericStepper.value;
                 newDuration.maximum = maximumNumericStepper.value;
 
                 if (!oldDuration.equals(newDuration)) {
-                    _thingBinding.frameDurations[animationSlider.value] = newDuration;
+					_frameGroup.frameDurations[animationSlider.value] = newDuration;
 
                     if (oldDuration.minimum != newDuration.minimum)
                         propertyChanged("minimumDuration", oldDuration.minimum, newDuration.minimum);
@@ -807,33 +933,33 @@ THE SOFTWARE.
 
             protected function animationModeDropDownListChangeHandler(event:IndexChangeEvent):void
             {
-                var oldValue:uint = _thingBinding.animationMode;
-                _thingBinding.animationMode = animationModeDropDownList.selectedIndex;
-                propertyChanged("animationMode", oldValue, _thingBinding.animationMode);
+                var oldValue:uint = _frameGroup.animationMode;
+				_frameGroup.animationMode = animationModeDropDownList.selectedIndex;
+                propertyChanged("animationMode", oldValue, _frameGroup.animationMode);
             }
 
             protected function frameStrategyDropDownListChangeHandler(event:IndexChangeEvent):void
             {
                 var loop:Boolean = frameStrategyDropDownList.selectedIndex == 0;
 
-                var oldValue:int = _thingBinding.loopCount;
-                _thingBinding.loopCount = loop ? loopCountNumericStepper.value : -1;
+                var oldValue:int = _frameGroup.loopCount;
+				_frameGroup.loopCount = loop ? loopCountNumericStepper.value : -1;
                 loopCountNumericStepper.enabled = loop;
-                propertyChanged("loopCount", oldValue, _thingBinding.loopCount);
+                propertyChanged("loopCount", oldValue, _frameGroup.loopCount);
             }
 
             protected function loopCountNumericStepperChangeHandler(event:Event):void
             {
-                var oldValue:int = _thingBinding.loopCount;
-                _thingBinding.loopCount = loopCountNumericStepper.value;
-                propertyChanged("loopCount", oldValue, _thingBinding.loopCount);
+                var oldValue:int = _frameGroup.loopCount;
+				_frameGroup.loopCount = loopCountNumericStepper.value;
+                propertyChanged("loopCount", oldValue, _frameGroup.loopCount);
             }
 
             protected function startFrameNumericStepperChangeHandler(event:Event):void
             {
-                var oldValue:int = _thingBinding.startFrame;
-                _thingBinding.startFrame = startFrameNumericStepper.value;
-                propertyChanged("startFrame", oldValue, _thingBinding.startFrame);
+                var oldValue:int = _frameGroup.startFrame;
+				_frameGroup.startFrame = startFrameNumericStepper.value;
+                propertyChanged("startFrame", oldValue, _frameGroup.startFrame);
             }
 
         ]]>
@@ -867,49 +993,49 @@ THE SOFTWARE.
                                                 top="0" left="0"
                                                 direction="{Direction.NORTHWEST}"
                                                 toolTip="@Resource(key='northwest', bundle='strings')"
-                                                icon="@Embed('../../../assets/icons/arrow_top_left.png')"
+                                                icon="@Embed('/../assets/icons/arrow_top_left.png')"
                                                 click="directionButtonClickHandler(event)"/>
                                 <otlib:DirectionButton id="topCenterButton"
                                                 top="0" horizontalCenter="0"
                                                 direction="{Direction.NORTH}"
                                                 toolTip="@Resource(key='north', bundle='strings')"
-                                                icon="@Embed('../../../assets/icons/arrow_up.png')"
+                                                icon="@Embed('/../assets/icons/arrow_up.png')"
                                                 click="directionButtonClickHandler(event)"/>
                                 <otlib:DirectionButton id="topRightButton"
                                                 top="0" right="0"
                                                 direction="{Direction.NORTHEAST}"
                                                 toolTip="@Resource(key='northeast', bundle='strings')"
-                                                icon="@Embed('../../../assets/icons/arrow_top_right.png')"
+                                                icon="@Embed('/../assets/icons/arrow_top_right.png')"
                                                 click="directionButtonClickHandler(event)"/>
                                 <otlib:DirectionButton id="middleRightButton"
                                                 verticalCenter="0" right="0"
                                                 direction="{Direction.EAST}"
                                                 toolTip="@Resource(key='east', bundle='strings')"
-                                                icon="@Embed('../../../assets/icons/arrow_right.png')"
+                                                icon="@Embed('/../assets/icons/arrow_right.png')"
                                                 click="directionButtonClickHandler(event)"/>
                                 <otlib:DirectionButton id="bottomRightButton"
                                                 bottom="0" right="0"
                                                 direction="{Direction.SOUTHEAST}"
                                                 toolTip="@Resource(key='southeast', bundle='strings')"
-                                                icon="@Embed('../../../assets/icons/arrow_bottom_right.png')"
+                                                icon="@Embed('/../assets/icons/arrow_bottom_right.png')"
                                                 click="directionButtonClickHandler(event)"/>
                                 <otlib:DirectionButton id="bottomCenterButton"
                                                 bottom="0" horizontalCenter="0"
                                                 direction="{Direction.SOUTH}"
                                                 toolTip="@Resource(key='south', bundle='strings')"
-                                                icon="@Embed('../../../assets/icons/arrow_down.png')"
+                                                icon="@Embed('/../assets/icons/arrow_down.png')"
                                                 click="directionButtonClickHandler(event)"/>
                                 <otlib:DirectionButton id="bottomLeftButton"
                                                 bottom="0" left="0"
                                                 direction="{Direction.SOUTHWEST}"
                                                 toolTip="@Resource(key='southwest', bundle='strings')"
-                                                icon="@Embed('../../../assets/icons/arrow_bottom_left.png')"
+                                                icon="@Embed('/../assets/icons/arrow_bottom_left.png')"
                                                 click="directionButtonClickHandler(event)"/>
                                 <otlib:DirectionButton id="middleLeftButton"
                                                 bottom="0" verticalCenter="0"
                                                 direction="{Direction.WEST}"
                                                 toolTip="@Resource(key='west', bundle='strings')"
-                                                icon="@Embed('../../../assets/icons/arrow_left.png')"
+                                                icon="@Embed('/../assets/icons/arrow_left.png')"
                                                 click="directionButtonClickHandler(event)"/>
                             </s:Group>
 
@@ -943,10 +1069,10 @@ THE SOFTWARE.
                         <s:HGroup id="animationGroup" width="100%"
                                   verticalAlign="middle"
                                   horizontalAlign="right"
-                                  visible="{_thingBinding.frames > 1}">
+                                  visible="{_frameGroup.frames > 1}">
                             <s:Label text="{resourceManager.getString('strings', 'animations') + ':'}"/>
                             <otlib:PatternSlider id="animationSlider"
-                                                 maximum="{_thingBinding.frames - 1}"
+                                                 maximum="{_frameGroup.frames - 1}"
                                                  change="updatePreview()"/>
                             <s:Label id="animationCountLabel"
                                      minWidth="40"/>
@@ -982,7 +1108,7 @@ THE SOFTWARE.
                                   visible="false">
                             <s:Label text="{resourceManager.getString('strings', 'addons') + ':'}"/>
                             <otlib:PatternSlider id="addonsSlider"
-                                                 maximum="{_thingBinding.patternY - 1}"
+                                                 maximum="{_frameGroup.patternY - 1}"
                                                  change="updatePreview()"/>
                             <s:Label id="addonCountLabel"
                                      minWidth="40"/>
@@ -993,12 +1119,26 @@ THE SOFTWARE.
                                   verticalAlign="middle"
                                   horizontalAlign="right"
                                   paddingRight="27"
-                                  visible="{_thingBinding.patternZ > 1}">
+                                  visible="{_frameGroup.patternZ > 1}">
                             <s:Label text="{resourceManager.getString('strings', 'mount') + ':'}"/>
                             <otlib:PatternSlider id="mountSlider"
-                                                 maximum="{_thingBinding.patternZ - 1}"
+                                                 maximum="{_frameGroup.patternZ - 1}"
                                                  change="updatePreview()"/>
                             <s:Label id="mountCountLabel"
+                                     minWidth="40"/>
+                        </s:HGroup>
+
+						<s:HGroup id="frameGroup"
+                                  width="100%"
+                                  verticalAlign="middle"
+                                  horizontalAlign="right"
+                                  visible="{_thingBinding.groups > 1}">
+                            <s:Label text="{'Group:'}"/>
+                            <otlib:PatternSlider id="frameGroupSlider"
+												 minimum="0"
+                                                 maximum="{_thingBinding.groups - 1}"
+                                                 change="frameGroupSliderChange()"/>
+                            <s:Label id="frameGroupNameLabel"
                                      minWidth="40"/>
                         </s:HGroup>
 
@@ -1007,10 +1147,10 @@ THE SOFTWARE.
                                   verticalAlign="middle"
                                   horizontalAlign="right"
                                   paddingRight="27"
-                                  visible="{_thingBinding.layers > 1}">
+                                  visible="{_frameGroup.layers > 1}">
                             <s:Label text="{resourceManager.getString('strings', 'layer') + ':'}"/>
                             <otlib:PatternSlider id="layerSlider"
-                                                 maximum="{_thingBinding.layers - 1}"
+                                                 maximum="{_frameGroup.layers - 1}"
                                                  change="updatePreview()"/>
                             <s:Label id="layerCountLabel"
                                      minWidth="40"/>
@@ -1033,55 +1173,64 @@ THE SOFTWARE.
                         <s:TileGroup id="patternsTileGroup" right="35"
                                      requestedColumnCount="2"
                                      padding="10">
-
+							<s:Label id="frameGroupsLabel"
+                                    text="{resourceManager.getString('strings', 'frameGroups') + ':'}"
+									verticalAlign="middle"
+									textAlign="right"/>
+							<s:NumericStepper id="frameGroupsNumericStepper"
+									width="70"
+									minimum="1"
+									maximum="2"
+									value="{_thingBinding.groups}"
+									change="{groupsNumericStepperChangeHandler(event); checkFrameGroups(event); textureUpdate(event);}"/>
                             <s:Label text="{resourceManager.getString('strings', 'width') + ':'}"
                                      verticalAlign="middle"
                                      textAlign="right"/>
                             <s:NumericStepper id="widthNumericStepper"
                                               width="70"
                                               minimum="1"
-                                              value="{_thingBinding.width}"
-                                              change="{_thingBinding.width = widthNumericStepper.value; textureUpdate(event);}"/>
+                                              value="{_frameGroup.width}"
+                                              change="{widthNumericStepperChangeHandler(event); textureUpdate(event);}"/>
                             <s:Label text="{resourceManager.getString('strings', 'height') + ':'}"
                                      verticalAlign="middle"
                                      textAlign="right"/>
                             <s:NumericStepper id="heightNumericStepper"
                                               width="70"
                                               minimum="1"
-                                              value="{_thingBinding.height}"
-                                              change="{_thingBinding.height = heightNumericStepper.value; textureUpdate(event);}"/>
+                                              value="{_frameGroup.height}"
+											  change="{heightNumericStepperChangeHandler(event); textureUpdate(event);}"/>
                             <s:Label text="{resourceManager.getString('strings', 'cropSize') + ':'}"
                                      verticalAlign="middle"
                                      textAlign="right"/>
                             <s:NumericStepper id="cropSizeNumericStepper"
                                               width="70"
                                               maximum="1000"
-                                              value="{_thingBinding.exactSize}"
-                                              change="{_thingBinding.exactSize = cropSizeNumericStepper.value; textureUpdate(event);}"/>
+                                              value="{_frameGroup.exactSize}"
+											  change="{exactSizeNumericStepperChangeHandler(event); textureUpdate(event);}"/>
                             <s:Label text="{resourceManager.getString('strings', 'layers') + ':'}"
                                      verticalAlign="middle"
                                      textAlign="right"/>
                             <s:NumericStepper id="layersNumericStepper"
                                               width="70"
                                               minimum="1"
-                                              value="{_thingBinding.layers}"
-                                              change="{_thingBinding.layers = layersNumericStepper.value; textureUpdate(event);}"/>
+                                              value="{_frameGroup.layers}"
+											  change="{layersNumericStepperChangeHandler(event); textureUpdate(event);}"/>
                             <s:Label text="{resourceManager.getString('strings', 'patternX') + ':'}"
                                      verticalAlign="middle"
                                      textAlign="right"/>
                             <s:NumericStepper id="patternXNumericStepper"
                                               width="70"
                                               minimum="1"
-                                              value="{_thingBinding.patternX}"
-                                              change="{_thingBinding.patternX = patternXNumericStepper.value; textureUpdate(event);}"/>
+                                              value="{_frameGroup.patternX}"
+											  change="{patternXNumericStepperChangeHandler(event); textureUpdate(event);}"/>
                             <s:Label text="{resourceManager.getString('strings', 'patternY') + ':'}"
                                      verticalAlign="middle"
                                      textAlign="right"/>
                             <s:NumericStepper id="patternYNumericStepper"
                                               width="70"
                                               minimum="1"
-                                              value="{_thingBinding.patternY}"
-                                              change="{_thingBinding.patternY = patternYNumericStepper.value; textureUpdate(event);}"/>
+                                              value="{_frameGroup.patternY}"
+											  change="{patternYNumericStepperChangeHandler(event); textureUpdate(event);}"/>
                             <s:Label id="patternZLabel"
                                      text="{resourceManager.getString('strings', 'patternZ') + ':'}"
                                      verticalAlign="middle"
@@ -1089,8 +1238,8 @@ THE SOFTWARE.
                             <s:NumericStepper id="patternZNumericStepper"
                                               width="70"
                                               minimum="1"
-                                              value="{_thingBinding.patternZ}"
-                                              change="{_thingBinding.patternZ = patternZNumericStepper.value; textureUpdate(event);}"/>
+                                              value="{_frameGroup.patternZ}"
+											  change="{patternZNumericStepperChangeHandler(event); textureUpdate(event);}"/>
                             <s:Label text="{resourceManager.getString('strings', 'animations') + ':'}"
                                      verticalAlign="middle"
                                      textAlign="right"/>
@@ -1098,8 +1247,8 @@ THE SOFTWARE.
                                               width="70"
                                               minimum="1"
                                               maximum="60"
-                                              value="{_thingBinding.frames}"
-                                              change="{_thingBinding.frames = framesNumericStepper.value; textureUpdate(event); updateAnimationControls();}"/>
+                                              value="{_frameGroup.frames}"
+											  change="{framesNumericStepperChangeHandler(event); textureUpdate(event); updateAnimationControls();}"/>
                         </s:TileGroup>
                     </mg:GroupBox>
 
@@ -1107,8 +1256,8 @@ THE SOFTWARE.
                     <mg:GroupBox id="animationGroupBox"
                                  label="@Resource(key='animation', bundle='strings')"
                                  width="100%"
-                                 visible="{_thingBinding.frames > 1}"
-                                 includeInLayout="{_thingBinding.frames > 1}">
+                                 visible="{_frameGroup.frames > 1}"
+                                 includeInLayout="{_frameGroup.frames > 1}">
                         <s:TileGroup id="animationTileGroup"
                                      right="35"
                                      requestedColumnCount="2"
@@ -1158,7 +1307,7 @@ THE SOFTWARE.
                             <s:NumericStepper id="startFrameNumericStepper"
                                               width="70"
                                               minimum="-1"
-                                              maximum="{_thingBinding.frames - 1}"
+                                              maximum="{_frameGroup.frames - 1}"
                                               change="startFrameNumericStepperChangeHandler(event)"/>
                         </s:TileGroup>
                     </mg:GroupBox>
@@ -1732,6 +1881,18 @@ THE SOFTWARE.
                                         label="@Resource(key='floorChange', bundle='strings')"
                                         selected="{_thingBinding.floorChange}"
                                         change="{_thingBinding.floorChange = floorChangeCheckBox.selected;}"/>
+                            <s:CheckBox id="wrappableCheckBox"
+                                        label="@Resource(key='wrappable', bundle='strings')"
+                                        selected="{_thingBinding.wrappable}"
+                                        change="{_thingBinding.wrappable = wrappableCheckBox.selected;}"/>
+                            <s:CheckBox id="unwrappableCheckBox"
+                                        label="@Resource(key='unwrappable', bundle='strings')"
+                                        selected="{_thingBinding.unwrappable}"
+                                        change="{_thingBinding.unwrappable = unwrappableCheckBox.selected;}"/>
+                            <s:CheckBox id="topEffectCheckBox"
+                                        label="@Resource(key='topEffect', bundle='strings')"
+                                        selected="{_thingBinding.topEffect}"
+                                        change="{_thingBinding.topEffect = topEffectCheckBox.selected;}"/>
                         </s:VGroup>
                     </mg:GroupBox>
                 </s:Group>

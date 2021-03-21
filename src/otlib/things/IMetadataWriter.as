@@ -28,6 +28,6 @@ package otlib.things
     {
         function writeProperties(type:ThingType):Boolean;
         function writeItemProperties(type:ThingType):Boolean;
-        function writeTexturePatterns(type:ThingType, extended:Boolean, frameDurations:Boolean):Boolean;
+        function writeTexturePatterns(type:ThingType, extended:Boolean, frameDurations:Boolean, frameGroups:Boolean):Boolean;
     }
 }

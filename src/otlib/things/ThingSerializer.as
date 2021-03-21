@@ -151,6 +151,15 @@ package otlib.things
                         thing.isLensHelp = true;
                         thing.lensHelp = input.readUnsignedShort();
                         break;
+                    case MetadataFlags1.WRAPPABLE:
+                        thing.wrappable = true;
+                        break;
+                    case MetadataFlags1.UNWRAPPABLE:
+                        thing.unwrappable = true;
+                        break;
+                    case MetadataFlags1.TOP_EFFECT:
+                        thing.topEffect = true;
+                        break;
                     default:
                         throw new Error(Resources.getString(
                             "readUnknownFlag",
@@ -273,6 +282,15 @@ package otlib.things
                     case MetadataFlags2.LENS_HELP:
                         thing.isLensHelp = true;
                         thing.lensHelp = input.readUnsignedShort();
+                        break;
+                    case MetadataFlags2.WRAPPABLE:
+                        thing.wrappable = true;
+                        break;
+                    case MetadataFlags2.UNWRAPPABLE:
+                        thing.unwrappable = true;
+                        break;
+                    case MetadataFlags2.TOP_EFFECT:
+                        thing.topEffect = true;
                         break;
                     default:
                         throw new Error(Resources.getString(
@@ -834,6 +852,15 @@ package otlib.things
                         thing.hasDefaultAction = true;
                         thing.defaultAction = input.readUnsignedShort();
                         break;
+                    case MetadataFlags6.WRAPPABLE:
+                        thing.wrappable = true;
+                        break;
+                    case MetadataFlags6.UNWRAPPABLE:
+                        thing.unwrappable = true;
+                        break;
+                    case MetadataFlags6.TOP_EFFECT:
+                        thing.topEffect = true;
+                        break; 
                     case MetadataFlags6.USABLE:
                         thing.usable = true;
                         break;
@@ -845,67 +872,6 @@ package otlib.things
                             Resources.getString(thing.category),
                             thing.id));
                 }
-            }
-            return true;
-        }
-
-        /**
-         * Read sprites.
-         */
-        public static function readSprites(thing:ThingType,
-                                           input:IDataInput,
-                                           extended:Boolean,
-                                           readPatternZ:Boolean,
-                                           readFrameDuration:Boolean):Boolean
-        {
-            var i:uint;
-
-            thing.width = input.readUnsignedByte();
-            thing.height = input.readUnsignedByte();
-
-            if (thing.width > 1 || thing.height > 1)
-                thing.exactSize = input.readUnsignedByte();
-            else
-                thing.exactSize = Sprite.DEFAULT_SIZE;
-
-            thing.layers = input.readUnsignedByte();
-            thing.patternX = input.readUnsignedByte();
-            thing.patternY = input.readUnsignedByte();
-            thing.patternZ = readPatternZ ? input.readUnsignedByte() : 1;
-            thing.frames = input.readUnsignedByte();
-            if (thing.frames > 1) {
-                thing.isAnimation = true;
-                thing.frameDurations = new Vector.<FrameDuration>(thing.frames, true);
-
-                if (readFrameDuration) {
-                    thing.animationMode = input.readUnsignedByte();
-                    thing.loopCount = input.readInt();
-                    thing.startFrame = input.readByte();
-
-                    for (i = 0; i < thing.frames; i++)
-                    {
-                        var minimum:uint = input.readUnsignedInt();
-                        var maximum:uint = input.readUnsignedInt();
-                        thing.frameDurations[i] = new FrameDuration(minimum, maximum);
-                    }
-                } else {
-
-                    var duration:uint = FrameDuration.getDefaultDuration(thing.category);
-                    for (i = 0; i < thing.frames; i++)
-                        thing.frameDurations[i] = new FrameDuration(duration, duration);
-                }
-            }
-
-            var totalSprites:uint = thing.getTotalSprites();
-            if (totalSprites > 4096)
-                throw new Error("A thing type has more than 4096 sprites.");
-
-            thing.spriteIndex = new Vector.<uint>(totalSprites);
-            for (i = 0; i < totalSprites; i++) {
-                if (extended)
-                    thing.spriteIndex[i] = input.readUnsignedInt();
-                else
-                    thing.spriteIndex[i] = input.readUnsignedShort();
             }
             return true;
         }
@@ -968,6 +934,9 @@ package otlib.things
                 output.writeByte(MetadataFlags1.LENS_HELP);
                 output.writeShort(thing.lensHelp);
             }
+            if (thing.wrappable) output.writeByte(MetadataFlags1.WRAPPABLE);
+            if (thing.unwrappable) output.writeByte(MetadataFlags1.UNWRAPPABLE);
+            if (thing.topEffect && thing.category == ThingCategory.EFFECT) output.writeByte(MetadataFlags1.TOP_EFFECT);
             output.writeByte(LAST_FLAG); // Close flags
             return true;
         }
@@ -1033,6 +1002,9 @@ package otlib.things
                 output.writeByte(MetadataFlags2.LENS_HELP);
                 output.writeShort(thing.lensHelp);
             }
+            if (thing.wrappable) output.writeByte(MetadataFlags2.WRAPPABLE);
+            if (thing.unwrappable) output.writeByte(MetadataFlags2.UNWRAPPABLE);
+            if (thing.topEffect && thing.category == ThingCategory.EFFECT) output.writeByte(MetadataFlags2.TOP_EFFECT);
             output.writeByte(LAST_FLAG); // Close flags
             return true;
         }
@@ -1349,57 +1321,13 @@ package otlib.things
                 output.writeByte(MetadataFlags6.DEFAULT_ACTION);
                 output.writeShort(thing.defaultAction);
             }
+            if (thing.wrappable) output.writeByte(MetadataFlags6.WRAPPABLE);
+            if (thing.unwrappable) output.writeByte(MetadataFlags6.UNWRAPPABLE);
+            if (thing.topEffect && thing.category == ThingCategory.EFFECT) output.writeByte(MetadataFlags6.TOP_EFFECT);
             if (thing.usable) {
                 output.writeByte(MetadataFlags6.USABLE);
             }
             output.writeByte(LAST_FLAG); // Close flags
-            return true;
-        }
-
-        /**
-         * Write sprites.
-         */
-        public static function writeSprites(thing:ThingType,
-                                            output:IDataOutput,
-                                            extended:Boolean,
-                                            writePatternZ:Boolean,
-                                            writeFrameDuration:Boolean):Boolean
-        {
-            var i:uint;
-
-            output.writeByte(thing.width);  // Write width
-            output.writeByte(thing.height); // Write height
-
-            if (thing.width > 1 || thing.height > 1) {
-                output.writeByte(thing.exactSize); // Write exact size
-            }
-
-            output.writeByte(thing.layers);   // Write layers
-            output.writeByte(thing.patternX); // Write pattern X
-            output.writeByte(thing.patternY); // Write pattern Y
-            if (writePatternZ) output.writeByte(thing.patternZ); // Write pattern Z
-            output.writeByte(thing.frames);   // Write frames
-
-            if (writeFrameDuration && thing.isAnimation) {
-                output.writeByte(thing.animationMode);   // Write animation type
-                output.writeInt(thing.loopCount);        // Write loop count
-                output.writeByte(thing.startFrame);      // Write start frame
-
-                for (i = 0; i < thing.frames; i++) {
-                    output.writeUnsignedInt(thing.frameDurations[i].minimum); // Write minimum duration
-                    output.writeUnsignedInt(thing.frameDurations[i].maximum); // Write maximum duration
-                }
-            }
-
-            var spriteIndex:Vector.<uint> = thing.spriteIndex;
-            var length:uint = spriteIndex.length;
-            for (i = 0; i < length; i++) {
-                // Write sprite index
-                if (extended)
-                    output.writeUnsignedInt(spriteIndex[i]);
-                else
-                    output.writeShort(spriteIndex[i]);
-            }
             return true;
         }
     }

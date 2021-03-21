@@ -69,6 +69,9 @@ package otlib.things
         public static const LYING_OBJECT:uint = 0x18;
         public static const ANIMATE_ALWAYS:uint = 0x19;
         public static const LENS_HELP:uint = 0x1A;
+        public static const WRAPPABLE:uint = 0x24;
+        public static const UNWRAPPABLE:uint = 0x25;
+        public static const TOP_EFFECT:uint = 0x26;
         public static const LAST_FLAG:uint = 0xFF;
     }
 }

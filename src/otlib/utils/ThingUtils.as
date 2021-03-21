@@ -26,6 +26,8 @@ package otlib.utils
 
     import otlib.things.ThingCategory;
     import otlib.things.ThingType;
+    import otlib.animation.FrameGroup;
+    import otlib.things.FrameGroupType;
 
     public final class ThingUtils
     {
@@ -44,9 +46,10 @@ package otlib.utils
 
         public static function createAlertThing(category:String):ThingType
         {
-            var thing:ThingType = ThingType.create(0, category);
+            var thing:ThingType = ThingType.create(0, category, false);
             if (thing) {
-                var spriteIndex:Vector.<uint> = thing.spriteIndex;
+                var frameGroup:FrameGroup = thing.getFrameGroup(FrameGroupType.DEFAULT);
+                var spriteIndex:Vector.<uint> = frameGroup.spriteIndex;
                 var length:uint = spriteIndex.length;
                 for (var i:uint = 0; i < length; i++) {
                     spriteIndex[i] = 0xFFFFFFFF;
@@ -57,22 +60,33 @@ package otlib.utils
 
         public static function isValid(thing:ThingType):Boolean
         {
-            return thing && thing.width != 0 && thing.height != 0;
+            if(!thing)
+                return false;
+
+            var frameGroup:FrameGroup = thing.getFrameGroup(FrameGroupType.DEFAULT);
+            if(!frameGroup)   
+                return false;   
+
+            return frameGroup.width != 0 && frameGroup.height != 0;
         }
 
-        public static function isEmpty(type:ThingType):Boolean
+        public static function isEmpty(thing:ThingType):Boolean
         {
-            var length:uint = type.spriteIndex ? type.spriteIndex.length : 0;
+            var frameGroup:FrameGroup = thing.getFrameGroup(FrameGroupType.DEFAULT);
+            if(!frameGroup)   
+                return true; 
+
+            var length:uint = frameGroup.spriteIndex ? frameGroup.spriteIndex.length : 0;
             if (length == 0)
                 return true;
 
-            if (length == 1 && type.spriteIndex[0] == 0)
+            if (length == 1 && frameGroup.spriteIndex[0] == 0)
                 return true;
 
-            if ((length == 12 && type.category == ThingCategory.OUTFIT) ||
-                (length == 9 && type.category == ThingCategory.MISSILE)) {
+            if ((length == 12 && thing.category == ThingCategory.OUTFIT) ||
+                (length == 9 && thing.category == ThingCategory.MISSILE)) {
                 for (var i:int = length - 1; i >= 0; i--) {
-                    if (type.spriteIndex[i] != 0)
+                    if (frameGroup.spriteIndex[i] != 0)
                         return false;
                 }
                 return true;

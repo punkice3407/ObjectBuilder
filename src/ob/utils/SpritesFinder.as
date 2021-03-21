@@ -25,17 +25,21 @@ package ob.utils
     import flash.events.Event;
     import flash.events.EventDispatcher;
     import flash.utils.Dictionary;
-
+    
     import nail.errors.NullArgumentError;
-
+    
     import ob.commands.ProgressBarID;
-
+    
+    import otlib.animation.FrameGroup;
     import otlib.core.otlib_internal;
     import otlib.events.ProgressEvent;
     import otlib.sprites.SpriteData;
     import otlib.sprites.SpriteStorage;
+    import otlib.things.FrameGroupType;
     import otlib.things.ThingType;
     import otlib.things.ThingTypeStorage;
+	import otlib.animation.FrameGroup;
+	import otlib.things.FrameGroupType;
 
     use namespace otlib_internal;
 
@@ -158,11 +162,18 @@ package ob.utils
         {
             for each (var thing:ThingType in list)
             {
-                var spriteIDs:Vector.<uint> = thing.spriteIndex;
-                var length:uint = spriteIDs.length;
-
-                for (var i:int = 0; i < length; i++)
-                    usedList[ spriteIDs[i] ] = true;
+				for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+				{
+					var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
+					if(!frameGroup)
+						continue;
+					
+					var spriteIDs:Vector.<uint> = frameGroup.spriteIndex;
+					var length:uint = spriteIDs.length;
+					
+					for (var i:int = 0; i < length; i++)
+						usedList[ spriteIDs[i] ] = true;
+				}
             }
         }
 

@@ -37,6 +37,8 @@ package otlib.utils
     import otlib.sprites.SpriteStorage;
     import otlib.things.ThingType;
     import otlib.things.ThingTypeStorage;
+	import otlib.animation.FrameGroup;
+	import otlib.things.FrameGroupType;
 
     use namespace otlib_internal;
 
@@ -247,9 +249,16 @@ package otlib.utils
         {
             for each (var thing:ThingType in list)
             {
-                var spriteIDs:Vector.<uint> = thing.spriteIndex;
-                for (var i:int = spriteIDs.length - 1; i >= 0; i--)
-                    usedList[ spriteIDs[i] ] = true;
+				for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+				{
+					var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
+					if(!frameGroup)
+						continue;
+
+					var spriteIDs:Vector.<uint> = frameGroup.spriteIndex;
+					for (var i:int = spriteIDs.length - 1; i >= 0; i--)
+						usedList[ spriteIDs[i] ] = true;
+				}
             }
         }
 
@@ -257,12 +266,19 @@ package otlib.utils
         {
             for each (var thing:ThingType in list)
             {
-                var spriteIDs:Vector.<uint> = thing.spriteIndex;
-                for (var i:int = spriteIDs.length - 1; i >= 0; i--)
-                {
-                    if (spriteIDs[i] != 0)
-                        spriteIDs[i] = m_newIDs[ spriteIDs[i] ];
-                }
+				for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+				{
+					var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
+					if(!frameGroup)
+						continue;
+					
+					var spriteIDs:Vector.<uint> = frameGroup.spriteIndex;
+					for (var i:int = spriteIDs.length - 1; i >= 0; i--)
+					{
+						if (spriteIDs[i] != 0)
+							spriteIDs[i] = m_newIDs[ spriteIDs[i] ];
+					}
+				}
             }
         }
 
@@ -270,12 +286,19 @@ package otlib.utils
         {
             for each (var thing:ThingType in list)
             {
-                var spriteIDs:Vector.<uint> = thing.spriteIndex;
-                for (var i:int = spriteIDs.length - 1; i >= 0; i--)
-                {
-                    if (spriteIDs[i] != 0)
-                        spriteIDs[i] = m_oldIDs[ spriteIDs[i] ].id;
-                }
+				for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+				{
+					var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
+					if(!frameGroup)
+						continue;
+					
+					var spriteIDs:Vector.<uint> = frameGroup.spriteIndex;
+					for (var i:int = spriteIDs.length - 1; i >= 0; i--)
+					{
+						if (spriteIDs[i] != 0)
+							spriteIDs[i] = m_oldIDs[ spriteIDs[i] ].id;
+					}
+				}
             }
         }
 

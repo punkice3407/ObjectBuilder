@@ -27,12 +27,14 @@ package otlib.components
     import flash.geom.Point;
     import flash.geom.Rectangle;
     import flash.utils.getTimer;
-
+    
     import mx.core.UIComponent;
-
+    
     import otlib.animation.Animator;
     import otlib.animation.FrameDuration;
+    import otlib.animation.FrameGroup;
     import otlib.geom.Rect;
+    import otlib.things.FrameGroupType;
     import otlib.things.ThingCategory;
     import otlib.things.ThingData;
     import otlib.things.ThingType;
@@ -69,6 +71,7 @@ package otlib.components
         private var _outfitData:OutfitData;
         private var _drawBlendLayer:Boolean;
         private var _backgroundColor:Number;
+		private var _frameGroupType:uint;
 
         //--------------------------------------
         // Getters / Setters
@@ -79,7 +82,7 @@ package otlib.components
         public function set thingData(value:ThingData):void
         {
             if (_thingData != value) {
-                _proposedThingData = value;
+                _proposedThingData = value;			
                 _thingDataChanged = true;
                 invalidateProperties();
             }
@@ -124,6 +127,9 @@ package otlib.components
                 draw();
             }
         }
+		
+		public function get frameGroupType():uint { return _frameGroupType; }
+		public function set frameGroupType(value:uint):void { _frameGroupType = value; }
 
         //--------------------------------------------------------------------------
         // CONSTRUCTOR
@@ -170,8 +176,9 @@ package otlib.components
 
         public function play():void
         {
-            if (thingData && thingData.thing.isAnimation)
-                _playing = true;
+			var frameGroup:FrameGroup = thingData.thing.getFrameGroup(frameGroupType);
+            if (thingData && frameGroup && frameGroup.isAnimation)
+				_playing = true;
         }
 
         public function pause():void
@@ -185,13 +192,6 @@ package otlib.components
             frame = 0;
         }
 
-        public function getFrameDuration(index:int):FrameDuration
-        {
-            if (thingData)
-                return thingData.thing.frameDurations[index];
-
-            return null;
-        }
         //--------------------------------------
         // Override Protected
         //--------------------------------------
@@ -214,33 +214,37 @@ package otlib.components
         private function setThingData(thingData:ThingData):void
         {
             if (thingData) {
-
-                var type:ThingType = thingData.thing;
-
-                if (type.category == ThingCategory.OUTFIT) {
-
-
+                if (thingData.thing.category == ThingCategory.OUTFIT) {
                     if (!_outfitData)
                         _outfitData = new OutfitData();
 
-                    thingData = thingData.clone().colorize(_outfitData);
+					thingData = thingData.clone().colorize(_outfitData);
                 }
-
+				
+				var frameGroup:FrameGroup = thingData.thing.getFrameGroup(frameGroupType);
                 _textureIndex = new Vector.<Rect>();
-                _spriteSheet = thingData.getSpriteSheet(_textureIndex, 0);
-                _bitmap = new BitmapData(type.width * 32, type.height * 32, true);
+                _spriteSheet = thingData.getSpriteSheet(frameGroup, _textureIndex, 0);
+                _bitmap = new BitmapData(frameGroup.width * 32, frameGroup.height * 32, true);
                 _fillRect = _bitmap.rect;
-                _maxFrame = type.frames;
+                _maxFrame = frameGroup.frames;
                 _frame = 0;
-                _playing = type.isAnimation ? _playing : false;
+                _playing = frameGroup.isAnimation ? _playing : false;
 
                 width = _bitmap.width;
                 height = _bitmap.height;
-
-                if (type.isAnimation) {
-                    _animator = new Animator(type.animationMode, type.loopCount, type.startFrame, type.frameDurations, type.frames);
-                    _animator.skipFirstFrame = (thingData.category == ThingCategory.OUTFIT && !thingData.thing.animateAlways);
-                }
+				
+				var durations:Vector.<FrameDuration> = frameGroup.frameDurations;
+				if(durations && frameGroup.type == FrameGroupType.WALKING && frameGroup.frames > 2)
+				{					
+					var duration:uint = 1000 / frameGroup.frames;
+					for (var i:uint = 0; i < frameGroup.frames; i++)
+						durations[i] = new FrameDuration(duration, duration);
+				}
+				
+				if (frameGroup.isAnimation) {
+					_animator = new Animator(frameGroup.animationMode, frameGroup.loopCount, frameGroup.startFrame, durations, frameGroup.frames);
+					_animator.skipFirstFrame = (thingData.category == ThingCategory.OUTFIT && !thingData.thing.animateAlways && frameGroup.type != FrameGroupType.WALKING);
+				}
             } else {
                 _textureIndex = null;
                 _spriteSheet = null;
@@ -252,7 +256,7 @@ package otlib.components
             }
 
             _thingData = thingData;
-
+			
             draw();
         }
 
@@ -268,16 +272,16 @@ package otlib.components
                     graphics.endFill();
                 }
 
-                var thing:ThingType = thingData.thing;
-                var layers:uint = _drawBlendLayer ? thing.layers : 1;
-                var px:uint = _patternX % thing.patternX;
-                var pz:uint = _patternZ % thing.patternZ;
+				var frameGroup:FrameGroup = thingData.thing.getFrameGroup(frameGroupType);
+                var layers:uint = _drawBlendLayer ? frameGroup.layers : 1;
+                var px:uint = _patternX % frameGroup.patternX;
+                var pz:uint = _patternZ % frameGroup.patternZ;
 
                 _bitmap.fillRect(_fillRect, 0);
 
                 for (var l:uint = 0; l < layers; l++)
                 {
-                    var index:int = thing.getTextureIndex(l, px, 0, pz, _frame);
+                    var index:int = frameGroup.getTextureIndex(l, px, 0, pz, _frame);
                     if (index >= _textureIndex.length)
                         index = 0;
 

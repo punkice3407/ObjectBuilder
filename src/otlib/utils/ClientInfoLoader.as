@@ -138,7 +138,7 @@ package otlib.utils
                     m_clientInfo.extended = otfi.extended;
                     m_clientInfo.transparency = otfi.transparency;
                     m_clientInfo.improvedAnimations = otfi.improvedAnimations;
-                    //m_clientInfo.frameGroups = otfi.frameGroups;
+                    m_clientInfo.frameGroups = otfi.frameGroups;
                 }
             }
 

@@ -34,8 +34,10 @@ package otlib.things
     import nail.utils.isNullOrEmpty;
 
     import otlib.animation.FrameDuration;
+    import otlib.animation.FrameGroup;
     import otlib.obd.OBDVersions;
     import otlib.sprites.SpriteData;
+    import otlib.things.FrameGroupType;
 
     [Event(name="propertyChange", type="mx.events.PropertyChangeEvent")]
 
@@ -52,30 +54,6 @@ package otlib.things
 
         [Bindable]
         public var category:String;
-
-        [Bindable]
-        public var width:uint;
-
-        [Bindable]
-        public var height:uint;
-
-        [Bindable]
-        public var exactSize:uint;
-
-        [Bindable]
-        public var layers:uint;
-
-        [Bindable]
-        public var patternX:uint;
-
-        [Bindable]
-        public var patternY:uint;
-
-        [Bindable]
-        public var patternZ:uint;
-
-        [Bindable]
-        public var frames:uint;
 
         [Bindable]
         public var isGround:Boolean;
@@ -240,19 +218,27 @@ package otlib.things
         public var hasDefaultAction:Boolean;
 
         [Bindable]
+        public var wrappable:Boolean;
+
+        [Bindable]
+        public var unwrappable:Boolean;
+
+        [Bindable]
+        public var topEffect:Boolean;
+
+        [Bindable]
         public var defaultAction:uint;
 
         [Bindable]
         public var usable:Boolean;
 
-        public var spriteIndex:Vector.<uint>;
-        public var sprites:Vector.<SpriteData>;
+        public var sprites:Dictionary;
 
-        public var isAnimation:Boolean;
-        public var animationMode:uint;
-        public var loopCount:int;
-        public var startFrame:int;
-        public var frameDurations:Vector.<FrameDuration>;
+		[Bindable]
+		public var groups:uint;
+
+		[Bindable]
+		public var frameGroups:Array;
 
         //--------------------------------------------------------------------------
         // CONSTRUCTOR
@@ -270,11 +256,23 @@ package otlib.things
         // Public
         //--------------------------------------
 
-        public function setSprite(index:uint, sprite:SpriteData):void
+		public function getFrameGroup(groupType:uint):FrameGroup
+		{
+			return frameGroups[groupType];
+		}
+
+		public function setFrameGroup(groupType:uint, frameGroup:FrameGroup):void
+		{
+			frameGroups[groupType] = frameGroup
+		}
+
+        public function setSprite(groupType:uint, index:uint, sprite:SpriteData):void
         {
-            var oldValue:uint = spriteIndex[index];
-            this.spriteIndex[index] = sprite.id;
-            this.sprites[index] = sprite;
+			var frameGroup:FrameGroup = getFrameGroup(groupType);
+
+            var oldValue:uint = frameGroup.spriteIndex[index];
+			frameGroup.spriteIndex[index] = sprite.id;
+			this.sprites[groupType][index] = sprite;
 
             var event:PropertyChangeEvent = new PropertyChangeEvent(PropertyChangeEvent.PROPERTY_CHANGE);
             event.property = "spriteIndex";
@@ -283,10 +281,10 @@ package otlib.things
             dispatchEvent(event);
         }
 
-        public function getSpriteBitmap(index:uint):BitmapData
+        public function getSpriteBitmap(groupType:uint, index:uint):BitmapData
         {
-            if (sprites && index < sprites.length && sprites[index] != null)
-                return sprites[index].getBitmap();
+            if (sprites[groupType] && index < sprites[groupType].length && sprites[groupType][index] != null)
+                return sprites[groupType][index].getBitmap();
 
             return null;
         }
@@ -321,38 +319,48 @@ package otlib.things
                     this[name] = thing[name];
             }
 
-            if (thing.spriteIndex)
-                this.spriteIndex = thing.spriteIndex.concat();
+			this.frameGroups = [];
+			this.sprites = new Dictionary();
+			for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+			{
+				var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
+				if(frameGroup)
+				{
+					this.frameGroups[groupType] = frameGroup.clone();
+					if (data.sprites[groupType])
+						this.sprites[groupType] = data.sprites[groupType].concat();
 
-            if (data.sprites)
-                this.sprites = data.sprites.concat();
-
-            if (thing.isAnimation){
-                this.frameDurations = new Vector.<FrameDuration>(this.frames, true);
-                for (var i:uint = 0; i < this.frames; i++)
-                    this.frameDurations[i] = thing.frameDurations[i].clone();
-            }
+					groups = groupType + 1;
+				}
+			}
 
             return true;
         }
 
-        public function copyToThingData(data:ThingData):Boolean
+        public function copyToThingData(data:ThingData, groups:uint):Boolean
         {
-            if (!copyToThingType(data.thing)) return false;
+            if (!copyToThingType(data.thing, groups)) return false;
 
             if (this.sprites) {
-                var length:uint = this.sprites.length;
-                var sprites:Vector.<SpriteData> = new Vector.<SpriteData>(length, true);
+                var sprites:Dictionary = new Dictionary();
+                for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+                {
+                    var _sprites:Vector.<SpriteData> = this.sprites[groupType];
+                    if(_sprites && _sprites.length > 0)
+                    {
+                        sprites[groupType] = new Vector.<SpriteData>(_sprites.length, true);
 
-                for (var i:uint = 0; i < length; i++)
-                    sprites[i] = this.sprites[i] || SpriteData.createSpriteData();
+                        for (var i:uint = 0; i < _sprites.length; i++)
+                            sprites[groupType][i] = _sprites[i] || SpriteData.createSpriteData();
 
-                data.sprites = sprites;
+                        data.sprites = sprites;
+                    }
+                }
             }
             return true;
         }
 
-        public function copyToThingType(thing:ThingType):Boolean
+        public function copyToThingType(thing:ThingType, groups:uint = 2):Boolean
         {
             if (!thing)
                 return false;
@@ -364,36 +372,39 @@ package otlib.things
                     thing[name] = this[name];
             }
 
-            if (this.spriteIndex)
-                thing.spriteIndex = this.spriteIndex.concat();
+            var groupCount:uint = FrameGroupType.DEFAULT;
+            if(groups > 1)
+                groupCount = FrameGroupType.WALKING;
 
-            if (this.isAnimation) {
-                thing.frameDurations = new Vector.<FrameDuration>(this.frames, true);
-                for (var i:uint = 0; i < this.frames; i++)
-                    thing.frameDurations[i] = this.frameDurations[i].clone();
-            }
+            thing.frameGroups = [];
+			for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= groupCount; groupType++)
+			{
+				var frameGroup:FrameGroup = this.getFrameGroup(groupType);
+				if(frameGroup)
+					thing.frameGroups[groupType] = frameGroup.clone();
+			}
 
             return true;
         }
 
-        public function updateSpriteCount():void
+        public function updateSpriteCount(frameGroup:FrameGroup):void
         {
-            var spriteCount:uint = getTotalSprites();
-            this.spriteIndex.length = spriteCount;
-            this.sprites.length = spriteCount;
-            this.isAnimation = (this.frames > 1);
+            var spriteCount:uint = frameGroup.getTotalSprites();
+            frameGroup.spriteIndex.length = spriteCount;
+            sprites[frameGroup.type].length = spriteCount;
+            frameGroup.isAnimation = (frameGroup.frames > 1);
 
-            if (this.isAnimation) {
+            if (frameGroup.isAnimation) {
                 var duration:uint = FrameDuration.getDefaultDuration(this.category);
-                var frameDurations:Vector.<FrameDuration> = new Vector.<FrameDuration>(this.frames, true);
-                for (var i:uint = 0; i < this.frames; i++) {
-                    if (this.frameDurations && i < this.frameDurations.length)
-                        frameDurations[i] = this.frameDurations[i];
+                var frameDurations:Vector.<FrameDuration> = new Vector.<FrameDuration>(frameGroup.frames, true);
+                for (var i:uint = 0; i < frameGroup.frames; i++) {
+                    if (frameGroup.frameDurations && i < frameGroup.frameDurations.length)
+                        frameDurations[i] = frameGroup.frameDurations[i];
                     else
                         frameDurations[i] = new FrameDuration(duration, duration);
                 }
 
-                this.frameDurations = frameDurations;
+                frameGroup.frameDurations = frameDurations;
             }
 
             dispatchEvent(new PropertyChangeEvent(PropertyChangeEvent.PROPERTY_CHANGE));
@@ -405,32 +416,21 @@ package otlib.things
             if (!copyToThingType(thing) || !this.sprites)
                 return null;
 
-            var length:uint = this.sprites.length;
-            var sprites:Vector.<SpriteData> = new Vector.<SpriteData>(length, true);
+            var sprites:Dictionary = new Dictionary();
+            for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+            {
+				var group:FrameGroup = this.getFrameGroup(groupType);
+				if(!group)
+					continue;
 
-            for (var i:uint = 0; i < length; i++)
-                sprites[i] = this.sprites[i] || SpriteData.createSpriteData();
+                var _sprites:Vector.<SpriteData> = this.sprites[groupType];
+                sprites[groupType] = new Vector.<SpriteData>(_sprites.length, true);
 
-            return ThingData.create(OBDVersions.OBD_VERSION_2, version, thing, sprites);
-        }
+                for (var i:uint = 0; i < _sprites.length; i++)
+					sprites[groupType][i] = _sprites[i] || SpriteData.createSpriteData();
+            }
 
-        public function getFrameDuration(index:int):FrameDuration
-        {
-            if (this.isAnimation)
-                return this.frameDurations[index];
-
-            return null;
-        }
-
-        public function getTotalSprites():uint
-        {
-            return this.width *
-                   this.height *
-                   this.patternX *
-                   this.patternY *
-                   this.patternZ *
-                   this.frames *
-                   this.layers;
+            return ThingData.create(OBDVersions.OBD_VERSION_3, version, thing, sprites);
         }
 
         //--------------------------------------------------------------------------
@@ -442,6 +442,7 @@ package otlib.things
         private static function startPropertyLabels():void
         {
             var resource:IResourceManager = ResourceManager.getInstance();
+            PROPERTY_LABEL["frameGroups"] = resource.getString("strings", "frameGroups");
             PROPERTY_LABEL["width"] = resource.getString("strings", "width");
             PROPERTY_LABEL["height"] = resource.getString("strings", "height");
             PROPERTY_LABEL["exactSize"] = resource.getString("strings", "cropSize");
@@ -503,6 +504,9 @@ package otlib.things
             PROPERTY_LABEL["marketRestrictLevel"] = resource.getString("strings", "level");
             PROPERTY_LABEL["hasDefaultAction"] = resource.getString("strings", "hasAction");
             PROPERTY_LABEL["defaultAction"] = resource.getString("strings", "actionType");
+            PROPERTY_LABEL["wrappable"] = resource.getString("strings", "wrappable");
+            PROPERTY_LABEL["unwrappable"] = resource.getString("strings", "unwrappable");
+            PROPERTY_LABEL["topEffect"] = resource.getString("strings", "topEffect");
             PROPERTY_LABEL["usable"] = resource.getString("strings", "usable");
             PROPERTY_LABEL["spriteIndex"] = resource.getString("strings", "spriteId");
             PROPERTY_LABEL["hasCharges"] = resource.getString("strings", "hasCharges");

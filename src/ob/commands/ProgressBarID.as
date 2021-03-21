@@ -40,6 +40,7 @@ package ob.commands
         //--------------------------------------------------------------------------
 
         public static const DEFAULT:String = "default";
+        public static const CONVERT:String = "convert";
         public static const METADATA:String = "metadata";
         public static const SPRITES:String = "sprites";
         public static const FIND:String = "find";

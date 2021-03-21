@@ -75,5 +75,6 @@ package otlib.events
         //--------------------------------------------------------------------------
 
         public static const PROGRESS:String = "progress";
+        public static const CONVERT:String = "convert";
     }
 }

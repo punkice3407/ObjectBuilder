@@ -27,6 +27,7 @@ package otlib.obd
     import flash.filesystem.FileStream;
     import flash.utils.ByteArray;
     import flash.utils.CompressionAlgorithm;
+    import flash.utils.Dictionary;
     import flash.utils.Endian;
     import flash.utils.IDataInput;
     import flash.utils.IDataOutput;
@@ -35,12 +36,14 @@ package otlib.obd
     import nail.errors.NullArgumentError;
     import nail.utils.StringUtil;
 
+    import otlib.animation.FrameDuration;
+    import otlib.animation.FrameGroup;
     import otlib.core.Version;
     import otlib.core.VersionStorage;
     import otlib.resources.Resources;
     import otlib.sprites.Sprite;
     import otlib.sprites.SpriteData;
-    import otlib.animation.FrameDuration;
+    import otlib.things.FrameGroupType;
     import otlib.things.ThingCategory;
     import otlib.things.ThingData;
     import otlib.things.ThingSerializer;
@@ -70,7 +73,9 @@ package otlib.obd
             if (!data)
                 throw new NullArgumentError("data");
 
-            if (data.obdVersion == OBDVersions.OBD_VERSION_2)
+            if (data.obdVersion == OBDVersions.OBD_VERSION_3)
+                return encodeV3(data);
+            else if (data.obdVersion == OBDVersions.OBD_VERSION_2)
                 return encodeV2(data);
             else if (data.obdVersion == OBDVersions.OBD_VERSION_1)
                 return encodeV1(data);
@@ -88,7 +93,9 @@ package otlib.obd
             bytes.uncompress(CompressionAlgorithm.LZMA);
 
             var version:uint = bytes.readUnsignedShort();
-            if (version == OBDVersions.OBD_VERSION_2)
+            if (version == OBDVersions.OBD_VERSION_3)
+                return decodeV3(bytes);
+            else if (version == OBDVersions.OBD_VERSION_2)
                 return decodeV2(bytes);
             else if (version >= 710) // OBD version 1: client version in the first two bytes.
                 return decodeV1(bytes);
@@ -146,20 +153,23 @@ package otlib.obd
 
             if (!done) return null;
 
-            bytes.writeByte(thing.width);  // Write width
-            bytes.writeByte(thing.height); // Write height
+            var groupType:uint = FrameGroupType.DEFAULT;
+            var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
 
-            if (thing.width > 1 || thing.height > 1)
-                bytes.writeByte(thing.exactSize); // Write exact size
+            bytes.writeByte(frameGroup.width);  // Write width
+            bytes.writeByte(frameGroup.height); // Write height
 
-            bytes.writeByte(thing.layers);   // Write layers
-            bytes.writeByte(thing.patternX); // Write pattern X
-            bytes.writeByte(thing.patternY); // Write pattern Y
-            bytes.writeByte(thing.patternZ); // Write pattern Z
-            bytes.writeByte(thing.frames);   // Write frames
+            if (frameGroup.width > 1 || frameGroup.height > 1)
+                bytes.writeByte(frameGroup.exactSize); // Write exact size
 
-            var sprites:Vector.<SpriteData> = data.sprites;
-            var spriteList:Vector.<uint> = thing.spriteIndex;
+            bytes.writeByte(frameGroup.layers);   // Write layers
+            bytes.writeByte(frameGroup.patternX); // Write pattern X
+            bytes.writeByte(frameGroup.patternY); // Write pattern Y
+            bytes.writeByte(frameGroup.patternZ); // Write pattern Z
+            bytes.writeByte(frameGroup.frames);   // Write frames
+
+            var sprites:Vector.<SpriteData> = data.sprites[groupType];
+            var spriteList:Vector.<uint> = frameGroup.spriteIndex;
             var length:uint = spriteList.length;
 
             for (var i:uint = 0; i < length; i++)
@@ -202,35 +212,38 @@ package otlib.obd
             bytes.writeUnsignedInt(pos);
             bytes.position = pos;
 
-            bytes.writeByte(thing.width);  // Write width
-            bytes.writeByte(thing.height); // Write height
+            var groupType:uint = FrameGroupType.DEFAULT;
+            var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
 
-            if (thing.width > 1 || thing.height > 1)
-                bytes.writeByte(thing.exactSize); // Write exact size
+            bytes.writeByte(frameGroup.width);  // Write width
+            bytes.writeByte(frameGroup.height); // Write height
 
-            bytes.writeByte(thing.layers);          // Write layers
-            bytes.writeByte(thing.patternX);        // Write pattern X
-            bytes.writeByte(thing.patternY);        // Write pattern Y
-            bytes.writeByte(thing.patternZ || 1);   // Write pattern Z
-            bytes.writeByte(thing.frames);          // Write frames
+            if (frameGroup.width > 1 || frameGroup.height > 1)
+                bytes.writeByte(frameGroup.exactSize); // Write exact size
+
+            bytes.writeByte(frameGroup.layers);          // Write layers
+            bytes.writeByte(frameGroup.patternX);        // Write pattern X
+            bytes.writeByte(frameGroup.patternY);        // Write pattern Y
+            bytes.writeByte(frameGroup.patternZ || 1);   // Write pattern Z
+            bytes.writeByte(frameGroup.frames);          // Write frames
 
             var i:uint;
 
-            if (thing.isAnimation)
+            if (frameGroup.isAnimation)
             {
-                bytes.writeByte(thing.animationMode); // Write animation type
-                bytes.writeInt(thing.loopCount);      // Write loop count
-                bytes.writeByte(thing.startFrame);    // Write start frame
+                bytes.writeByte(frameGroup.animationMode); // Write animation type
+                bytes.writeInt(frameGroup.loopCount);      // Write loop count
+                bytes.writeByte(frameGroup.startFrame);    // Write start frame
 
-                for (i = 0; i < thing.frames; i++)
+                for (i = 0; i < frameGroup.frames; i++)
                 {
-                    bytes.writeUnsignedInt(thing.frameDurations[i].minimum); // Write minimum duration
-                    bytes.writeUnsignedInt(thing.frameDurations[i].maximum); // Write maximum duration
+                    bytes.writeUnsignedInt(frameGroup.frameDurations[i].minimum); // Write minimum duration
+                    bytes.writeUnsignedInt(frameGroup.frameDurations[i].maximum); // Write maximum duration
                 }
             }
 
-            var sprites:Vector.<SpriteData> = data.sprites;
-            var spriteList:Vector.<uint> = thing.spriteIndex;
+            var sprites:Vector.<SpriteData> = data.sprites[groupType];
+            var spriteList:Vector.<uint> = frameGroup.spriteIndex;
             var length:uint = spriteList.length;
 
             for (i = 0; i < length; i++)
@@ -249,6 +262,101 @@ package otlib.obd
 
                 bytes.writeUnsignedInt(spriteId);
                 bytes.writeBytes(pixels, 0, pixels.bytesAvailable);
+            }
+
+            bytes.compress(CompressionAlgorithm.LZMA);
+            return bytes;
+        }
+
+        private function encodeV3(data:ThingData):ByteArray
+        {
+            var thing:ThingType = data.thing;
+
+            var bytes:ByteArray = new ByteArray();
+            bytes.endian = Endian.LITTLE_ENDIAN;
+            bytes.writeShort(data.obdVersion);                          // Write obd version
+            bytes.writeShort(data.clientVersion);                       // Write client version
+            bytes.writeByte( ThingCategory.getValue(thing.category) );  // Write thing category
+
+            var spritesPosition:uint = bytes.position;
+            bytes.position += 4; // Skipping the texture patterns position.
+
+            if (!writeProperties(thing, bytes)) return null;
+
+            // Write the texture patterns position.
+            var pos:uint = bytes.position;
+            bytes.position = spritesPosition;
+            bytes.writeUnsignedInt(pos);
+            bytes.position = pos;
+
+            var groupCount:uint = 1;
+			if(thing.category == ThingCategory.OUTFIT) {
+                groupCount = thing.frameGroups.length;
+                bytes.writeByte(groupCount);
+			}
+
+            var i:uint;
+            var groupType:uint;
+			var frameGroup:FrameGroup;
+            var sprites:Dictionary = data.sprites;
+            for(groupType = 0; groupType < groupCount; groupType++)
+            {
+                if(thing.category == ThingCategory.OUTFIT)
+                {
+                    var group:uint = groupType;
+                    if(groupCount < 2)
+                        group = 1;
+
+                    bytes.writeByte(group);
+                }
+
+                frameGroup = thing.getFrameGroup(groupType);
+                bytes.writeByte(frameGroup.width);  // Write width
+                bytes.writeByte(frameGroup.height); // Write height
+
+                if (frameGroup.width > 1 || frameGroup.height > 1)
+                    bytes.writeByte(frameGroup.exactSize); // Write exact size
+
+                bytes.writeByte(frameGroup.layers);   // Write layers
+                bytes.writeByte(frameGroup.patternX); // Write pattern X
+                bytes.writeByte(frameGroup.patternY); // Write pattern Y
+                bytes.writeByte(frameGroup.patternZ || 1); // Write pattern Z
+                bytes.writeByte(frameGroup.frames);   // Write frames
+
+                if(frameGroup.isAnimation)
+                {
+                    bytes.writeByte(frameGroup.animationMode); // Write animation type
+                    bytes.writeInt(frameGroup.loopCount);      // Write loop count
+                    bytes.writeByte(frameGroup.startFrame);    // Write start frame
+
+                    for (i = 0; i < frameGroup.frames; i++)
+                    {
+                        bytes.writeUnsignedInt(frameGroup.frameDurations[i].minimum); // Write minimum duration
+                        bytes.writeUnsignedInt(frameGroup.frameDurations[i].maximum); // Write maximum duration
+                    }
+                }
+
+                var spriteList:Vector.<uint> = frameGroup.spriteIndex;
+                var length:uint = data.sprites[groupType].length;
+
+                for (i = 0; i < length; i++)
+                {
+                    var spriteId:uint = spriteList[i];
+                    var spriteData:SpriteData = sprites[groupType][i];
+
+                    if (!spriteData || !spriteData.pixels)
+                        throw new Error(StringUtil.format("Invalid sprite id {0}.", spriteId));
+
+                    var pixels:ByteArray = spriteData.pixels;
+                    pixels.position = 0;
+
+                    if (pixels.bytesAvailable != 4096)
+                        throw new Error(StringUtil.format("Invalid pixels length."));
+
+                    bytes.writeUnsignedInt(spriteId);
+                    bytes.writeUnsignedInt(pixels.length);
+                    bytes.writeBytes(pixels, 0, pixels.bytesAvailable);
+                }
             }
 
             bytes.compress(CompressionAlgorithm.LZMA);
@@ -289,43 +397,48 @@ package otlib.obd
 
             if (!done) return null;
 
-            thing.width = bytes.readUnsignedByte();
-            thing.height = bytes.readUnsignedByte();
+            var groupType:uint = FrameGroupType.DEFAULT;
+            var frameGroup:FrameGroup = new FrameGroup();
 
-            if (thing.width > 1 || thing.height > 1)
-                thing.exactSize = bytes.readUnsignedByte();
+            frameGroup.width = bytes.readUnsignedByte();
+            frameGroup.height = bytes.readUnsignedByte();
+
+            if (frameGroup.width > 1 || frameGroup.height > 1)
+                frameGroup.exactSize = bytes.readUnsignedByte();
             else
-                thing.exactSize = Sprite.DEFAULT_SIZE;
+                frameGroup.exactSize = Sprite.DEFAULT_SIZE;
 
-            thing.layers = bytes.readUnsignedByte();
-            thing.patternX = bytes.readUnsignedByte();
-            thing.patternY = bytes.readUnsignedByte();
-            thing.patternZ = bytes.readUnsignedByte();
-            thing.frames = bytes.readUnsignedByte();
+            frameGroup.layers = bytes.readUnsignedByte();
+            frameGroup.patternX = bytes.readUnsignedByte();
+            frameGroup.patternY = bytes.readUnsignedByte();
+            frameGroup.patternZ = bytes.readUnsignedByte();
+            frameGroup.frames = bytes.readUnsignedByte();
 
             var i:uint = 0;
 
-            if (thing.frames > 1)
+            if (frameGroup.frames > 1)
             {
-                thing.isAnimation = true;
-                thing.frameDurations = new Vector.<FrameDuration>(thing.frames, true);
+                frameGroup.isAnimation = true;
+                frameGroup.frameDurations = new Vector.<FrameDuration>(frameGroup.frames, true);
 
                 var duration:uint = FrameDuration.getDefaultDuration(thing.category);
-                for (i = 0; i < thing.frames; i++)
-                    thing.frameDurations[i] = new FrameDuration(duration, duration);
+                for (i = 0; i < frameGroup.frames; i++)
+                    frameGroup.frameDurations[i] = new FrameDuration(duration, duration);
             }
 
-            var totalSprites:uint = thing.getTotalSprites();
+            var totalSprites:uint = frameGroup.getTotalSprites();
             if (totalSprites > 4096)
                 throw new Error("The Object Data has more than 4096 sprites.");
 
-            thing.spriteIndex = new Vector.<uint>(totalSprites, true);
-            var sprites:Vector.<SpriteData> = new Vector.<SpriteData>(totalSprites, true);
+            frameGroup.spriteIndex = new Vector.<uint>(totalSprites, true);
+
+            var sprites:Dictionary = new Dictionary();
+            sprites[groupType] = new Vector.<SpriteData>(totalSprites, true);
 
             for (i = 0; i < totalSprites; i++)
             {
                 var spriteId:uint = bytes.readUnsignedInt();
-                thing.spriteIndex[i] = spriteId;
+                frameGroup.spriteIndex[i] = spriteId;
 
                 var dataSize:uint = bytes.readUnsignedInt();
                 if (dataSize > 4096)
@@ -339,10 +452,11 @@ package otlib.obd
                 var spriteData:SpriteData = new SpriteData();
                 spriteData.id = spriteId;
                 spriteData.pixels = pixels;
-                sprites[i] = spriteData;
+                sprites[groupType][i] = spriteData;
             }
 
-            return ThingData.create(OBDVersions.OBD_VERSION_1, clientVersion, thing, sprites);
+            thing.setFrameGroup(groupType, frameGroup);
+            return ThingData.create(obdVersion, clientVersion, thing, sprites);
         }
 
         private function decodeV2(bytes:ByteArray):ThingData
@@ -368,49 +482,54 @@ package otlib.obd
 
             if (!readProperties(thing, bytes)) return null;
 
-            thing.width = bytes.readUnsignedByte();
-            thing.height = bytes.readUnsignedByte();
+            var groupType:uint = FrameGroupType.DEFAULT;
+            var frameGroup:FrameGroup = new FrameGroup();
 
-            if (thing.width > 1 || thing.height > 1)
-                thing.exactSize = bytes.readUnsignedByte();
+            frameGroup.width = bytes.readUnsignedByte();
+            frameGroup.height = bytes.readUnsignedByte();
+
+            if (frameGroup.width > 1 || frameGroup.height > 1)
+                frameGroup.exactSize = bytes.readUnsignedByte();
             else
-                thing.exactSize = Sprite.DEFAULT_SIZE;
+                frameGroup.exactSize = Sprite.DEFAULT_SIZE;
 
-            thing.layers = bytes.readUnsignedByte();
-            thing.patternX = bytes.readUnsignedByte();
-            thing.patternY = bytes.readUnsignedByte();
-            thing.patternZ = bytes.readUnsignedByte();
-            thing.frames = bytes.readUnsignedByte();
+            frameGroup.layers = bytes.readUnsignedByte();
+            frameGroup.patternX = bytes.readUnsignedByte();
+            frameGroup.patternY = bytes.readUnsignedByte();
+            frameGroup.patternZ = bytes.readUnsignedByte();
+            frameGroup.frames = bytes.readUnsignedByte();
 
             var i:uint = 0;
 
-            if (thing.frames > 1)
+            if (frameGroup.frames > 1)
             {
-                thing.isAnimation = true;
-                thing.animationMode = bytes.readUnsignedByte();
-                thing.loopCount = bytes.readInt();
-                thing.startFrame = bytes.readByte();
-                thing.frameDurations = new Vector.<FrameDuration>(thing.frames, true);
+                frameGroup.isAnimation = true;
+                frameGroup.animationMode = bytes.readUnsignedByte();
+                frameGroup.loopCount = bytes.readInt();
+                frameGroup.startFrame = bytes.readByte();
+                frameGroup.frameDurations = new Vector.<FrameDuration>(frameGroup.frames, true);
 
-                for (i = 0; i < thing.frames; i++)
+                for (i = 0; i < frameGroup.frames; i++)
                 {
                     var minimum:uint = bytes.readUnsignedInt();
                     var maximum:uint = bytes.readUnsignedInt();
-                    thing.frameDurations[i] = new FrameDuration(minimum, maximum);
+                    frameGroup.frameDurations[i] = new FrameDuration(minimum, maximum);
                 }
             }
 
-            var totalSprites:uint = thing.getTotalSprites();
+            var totalSprites:uint = frameGroup.getTotalSprites();
             if (totalSprites > 4096)
                 throw new Error("The Object Data has more than 4096 sprites.");
 
-            thing.spriteIndex = new Vector.<uint>(totalSprites, true);
-            var sprites:Vector.<SpriteData> = new Vector.<SpriteData>(totalSprites, true);
+            frameGroup.spriteIndex = new Vector.<uint>(totalSprites, true);
+
+            var sprites:Dictionary = new Dictionary();
+            sprites[groupType] = new Vector.<SpriteData>(totalSprites, true);
 
             for (i = 0; i < totalSprites; i++)
             {
                 var spriteId:uint = bytes.readUnsignedInt();
-                thing.spriteIndex[i] = spriteId;
+                frameGroup.spriteIndex[i] = spriteId;
 
                 var pixels:ByteArray = new ByteArray();
                 pixels.endian = Endian.BIG_ENDIAN;
@@ -420,7 +539,108 @@ package otlib.obd
                 var spriteData:SpriteData = new SpriteData();
                 spriteData.id = spriteId;
                 spriteData.pixels = pixels;
-                sprites[i] = spriteData;
+                sprites[groupType][i] = spriteData;
+            }
+
+            thing.setFrameGroup(groupType, frameGroup);
+            return ThingData.create(obdVersion, clientVersion, thing, sprites);
+        }
+
+        private function decodeV3(bytes:ByteArray):ThingData
+        {
+            bytes.position = 0;
+
+            var obdVersion:uint = bytes.readUnsignedShort();
+            var clientVersion:uint = bytes.readUnsignedShort();
+
+            var versions:Vector.<Version> = VersionStorage.getInstance().getByValue(clientVersion);
+            if (versions.length == 0)
+                throw new Error(StringUtil.format("Unsupported version {0}.", clientVersion));
+
+            var category:String = ThingCategory.getCategoryByValue( bytes.readUnsignedByte() );
+            if (!ThingCategory.isValid(category))
+                throw new Error("Invalid object category.");
+
+            // Skipping the texture patterns position.
+            bytes.readUnsignedInt();
+
+            var thing:ThingType = new ThingType();
+            thing.category = category;
+
+            if (!readProperties(thing, bytes)) return null;
+
+            var groupCount:uint = 1;
+			if(thing.category == ThingCategory.OUTFIT)
+				groupCount = bytes.readUnsignedByte();
+
+            var i:uint;
+            var groupType:uint;
+			var frameGroup:FrameGroup;
+            var sprites:Dictionary = new Dictionary();
+            for(groupType = 0; groupType < groupCount; groupType++)
+            {
+			    if(thing.category == ThingCategory.OUTFIT)
+					bytes.readUnsignedByte();
+
+                frameGroup = new FrameGroup();
+                frameGroup.width = bytes.readUnsignedByte();
+                frameGroup.height = bytes.readUnsignedByte();
+
+                if (frameGroup.width > 1 || frameGroup.height > 1)
+                    frameGroup.exactSize = bytes.readUnsignedByte();
+                else
+                    frameGroup.exactSize = Sprite.DEFAULT_SIZE;
+
+                frameGroup.layers = bytes.readUnsignedByte();
+                frameGroup.patternX = bytes.readUnsignedByte();
+                frameGroup.patternY = bytes.readUnsignedByte();
+                frameGroup.patternZ = bytes.readUnsignedByte();
+                frameGroup.frames = bytes.readUnsignedByte();
+
+                if (frameGroup.frames > 1)
+                {
+                    frameGroup.isAnimation = true;
+                    frameGroup.animationMode = bytes.readUnsignedByte();
+                    frameGroup.loopCount = bytes.readInt();
+                    frameGroup.startFrame = bytes.readByte();
+                    frameGroup.frameDurations = new Vector.<FrameDuration>(frameGroup.frames, true);
+
+                    for (i = 0; i < frameGroup.frames; i++)
+                    {
+                        var minimum:uint = bytes.readUnsignedInt();
+                        var maximum:uint = bytes.readUnsignedInt();
+                        frameGroup.frameDurations[i] = new FrameDuration(minimum, maximum);
+                    }
+                }
+
+                var totalSprites:uint = frameGroup.getTotalSprites();
+                if (totalSprites > 4096)
+                    throw new Error("The Object Data has more than 4096 sprites.");
+
+                frameGroup.spriteIndex = new Vector.<uint>(totalSprites, true);
+                sprites[groupType] = new Vector.<SpriteData>(totalSprites, true);
+
+                for (i = 0; i < totalSprites; i++)
+                {
+                    var spriteId:uint = bytes.readUnsignedInt();
+                    frameGroup.spriteIndex[i] = spriteId;
+
+                    var dataSize:uint = bytes.readUnsignedInt();
+                    if (dataSize > 4096)
+                        throw new Error("Invalid sprite data size.");
+
+                    var pixels:ByteArray = new ByteArray();
+                    pixels.endian = Endian.BIG_ENDIAN;
+
+                    bytes.readBytes(pixels, 0, dataSize);
+
+                    var spriteData:SpriteData = new SpriteData();
+                    spriteData.id = spriteId;
+                    spriteData.pixels = pixels;
+                    sprites[groupType][i] = spriteData;
+                }
+
+                thing.setFrameGroup(groupType, frameGroup);
             }
 
             return ThingData.create(obdVersion, clientVersion, thing, sprites);

@@ -43,6 +43,7 @@ package otlib.things
     import otlib.storages.events.StorageEvent;
     import otlib.utils.ChangeResult;
     import otlib.utils.ThingUtils;
+	import otlib.animation.FrameGroup;
 
     use namespace otlib_internal;
 
@@ -50,6 +51,7 @@ package otlib.things
     [Event(name="load", type="otlib.storages.events.StorageEvent")]
     [Event(name="compile", type="otlib.storages.events.StorageEvent")]
     [Event(name="change", type="otlib.storages.events.StorageEvent")]
+    [Event(name="convert", type="flash.events.ProgressEvent")]
     [Event(name="unloading", type="otlib.storages.events.StorageEvent")]
     [Event(name="unload", type="otlib.storages.events.StorageEvent")]
     [Event(name="error", type="flash.events.ErrorEvent")]
@@ -74,6 +76,7 @@ package otlib.things
         private var _thingsCount:uint;
         private var _extended:Boolean;
         private var _improvedAnimations:Boolean;
+        private var _frameGroups:Boolean;
         private var _progressCount:uint;
         private var _changed:Boolean;
         private var _loaded:Boolean;
@@ -116,7 +119,8 @@ package otlib.things
         public function load(file:File,
                              version:Version,
                              extended:Boolean = false,
-                             improvedAnimations:Boolean = false):void
+                             improvedAnimations:Boolean = false,
+                             frameGroups:Boolean = false):void
         {
             if (!file)
                 throw new NullArgumentError("file");
@@ -129,6 +133,7 @@ package otlib.things
             _version = version;
             _extended = (extended || _version.value >= 960);
             _improvedAnimations = (improvedAnimations || _version.value >= 1050);
+            _frameGroups = (frameGroups || _version.value >= 1057);
 
             try
             {
@@ -166,7 +171,8 @@ package otlib.things
 
         public function createNew(version:Version,
                                   extended:Boolean,
-                                  improvedAnimations:Boolean):void
+                                  improvedAnimations:Boolean,
+                                  frameGroups:Boolean):void
         {
             if (!version)
                 throw new NullArgumentError("version");
@@ -176,6 +182,7 @@ package otlib.things
             _version = version;
             _extended = (extended || _version.value >= 960);
             _improvedAnimations = (improvedAnimations || _version.value >= 1050);
+            _frameGroups = (frameGroups || _version.value >= 1057);
             _items = new Dictionary();
             _outfits = new Dictionary();
             _effects = new Dictionary();
@@ -185,10 +192,10 @@ package otlib.things
             _outfitsCount = MIN_OUTFIT_ID;
             _effectsCount = MIN_EFFECT_ID;
             _missilesCount = MIN_MISSILE_ID;
-            _items[_itemsCount] = ThingType.create(_itemsCount, ThingCategory.ITEM);
-            _outfits[_outfitsCount] = ThingType.create(_outfitsCount, ThingCategory.OUTFIT);
-            _effects[_effectsCount] = ThingType.create(_effectsCount, ThingCategory.EFFECT);
-            _missiles[_missilesCount] = ThingType.create(_missilesCount, ThingCategory.MISSILE);
+            _items[_itemsCount] = ThingType.create(_itemsCount, ThingCategory.ITEM, _frameGroups);
+            _outfits[_outfitsCount] = ThingType.create(_outfitsCount, ThingCategory.OUTFIT, _frameGroups);
+            _effects[_effectsCount] = ThingType.create(_effectsCount, ThingCategory.EFFECT, _frameGroups);
+            _missiles[_missilesCount] = ThingType.create(_missilesCount, ThingCategory.MISSILE, _frameGroups);
             _changed = false;
             _loaded = true;
 
@@ -313,7 +320,7 @@ package otlib.things
             return result;
         }
 
-        public function compile(file:File, version:Version, extended:Boolean, frameDurations:Boolean):Boolean
+        public function compile(file:File, version:Version, extended:Boolean, frameDurations:Boolean, frameGroups:Boolean):Boolean
         {
             if (!file)
                 throw new NullArgumentError("file");
@@ -326,6 +333,7 @@ package otlib.things
 
             extended = (extended || version.value >= 960);
             frameDurations = (frameDurations || version.value >= 1050);
+			frameGroups = (frameGroups || version.value >= 1057);
 
             var tmpFile:File = FileUtil.getDirectory(file).resolvePath("tmp_" + file.name);
             var done:Boolean = true;
@@ -360,15 +368,15 @@ package otlib.things
                     done = false;
                 }
 
-                if (done && !writeThingList(writer, _outfits, MIN_OUTFIT_ID, _outfitsCount, version, extended, frameDurations)) {
+                if (done && !writeThingList(writer, _outfits, MIN_OUTFIT_ID, _outfitsCount, version, extended, frameDurations, frameGroups)) {
                     done = false;
                 }
 
-                if (done && !writeThingList(writer, _effects, MIN_EFFECT_ID, _effectsCount, version, extended, frameDurations)) {
+                if (done && !writeThingList(writer, _effects, MIN_EFFECT_ID, _effectsCount, version, extended, frameDurations, false)) {
                     done = false;
                 }
 
-                if (done && !writeThingList(writer, _missiles, MIN_MISSILE_ID, _missilesCount, version, extended, frameDurations)) {
+                if (done && !writeThingList(writer, _missiles, MIN_MISSILE_ID, _missilesCount, version, extended, frameDurations, false)) {
                     done = false;
                 }
 
@@ -826,7 +834,7 @@ package otlib.things
                 }
                 else
                 {
-                    _items[id] = ThingType.create(id, category);
+                    _items[id] = ThingType.create(id, category, _frameGroups);
                 }
             }
             else if (category == ThingCategory.OUTFIT)
@@ -840,7 +848,7 @@ package otlib.things
                 }
                 else
                 {
-                    _outfits[id] = ThingType.create(id, category);
+                    _outfits[id] = ThingType.create(id, category, _frameGroups);
                 }
             }
             else if (category == ThingCategory.EFFECT)
@@ -854,7 +862,7 @@ package otlib.things
                 }
                 else
                 {
-                    _effects[id] = ThingType.create(id, category);
+                    _effects[id] = ThingType.create(id, category, _frameGroups);
                 }
             }
             else if (category == ThingCategory.MISSILE)
@@ -868,7 +876,7 @@ package otlib.things
                 }
                 else
                 {
-                    _missiles[id] = ThingType.create(id, category);
+                    _missiles[id] = ThingType.create(id, category, _frameGroups);
                 }
             }
 
@@ -959,7 +967,7 @@ package otlib.things
                 if (!reader.readProperties(thing))
                     return false;
 
-                if (!reader.readTexturePatterns(thing, _extended, _improvedAnimations))
+                if (!reader.readTexturePatterns(thing, _extended, _improvedAnimations, _frameGroups))
                     return false;
 
                 list[id] = thing;
@@ -982,7 +990,8 @@ package otlib.things
                                           maxId:uint,
                                           version:Version,
                                           extended:Boolean,
-                                          frameDurations:Boolean):Boolean
+                                          frameDurations:Boolean,
+										  frameGroups:Boolean):Boolean
         {
             var dispatchProgress:Boolean = hasEventListener(ProgressEvent.PROGRESS);
 
@@ -993,7 +1002,7 @@ package otlib.things
                     if (!writer.writeProperties(thing))
                         return false;
 
-                    if (!writer.writeTexturePatterns(thing, extended, frameDurations))
+                    if (!writer.writeTexturePatterns(thing, extended, frameDurations, frameGroups))
                         return false;
 
                 } else {
@@ -1026,7 +1035,7 @@ package otlib.things
                     if (!writer.writeItemProperties(item))
                         return false;
 
-                    if (!writer.writeTexturePatterns(item, extended, frameDurations))
+                    if (!writer.writeTexturePatterns(item, extended, frameDurations, false))
                         return false;
 
                 } else {

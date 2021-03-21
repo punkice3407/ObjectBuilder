@@ -78,6 +78,9 @@ package otlib.things
         public static const CLOTH:uint = 0x21;
         public static const MARKET_ITEM:uint = 0x22;
         public static const DEFAULT_ACTION:uint = 0x23;
+        public static const WRAPPABLE:uint = 0x24;
+        public static const UNWRAPPABLE:uint = 0x25;
+        public static const TOP_EFFECT:uint = 0x26;
         public static const USABLE:uint = 0xFE;
         public static const LAST_FLAG:uint = 0xFF;
         public static const STRING_CHARSET:String = "iso-8859-1";

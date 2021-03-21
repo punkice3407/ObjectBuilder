@@ -76,6 +76,7 @@ THE SOFTWARE.
                     extendedValueLabel.text = resourceManager.getString("strings", info.extended ? "yes" : "no");
                     transparencyValueLabel.text = resourceManager.getString("strings", info.transparency ? "yes" : "no");
                     improvedAnimationsValueLabel.text = resourceManager.getString("strings", info.improvedAnimations ? "yes" : "no");
+                    frameGroupsValueLabel.text = resourceManager.getString("strings", info.frameGroups ? "yes" : "no");
                 }
                 else
                     this.clear();
@@ -94,6 +95,7 @@ THE SOFTWARE.
                 extendedValueLabel.text = null;
                 transparencyValueLabel.text = null;
                 improvedAnimationsValueLabel.text = null;
+                frameGroupsValueLabel.text = null;
             }
 
             //--------------------------------------
@@ -201,6 +203,14 @@ THE SOFTWARE.
         <s:Label text="{resourceManager.getString('strings', 'improvAnim') + ':'}"
                  textAlign="right"/>
         <s:RichEditableText id="improvedAnimationsValueLabel"
+                            editable="false"
+                            focusEnabled="false"
+                            height="13"
+                            color="0x9AC9F8"/>
+
+        <s:Label text="{resourceManager.getString('strings', 'frameGroups') + ':'}"
+                 textAlign="right"/>
+        <s:RichEditableText id="frameGroupsValueLabel"
                             editable="false"
                             focusEnabled="false"
                             height="13"

@@ -67,6 +67,8 @@ THE SOFTWARE.
             private var m_transparencyChanged:Boolean;
             private var m_improvedAnimations:Boolean;
             private var m_improvedAnimationsChanged:Boolean;
+            private var m_frameGroups:Boolean;
+            private var m_frameGroupsChanged:Boolean;
             private var m_detail:uint;
 
             //--------------------------------------
@@ -136,6 +138,17 @@ THE SOFTWARE.
                 }
             }
 
+
+            public function get frameGroups():Boolean { return m_frameGroups; }
+            public function set frameGroups(value:Boolean):void
+            {
+                if (value != m_frameGroups) {
+                    m_frameGroups = value;
+                    m_frameGroupsChanged = true;
+                    invalidateProperties();
+                }
+            }
+
             public function get detail():uint { return m_detail; }
 
             //--------------------------------------------------------------------------
@@ -175,6 +188,11 @@ THE SOFTWARE.
                     updateProperties();
                     m_improvedAnimationsChanged = false;
                 }
+
+                if (m_frameGroupsChanged) {
+                    updateProperties();
+                    m_frameGroupsChanged = false;
+                }
             }
 
             //--------------------------------------
@@ -204,19 +222,23 @@ THE SOFTWARE.
                 if (done) {
                     m_extended = (m_extended || m_version.value >= 960);
                     m_improvedAnimations = (m_improvedAnimations || m_version.value >= 1050);
+                    m_frameGroups = (m_frameGroups || m_version.value >= 1057);
 
                     extendedCheckBox.enabled = (m_version.value < 960);
                     transparencyCheckBox.enabled = true;
                     improvedAnimationsCheckBox.enabled = (m_version.value < 1050);
+                    frameGroupsCheckBox.enabled = (m_version.value < 1057);
                 } else {
                     extendedCheckBox.enabled = false;
                     transparencyCheckBox.enabled = false;
                     improvedAnimationsCheckBox.enabled = false;
+                    frameGroupsCheckBox.enabled = false;
                 }
 
                 extendedCheckBox.selected = m_extended;
                 transparencyCheckBox.selected = m_transparency;
                 improvedAnimationsCheckBox.selected = m_improvedAnimations;
+                frameGroupsCheckBox.selected = m_frameGroups;
                 confirmButton.enabled = done;
             }
 
@@ -273,6 +295,11 @@ THE SOFTWARE.
             private function improvedAnimationsCheckBoxChangeHandler(event:Event):void
             {
                 improvedAnimations = improvedAnimationsCheckBox.selected;
+            }
+
+            private function frameGroupsCheckBoxChangeHandler(event:Event):void
+            {
+                frameGroups = frameGroupsCheckBox.selected;
             }
 
             private function confirmButtonClickHandler(event:MouseEvent):void
@@ -347,6 +374,10 @@ THE SOFTWARE.
             <s:CheckBox id="improvedAnimationsCheckBox"
                         label="@Resource(key='improvedAnimations', bundle='strings')"
                         change="improvedAnimationsCheckBoxChangeHandler(event)"/>
+
+            <s:CheckBox id="frameGroupsCheckBox"
+                        label="@Resource(key='frameGroups', bundle='strings')"
+                        change="frameGroupsCheckBoxChangeHandler(event)"/>
         </mg:GroupBox>
     </s:VGroup>
 
