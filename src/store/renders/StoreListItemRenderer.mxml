@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+                xmlns:s="library://ns.adobe.com/flex/spark"
+                xmlns:mx="library://ns.adobe.com/flex/mx"
+                width="200"
+                height="68"
+                dataChange="dataChangeHandler(event)">
+
+    <fx:Script>
+        <![CDATA[
+            import mx.events.FlexEvent;
+            
+            import otlib.assets.Assets;
+            
+            import store.StoreAsset;
+            import store.StoreList;
+            import store.events.AssetStoreEvent;
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            private function dataChangeHandler(event:FlexEvent):void
+            {
+                var asset:StoreAsset = data as StoreAsset;
+                if (asset) {
+                    image.source = asset.bitmap;
+                    nameLabel.text = asset.name;
+                    authorLabel.text = asset.author;
+                    importButton.enabled = asset.loaded;
+                    indicator.visible = !asset.loaded;
+                    this.toolTip = asset.error;
+                }
+            }
+
+            private function importClickHandler(event:MouseEvent):void
+            {
+                var list:StoreList = owner as StoreList;
+                var asset:StoreAsset = data as StoreAsset;
+
+                if (list && asset && asset.loaded)
+                    list.dispatchEvent(new AssetStoreEvent(AssetStoreEvent.IMPORT_ASSET, asset.data));
+            }
+
+        ]]>
+    </fx:Script>
+
+    <!-- background-->
+    <s:Rect left="0" right="0" top="0" bottom="0">
+        <s:fill>
+            <s:SolidColor color="0x474747" />
+        </s:fill>
+        <s:stroke>
+            <s:SolidColorStroke color="0x272727" />
+        </s:stroke>
+    </s:Rect>
+
+    <s:HGroup width="100%" height="100%" padding="2">
+        <s:Group width="64" height="64">
+            <s:Rect left="0" right="0" top="0" bottom="0">
+                <s:fill>
+                    <s:SolidColor color="0x636363" />
+                </s:fill>
+                <s:stroke>
+                    <s:SolidColorStroke color="0x333333" />
+                </s:stroke>
+            </s:Rect>
+            <s:BusyIndicator id="indicator" verticalCenter="0" horizontalCenter="0" symbolColor="0x272727" rotationInterval="50" />
+            <s:BitmapImage id="image" verticalCenter="0" horizontalCenter="0" />
+        </s:Group>
+
+        <s:VGroup width="100%" padding="4">
+            <s:Label id="nameLabel" width="100%" fontSize="14" fontWeight="bold" />
+            <s:Label id="authorLabel" width="100%" fontSize="14" color="0x9AC9F8" />
+        </s:VGroup>
+    </s:HGroup>
+
+    <s:Button id="importButton"
+              width="22" height="22" right="2" bottom="2"
+              toolTip="@Resource(key='import', bundle='strings')"
+              icon="{Assets.IMPORT}"
+              enabled="false"
+              click="importClickHandler(event)" />
+</s:ItemRenderer>

@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<mg:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+                xmlns:s="library://ns.adobe.com/flex/spark"
+                xmlns:mx="library://ns.adobe.com/flex/mx"
+                xmlns:mg="library://ns.mignari.com/mg"
+                width="400"
+                height="220"
+                fontSize="11"
+                title="@Resource(key='createAssetFiles', bundle='strings')"
+                creationComplete="creationCompleteHandler(event)">
+
+    <fx:Metadata>
+        [ResourceBundle("strings")]
+    </fx:Metadata>
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.utils.DialogDetail;
+
+            import mx.collections.ArrayCollection;
+            import mx.events.FlexEvent;
+
+            import spark.events.IndexChangeEvent;
+
+            import otlib.core.Version;
+            import otlib.core.VersionStorage;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            private var m_version:Version;
+            private var m_versionChanged:Boolean;
+            private var m_extended:Boolean;
+            private var m_extendedChanged:Boolean;
+            private var m_transparency:Boolean;
+            private var m_transparencyChanged:Boolean;
+            private var m_improvedAnimations:Boolean;
+            private var m_improvedAnimationsChanged:Boolean;
+            private var m_detail:uint;
+
+            //--------------------------------------
+            // Getters / Setters
+            //--------------------------------------
+
+            public function get version():Version { return m_version; }
+            public function set version(value:Version):void
+            {
+                if (value != m_version) {
+                    m_version = value;
+                    m_versionChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get extended():Boolean { return m_extended; }
+            public function set extended(value:Boolean):void
+            {
+                if (value != m_extended) {
+                    m_extended = value;
+                    m_extendedChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get transparency():Boolean { return m_transparency; }
+            public function set transparency(value:Boolean):void
+            {
+                if (value != m_transparency) {
+                    m_transparency = value;
+                    m_transparencyChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get improvedAnimations():Boolean { return m_improvedAnimations; }
+            public function set improvedAnimations(value:Boolean):void
+            {
+                if (value != m_improvedAnimations) {
+                    m_improvedAnimations = value;
+                    m_improvedAnimationsChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get detail():uint { return m_detail; }
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Override Protected
+            //--------------------------------------
+
+            override protected function commitProperties():void
+            {
+                super.commitProperties();
+
+                if (m_versionChanged) {
+                    updateProperties();
+                    m_versionChanged = false;
+                }
+
+                if (m_extendedChanged) {
+                    updateProperties();
+                    m_extendedChanged = false;
+                }
+
+                if (m_transparencyChanged) {
+                    updateProperties();
+                    m_transparencyChanged = false;
+                }
+
+                if (m_improvedAnimationsChanged) {
+                    updateProperties();
+                    m_improvedAnimationsChanged = false;
+                }
+            }
+
+            //--------------------------------------
+            // Private
+            //--------------------------------------
+
+            private function updateProperties():void
+            {
+                var done:Boolean = (m_version != null);
+
+                versionsDropDownList.selectedItem = m_version;
+
+                if (done) {
+                    m_extended = (m_extended || m_version.value >= 960);
+                    m_improvedAnimations = (m_improvedAnimations || m_version.value >= 1050);
+
+                    extendedCheckBox.enabled = (m_version.value < 960);
+                    transparencyCheckBox.enabled = true;
+                    improvedAnimationsCheckBox.enabled = (m_version.value < 1050);
+                } else {
+                    extendedCheckBox.enabled = false;
+                    transparencyCheckBox.enabled = false;
+                    improvedAnimationsCheckBox.enabled = false;
+                }
+
+                extendedCheckBox.selected = m_extended;
+                transparencyCheckBox.selected = m_transparency;
+                improvedAnimationsCheckBox.selected = m_improvedAnimations;
+                confirmButton.enabled = done;
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            private function creationCompleteHandler(event:FlexEvent):void
+            {
+                versionsDropDownList.dataProvider = new ArrayCollection(VersionStorage.getInstance().getList());
+                versionsDropDownList.setSelectedIndex(0, true);
+                focusManager.setFocus(confirmButton);
+                focusManager.showFocus();
+            }
+
+            private function versionsDropDownListChangeHandler(event:IndexChangeEvent):void
+            {
+                version = versionsDropDownList.selectedItem as Version;
+            }
+
+            private function extendedCheckBoxChangeHandler(event:Event):void
+            {
+                extended = extendedCheckBox.selected;
+            }
+
+            private function transparencyCheckBoxChangeHandler(event:Event):void
+            {
+                transparency = transparencyCheckBox.selected;
+            }
+
+            private function improvedAnimationsCheckBoxChangeHandler(event:Event):void
+            {
+                improvedAnimations = improvedAnimationsCheckBox.selected;
+            }
+
+            private function confirmButtonClickHandler(event:MouseEvent):void
+            {
+                m_detail = DialogDetail.OK;
+                close();
+            }
+
+            private function cancelButtonClickHandler(event:MouseEvent):void
+            {
+                m_detail = DialogDetail.CANCEL;
+                close();
+            }
+
+        ]]>
+    </fx:Script>
+
+    <mg:layout>
+        <s:VerticalLayout />
+    </mg:layout>
+
+    <s:VGroup width="100%" height="100%" gap="10" padding="10">
+        <mg:GroupBox width="100%"
+                     label="@Resource(key='version', bundle='strings')">
+
+            <mg:layout>
+                <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle" />
+            </mg:layout>
+
+            <s:DropDownList id="versionsDropDownList"
+                            width="100%" height="21"
+                            change="versionsDropDownListChangeHandler(event)" />
+        </mg:GroupBox>
+
+        <mg:GroupBox width="100%"
+                     label="@Resource(key='options', bundle='strings')">
+            <mg:layout>
+                <s:VerticalLayout gap="5" padding="10" />
+            </mg:layout>
+
+            <s:CheckBox id="extendedCheckBox"
+                        label="@Resource(key='extended', bundle='strings')"
+                        change="extendedCheckBoxChangeHandler(event)" />
+
+            <s:CheckBox id="transparencyCheckBox"
+                        label="@Resource(key='transparency', bundle='strings')"
+                        change="transparencyCheckBoxChangeHandler(event)" />
+
+            <s:CheckBox id="improvedAnimationsCheckBox"
+                        label="@Resource(key='improvedAnimations', bundle='strings')"
+                        change="improvedAnimationsCheckBoxChangeHandler(event)" />
+        </mg:GroupBox>
+    </s:VGroup>
+
+    <s:BorderContainer width="100%" skinClass="com.mignari.skins.PixeledBorderContainerSkin">
+        <s:layout>
+            <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle" horizontalAlign="right" />
+        </s:layout>
+
+        <s:Button id="confirmButton"
+                  label="@Resource(key='confirm', bundle='strings')"
+                  minWidth="70"
+                  enabled="false"
+                  click="confirmButtonClickHandler(event)" />
+
+        <s:Button id="cancelButton"
+                  label="@Resource(key='cancel', bundle='strings')"
+                  minWidth="70"
+                  click="cancelButtonClickHandler(event)" />
+    </s:BorderContainer>
+</mg:TitleWindow>

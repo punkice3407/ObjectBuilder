@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<mg:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+                xmlns:s="library://ns.adobe.com/flex/spark"
+                xmlns:mx="library://ns.adobe.com/flex/mx"
+                xmlns:mg="library://ns.mignari.com/mg"
+                xmlns:otlib="otlib.components.*"
+                width="500"
+                height="350"
+                fontSize="11"
+                title="@Resource(key='compileAssetFiles', bundle='strings')"
+                creationComplete="creationCompleteHandler(event)">
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.skins.PixeledBorderContainerSkin;
+            import com.mignari.utils.DialogDetail;
+            
+            import mx.collections.ArrayCollection;
+            import mx.events.FlexEvent;
+            
+            import spark.events.IndexChangeEvent;
+            import spark.events.TextOperationEvent;
+            
+            import nail.utils.isNullOrEmpty;
+            
+            import otlib.core.Version;
+            import otlib.core.VersionStorage;
+            import otlib.events.FileTextInputEvent;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            private var m_filesName:String;
+            private var m_filesNameChanged:Boolean;
+            private var m_clientDirectory:File;
+            private var m_clientDirectoryChanged:Boolean;
+            private var m_sprFile:File;
+            private var m_datFile:File;
+            private var m_version:Version;
+            private var m_versionChanged:Boolean;
+            private var m_extended:Boolean;
+            private var m_extendedChanged:Boolean;
+            private var m_transparency:Boolean;
+            private var m_transparencyChanged:Boolean;
+            private var m_improvedAnimations:Boolean;
+            private var m_improvedAnimationsChanged:Boolean;
+            private var m_detail:uint;
+
+            //--------------------------------------
+            // Getters / Setters
+            //--------------------------------------
+
+            public function get sprFile():File { return m_sprFile; }
+            public function get datFile():File { return m_datFile; }
+
+            public function get version():Version { return m_version; }
+            public function set version(value:Version):void
+            {
+                if (value != m_version) {
+                    m_version = value;
+                    m_versionChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get filesName():String { return m_filesName; }
+            public function set filesName(value:String):void
+            {
+                if (m_filesName != value) {
+                    m_filesName = value;
+                    m_filesNameChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get directory():File { return m_clientDirectory; }
+            public function set directory(value:File):void
+            {
+                if (m_clientDirectory != value) {
+                    m_clientDirectory = value;
+                    m_clientDirectoryChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get extended():Boolean { return m_extended; }
+            public function set extended(value:Boolean):void
+            {
+                if (value != m_extended) {
+                    m_extended = value;
+                    m_extendedChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get transparency():Boolean { return m_transparency; }
+            public function set transparency(value:Boolean):void
+            {
+                if (value != m_transparency) {
+                    m_transparency = value;
+                    m_transparencyChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get improvedAnimations():Boolean { return m_improvedAnimations; }
+            public function set improvedAnimations(value:Boolean):void
+            {
+                if (value != m_improvedAnimations) {
+                    m_improvedAnimations = value;
+                    m_improvedAnimationsChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get detail():uint { return m_detail; }
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Override Protected
+            //--------------------------------------
+
+            override protected function commitProperties():void
+            {
+                super.commitProperties();
+
+                if (m_filesNameChanged) {
+                    setClientDirectory(m_clientDirectory);
+                    m_filesNameChanged = false;
+                }
+
+                if (m_clientDirectoryChanged || m_versionChanged) {
+                    setClientDirectory(m_clientDirectory);
+                    m_clientDirectoryChanged = false;
+                    m_versionChanged = false;
+                }
+
+                if (m_extendedChanged) {
+                    setClientDirectory(m_clientDirectory);
+                    m_extendedChanged = false;
+                }
+
+                if (m_transparencyChanged) {
+                    updateProperties();
+                    m_transparencyChanged = false;
+                }
+
+                if (m_improvedAnimationsChanged) {
+                    updateProperties();
+                    m_improvedAnimationsChanged = false;
+                }
+            }
+
+            //--------------------------------------
+            // Private
+            //--------------------------------------
+
+            private function setClientDirectory(directory:File):void
+            {
+                m_datFile = null;
+                m_sprFile = null;
+
+                nameTextInput.text = m_filesName;
+                directoryTextInput.file = directory;
+                versionsDropDownList.selectedItem = m_version;
+
+                if (directory && !isNullOrEmpty(m_filesName)) {
+                    m_datFile = directory.resolvePath(m_filesName + ".dat");
+                    m_sprFile = directory.resolvePath(m_filesName + ".spr");
+                }
+
+                updateProperties();
+            }
+
+            private function updateProperties():void
+            {
+                var done:Boolean = (m_datFile && m_sprFile && m_version);
+                if (done) {
+                    m_extended = (m_extended || m_version.value >= 960);
+                    m_improvedAnimations = (m_improvedAnimations || m_version.value >= 1050);
+
+                    extendedCheckBox.enabled = (m_version.value < 960);
+                    transparencyCheckBox.enabled = true;
+                    improvedAnimationsCheckBox.enabled = (m_version.value < 1050);
+                } else {
+                    extendedCheckBox.enabled = false;
+                    transparencyCheckBox.enabled = false;
+                    improvedAnimationsCheckBox.enabled = false;
+                }
+
+                extendedCheckBox.selected = m_extended;
+                transparencyCheckBox.selected = m_transparency;
+                improvedAnimationsCheckBox.selected = m_improvedAnimations;
+                confirmButton.enabled = done;
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            private function creationCompleteHandler(event:FlexEvent):void
+            {
+                versionsDropDownList.dataProvider = new ArrayCollection(VersionStorage.getInstance().getList());
+                versionsDropDownList.selectedItem = m_version;
+                focusManager.setFocus(confirmButton);
+                focusManager.showFocus();
+            }
+
+            private function browseButtonClickHandler(event:MouseEvent):void
+            {
+                var path:String = m_clientDirectory ? m_clientDirectory.nativePath : File.userDirectory.nativePath;
+                var dir:File = new File(path);
+                dir.addEventListener(Event.SELECT, fileSelectHandler);
+                dir.browseForDirectory(resourceManager.getString("strings", "selectFolder"));
+
+                function fileSelectHandler(event:Event):void
+                {
+                    directory = dir;
+                }
+            }
+
+            private function directorChangeHandler(event:FileTextInputEvent):void
+            {
+                this.directory = event.file;
+            }
+
+            private function nameTextInputChangeHandler(event:TextOperationEvent):void
+            {
+                this.filesName = nameTextInput.text;
+            }
+
+            private function versionsDropDownListChangeHandler(event:IndexChangeEvent):void
+            {
+                version = versionsDropDownList.selectedItem as Version;
+            }
+
+            private function extendedCheckBoxChangeHandler(event:Event):void
+            {
+                extended = extendedCheckBox.selected;
+            }
+
+            private function transparencyCheckBoxChangeHandler(event:Event):void
+            {
+                transparency = transparencyCheckBox.selected;
+            }
+
+            private function improvedAnimationsCheckBoxChangeHandler(event:Event):void
+            {
+                improvedAnimations = improvedAnimationsCheckBox.selected;
+            }
+
+            private function confirmButtonClickHandler(event:MouseEvent):void
+            {
+                m_detail = DialogDetail.OK;
+                close();
+            }
+
+            private function cancelButtonClickHandler(event:MouseEvent):void
+            {
+                m_detail = DialogDetail.CANCEL;
+                close();
+            }
+
+        ]]>
+    </fx:Script>
+
+    <mg:layout>
+        <s:VerticalLayout />
+    </mg:layout>
+
+    <s:VGroup width="100%" height="100%" gap="10" padding="10">
+        <mg:GroupBox width="100%" label="{resourceManager.getString('strings', 'name') + ':'}">
+            <mg:layout>
+                <s:HorizontalLayout gap="10" verticalAlign="middle" horizontalAlign="right" padding="10"/>
+            </mg:layout>
+            <s:TextInput id="nameTextInput"
+                         width="100%"
+                         change="nameTextInputChangeHandler(event)"/>
+        </mg:GroupBox>
+
+        <mg:GroupBox width="100%" label="{resourceManager.getString('strings', 'outputFolder') + ':'}">
+            <mg:layout>
+                <s:HorizontalLayout gap="10" verticalAlign="middle" horizontalAlign="right" padding="10"/>
+            </mg:layout>
+
+            <otlib:FileTextInput id="directoryTextInput"
+                                 left="0"
+                                 width="100%"
+                                 fileChange="directorChangeHandler(event)"/>
+
+            <s:Button id="browseButton"
+                      label="@Resource(key='browse', bundle='strings')"
+                      height="21"
+                      click="browseButtonClickHandler(event)"/>
+        </mg:GroupBox>
+
+        <mg:GroupBox width="100%" label="@Resource(key='version', bundle='strings')">
+            <mg:layout>
+                <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle"/>
+            </mg:layout>
+            <s:DropDownList id="versionsDropDownList"
+                            width="100%" height="21"
+                            change="versionsDropDownListChangeHandler(event)"/>
+        </mg:GroupBox>
+
+        <!-- client options -->
+        <mg:GroupBox width="100%" label="@Resource(key='options', bundle='strings')">
+            <mg:layout>
+                <s:VerticalLayout gap="5" verticalAlign="middle" horizontalAlign="left" padding="10"/>
+            </mg:layout>
+
+            <s:CheckBox id="extendedCheckBox"
+                        label="@Resource(key='extended', bundle='strings')"
+                        enabled="false"
+                        change="extendedCheckBoxChangeHandler(event)"/>
+
+            <s:CheckBox id="transparencyCheckBox"
+                        label="@Resource(key='transparency', bundle='strings')"
+                        change="transparencyCheckBoxChangeHandler(event)"/>
+
+            <s:CheckBox id="improvedAnimationsCheckBox"
+                        label="@Resource(key='improvedAnimations', bundle='strings')"
+                        change="improvedAnimationsCheckBoxChangeHandler(event)"/>
+        </mg:GroupBox>
+    </s:VGroup>
+
+    <s:BorderContainer width="100%" skinClass="com.mignari.skins.PixeledBorderContainerSkin">
+        <s:layout>
+            <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle" horizontalAlign="right" />
+        </s:layout>
+
+        <s:Button id="confirmButton"
+                  label="@Resource(key='confirm', bundle='strings')"
+                  minWidth="70"
+                  enabled="false"
+                  click="confirmButtonClickHandler(event)"/>
+
+        <s:Button id="cancelButton"
+                  label="@Resource(key='cancel', bundle='strings')"
+                  minWidth="70"
+                  click="cancelButtonClickHandler(event)"/>
+    </s:BorderContainer>
+</mg:TitleWindow>

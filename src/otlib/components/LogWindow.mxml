@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          xmlns:nail="library://ns.nail.com/naillib"
+          minWidth="500"
+          minHeight="400"
+          backgroundColor="0x494949"
+          showStatusBar="false"
+          title="@Resource(key='logWindow', bundle='strings')"
+          creationComplete="windowCreationCompleteHandler(event)">
+
+    <s:layout>
+        <s:VerticalLayout gap="0"
+                          horizontalAlign="right"/>
+    </s:layout>
+
+    <fx:Metadata>
+        [Event(name="clear", type="flash.events.Event")]
+        [ResourceBundle("strings")]
+    </fx:Metadata>
+
+    <fx:Script>
+        <![CDATA[
+            import mx.events.FlexEvent;
+
+            import flashx.textLayout.conversion.TextConverter;
+
+            import nail.logging.Log;
+            import nail.utils.isNullOrEmpty;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            private var _text:String = "";
+            private var _textChanged:Boolean;
+
+            //--------------------------------------
+            // Getters / Setters
+            //--------------------------------------
+
+            [Bindable]
+            public function get text():String { return _text; }
+            public function set text(value:String):void
+            {
+                value = value == null ? "" : value;
+                if (_text != value) {
+                    _text = value;
+                    _textChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Override Protected
+            //--------------------------------------
+
+            override protected function commitProperties():void
+            {
+                super.commitProperties();
+                if (_textChanged) {
+                    textArea.textFlow = TextConverter.importToFlow(
+                        _text,
+                        TextConverter.TEXT_FIELD_HTML_FORMAT);
+                    saveButton.enabled = !isNullOrEmpty(_text);
+                    _textChanged = false;
+                }
+            }
+
+            //--------------------------------------
+            // Private
+            //--------------------------------------
+
+            private function saveLog(file:File):void
+            {
+                try
+                {
+                    if (file.extension != "txt") {
+                        file.nativePath += ".txt";
+                    }
+
+                    var stream:FileStream = new FileStream();
+                    stream.open(file, FileMode.WRITE);
+                    stream.writeMultiByte(textArea.text, "iso-8859-1");
+                    stream.close();
+                } catch(error:Error) {
+                    Log.error(error.message, error.getStackTrace(), error.errorID);
+                }
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function windowCreationCompleteHandler(event:FlexEvent):void
+            {
+                focusManager.setFocus(closeButton);
+                focusManager.showFocus();
+            }
+
+            protected function saveButtonClickHandler(event:MouseEvent):void
+            {
+                var file:File = File.documentsDirectory.resolvePath("changes.log");
+                file.addEventListener(Event.SELECT, fileSelectHandler);
+                file.browseForSave(resourceManager.getString("strings", "saveLog"));
+
+                function fileSelectHandler(event:Event):void
+                {
+                    saveLog(file);
+                }
+            }
+
+            protected function clearButtonClickHandler(event:MouseEvent):void
+            {
+                dispatchEvent(new Event(Event.CLEAR));
+            }
+
+        ]]>
+    </fx:Script>
+
+    <s:TextArea id="textArea"
+                width="100%"
+                height="100%"
+                fontSize="11"
+                verticalScrollPolicy="on"
+                editable="false"
+                focusEnabled="false"
+                text="{text}"
+                borderColor="0x272727"
+                paddingLeft="5"
+                paddingRight="10"
+                paddingTop="10"
+                paddingBottom="10"/>
+
+    <s:HGroup width="100%"
+              paddingLeft="10"
+              paddingRight="10"
+              paddingTop="10"
+              paddingBottom="10">
+        <s:Button id="saveButton"
+                  label="@Resource(key='save', bundle='strings')"
+                  width="70"
+                  enabled="false"
+                  click="saveButtonClickHandler(event)"/>
+        <s:Button id="clearButton"
+                  label="@Resource(key='clear', bundle='strings')"
+                  width="70"
+                  click="clearButtonClickHandler(event)"/>
+        <s:Spacer width="100%"/>
+        <s:Button id="closeButton"
+                  label="@Resource(key='close', bundle='strings')"
+                  width="70"
+                  click="close()"/>
+    </s:HGroup>
+</s:Window>

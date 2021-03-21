@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          xmlns:nail="library://ns.nail.com/naillib"
+          xmlns:otlib="otlib.components.*"
+          backgroundColor="0x494949"
+          showStatusBar="false"
+          fontSize="11"
+          resizable="false"
+          maximizable="false"
+          minimizable="true"
+          width="600"
+          height="300"
+          title="@Resource(key='lookTypeGenerator', bundle='strings')"
+          creationComplete="creationCompleteHandler(event)">
+
+    <s:layout>
+        <s:VerticalLayout gap="10"
+                          paddingLeft="10"
+                          paddingRight="10"
+                          paddingTop="10"
+                          paddingBottom="10"/>
+    </s:layout>
+
+    <fx:Metadata>
+        [ResourceBundle("strings")]
+    </fx:Metadata>
+
+    <fx:Script>
+        <![CDATA[
+            import mx.events.FlexEvent;
+            import mx.events.PropertyChangeEvent;
+
+            import nail.utils.isNullOrEmpty;
+
+            import otlib.utils.BindableLookType;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            [Bindable]
+            private var _lookType : BindableLookType;
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            private function updateXML():void
+            {
+                var xml : XML;
+                xml = _lookType.serialize();
+                xmlDisplay.text = xml == null ? "" : xml.toXMLString();
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                _lookType = new BindableLookType();
+                _lookType.addEventListener(PropertyChangeEvent.PROPERTY_CHANGE, lookTypePropertyChange);
+            }
+
+            protected function lookTypeNumericStepperChangeHandler(event:Event):void
+            {
+                if (lookAsItemCheckBox.selected)
+                {
+                    _lookType.outfit = 0;
+                    _lookType.item = lookTypeNumericStepper.value;
+                }
+                else
+                {
+                    _lookType.item = 0;
+                    _lookType.outfit = lookTypeNumericStepper.value;
+                }
+                updateXML();
+            }
+
+            protected function lookAsItemCheckBoxChangeHandler(event:Event):void
+            {
+                var value:uint;
+
+                if (lookAsItemCheckBox.selected)
+                {
+                    value = _lookType.outfit;
+                    _lookType.outfit = 0;
+                    _lookType.item = value;
+
+                }
+                else
+                {
+                    value = _lookType.item;
+                    _lookType.item = 0;
+                    _lookType.outfit = value;
+                }
+            }
+
+            protected function lookTypePropertyChange(event:PropertyChangeEvent):void
+            {
+                updateXML();
+            }
+
+            protected function copyButtonClickHandler(event:MouseEvent):void
+            {
+                var xmlString:String;
+
+                if (isNullOrEmpty(xmlDisplay.text))
+                {
+                    return;
+                }
+
+                try
+                {
+                    xmlString = XML(xmlDisplay.text).toXMLString();
+                }
+                catch(error:Error)
+                {
+                    xmlString = null;
+                }
+
+                if (!isNullOrEmpty(xmlString))
+                {
+                    Clipboard.generalClipboard.clear();
+                    Clipboard.generalClipboard.setData(ClipboardFormats.TEXT_FORMAT, xmlString);
+                }
+            }
+
+            protected function pasteButtonClickHandler(event:MouseEvent):void
+            {
+                var xmlString:String;
+                var xml : XML;
+
+                if (Clipboard.generalClipboard.hasFormat(ClipboardFormats.TEXT_FORMAT))
+                {
+                    xmlString = String(Clipboard.generalClipboard.getData(ClipboardFormats.TEXT_FORMAT));
+                    if (isNullOrEmpty(xmlString))
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        xml = XML(xmlString);
+                        _lookType.unserialize(xml);
+                    }
+                    catch(error:Error)
+                    {
+                        xmlDisplay.text = "Invalid XML.";
+                        return;
+                    }
+                }
+            }
+
+        ]]>
+    </fx:Script>
+
+    <nail:GroupBox label="@Resource(key='lookType', bundle='strings')"
+                   width="100%">
+        <nail:layout>
+            <s:HorizontalLayout gap="20"
+                                paddingLeft="10"
+                                paddingRight="10"
+                                paddingTop="10"
+                                paddingBottom="10"
+                                verticalAlign="middle"/>
+        </nail:layout>
+
+        <s:VGroup>
+            <s:HGroup id="lookTypeGroup"
+                      width="100%"
+                      verticalAlign="middle"
+                      enabled="true">
+                <s:Label text="{resourceManager.getString('strings', 'type') + ':'}"
+                         minWidth="70"
+                         textAlign="right"/>
+                <s:NumericStepper id="lookTypeNumericStepper"
+                                  width="100"
+                                  minimum="0"
+                                  maximum="0xFFFFFF"
+                                  change="lookTypeNumericStepperChangeHandler(event)"/>
+                <s:CheckBox id="lookAsItemCheckBox"
+                            label="@Resource(key='asItem', bundle='strings')"
+                            selected="{_lookType.item != 0}"
+                            change="lookAsItemCheckBoxChangeHandler(event)"/>
+            </s:HGroup>
+
+            <s:HGroup id="lookHeadGroup"
+                      width="100%"
+                      verticalAlign="middle"
+                      enabled="true">
+                <s:Label text="{resourceManager.getString('strings', 'head') + ':'}"
+                         minWidth="70"
+                         textAlign="right"/>
+                <s:NumericStepper id="lookHeadNumericStepper"
+                                  width="100"
+                                  value="{_lookType.head}"
+                                  minimum="0"
+                                  maximum="132"
+                                  change="{_lookType.head = lookHeadNumericStepper.value;}"/>
+
+                <otlib:HSIColorPicker id="headSwitchColor"
+                                      color="{_lookType.head}"
+                                      change="{_lookType.head = headSwitchColor.color;}"/>
+            </s:HGroup>
+
+            <s:HGroup id="lookBodyGroup"
+                      width="100%"
+                      verticalAlign="middle"
+                      enabled="true">
+                <s:Label text="{resourceManager.getString('strings', 'body') + ':'}"
+                         minWidth="70"
+                         textAlign="right"/>
+                <s:NumericStepper id="lookBodyNumericStepper"
+                                  width="100"
+                                  value="{_lookType.body}"
+                                  minimum="0"
+                                  maximum="132"
+                                  change="{_lookType.body = lookBodyNumericStepper.value;}"/>
+                <otlib:HSIColorPicker id="bodySwitchColor"
+                                      color="{_lookType.body}"
+                                      change="{_lookType.body = bodySwitchColor.color;}"/>
+            </s:HGroup>
+
+            <s:HGroup id="lookLegsGroup"
+                      width="100%"
+                      verticalAlign="middle"
+                      enabled="true">
+                <s:Label text="{resourceManager.getString('strings', 'legs') + ':'}"
+                         minWidth="70"
+                         textAlign="right"/>
+                <s:NumericStepper id="lookLegsNumericStepper"
+                                  width="100"
+                                  value="{_lookType.legs}"
+                                  minimum="0"
+                                  maximum="132"
+                                  change="{_lookType.legs = lookLegsNumericStepper.value;}"/>
+                <otlib:HSIColorPicker id="legsSwitchColor"
+                                      color="{_lookType.legs}"
+                                      change="{_lookType.legs = legsSwitchColor.color;}"/>
+            </s:HGroup>
+
+            <s:HGroup id="lookFeetGroup"
+                      width="100%"
+                      verticalAlign="middle"
+                      enabled="true">
+                <s:Label text="{resourceManager.getString('strings', 'feet') + ':'}"
+                         minWidth="70"
+                         textAlign="right"/>
+                <s:NumericStepper id="lookFeetNumericStepper"
+                                  width="100"
+                                  value="{_lookType.feet}"
+                                  minimum="0"
+                                  maximum="132"
+                                  change="{_lookType.feet = lookFeetNumericStepper.value;}"/>
+                <otlib:HSIColorPicker id="feetSwitchColor"
+                                      color="{_lookType.feet}"
+                                      change="{_lookType.feet = feetSwitchColor.color;}"/>
+            </s:HGroup>
+        </s:VGroup>
+
+        <s:VGroup width="100%"
+                  height="100%">
+            <s:HGroup id="lookAddonsGroup"
+                      width="100%"
+                      verticalAlign="middle"
+                      enabled="true">
+                <s:Label text="{resourceManager.getString('strings', 'addons') + ':'}"
+                         minWidth="70"
+                         textAlign="right"/>
+                <s:NumericStepper id="lookAddonsNumericStepper"
+                                  width="100"
+                                  value="{_lookType.addons}"
+                                  minimum="0"
+                                  maximum="3"
+                                  change="{_lookType.addons = lookAddonsNumericStepper.value;}"/>
+            </s:HGroup>
+
+            <s:HGroup id="lookMountGroup"
+                      width="100%"
+                      verticalAlign="middle"
+                      enabled="true">
+                <s:Label text="{resourceManager.getString('strings', 'mount') + ':'}"
+                         minWidth="70"
+                         textAlign="right"/>
+                <s:NumericStepper id="lookMountNumericStepper"
+                                  width="100"
+                                  minimum="0"
+                                  maximum="0xFFFFFF"
+                                  value="{_lookType.mount}"
+                                  change="{_lookType.mount = lookMountNumericStepper.value;}"/>
+            </s:HGroup>
+
+            <s:HGroup id="lookCorpseGroup"
+                      width="100%"
+                      verticalAlign="middle"
+                      enabled="true">
+                <s:Label text="{resourceManager.getString('strings', 'corpse') + ':'}"
+                         minWidth="70"
+                         textAlign="right"/>
+                <s:NumericStepper id="lookCorpseNumericStepper"
+                                  width="100"
+                                  minimum="0"
+                                  maximum="0xFFFFFF"
+                                  value="{_lookType.corpse}"
+                                  change="{_lookType.corpse = lookCorpseNumericStepper.value;}"/>
+            </s:HGroup>
+        </s:VGroup>
+    </nail:GroupBox>
+
+    <nail:GroupBox label="XML"
+                   width="100%"
+                   height="100%">
+
+        <nail:layout>
+            <s:HorizontalLayout gap="20"
+                                paddingLeft="0"
+                                paddingRight="0"
+                                paddingTop="10"
+                                paddingBottom="0"/>
+        </nail:layout>
+
+        <s:TextArea id="xmlDisplay"
+                    width="100%"
+                    height="100%"
+                    editable="false"
+                    lineBreak="explicit"
+                    focusEnabled="false"
+                    borderVisible="false"
+                    paddingLeft="10"
+                    paddingRight="10"
+                    horizontalScrollPolicy="on"/>
+    </nail:GroupBox>
+
+    <nail:ShadowLine width="100%"/>
+
+    <s:HGroup width="100%">
+        <s:Button id="copyButton"
+                  label="@Resource(key='copy', bundle='strings')"
+                  minWidth="70"
+                  click="copyButtonClickHandler(event)"/>
+        <s:Button id="pasteButton"
+                  label="@Resource(key='paste', bundle='strings')"
+                  minWidth="70"
+                  click="pasteButtonClickHandler(event)"/>
+    </s:HGroup>
+</s:Window>

@@ -1,0 +1,34 @@
+/* CSS file */
+b {
+	font-family: verdana;
+	font-size: 12pt;
+}
+
+p {
+	font-family: verdana;
+	font-size: 10pt;
+}
+
+code {
+	font-family: verdana;
+	font-size: 10pt;
+}
+
+i {
+	font-family: verdana;
+	font-size: 10pt;
+}
+
+li {
+	font-family: verdana;
+	font-size: 10pt;
+}
+
+a {
+	font-family: verdana;
+	font-size: 10pt;
+}
+
+body {
+	padding: 10px;
+}

@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          xmlns:nail="library://ns.nail.com/naillib"
+          minWidth="600"
+          minHeight="500"
+          type="utility"
+          alwaysInFront="true"
+          backgroundColor="0x494949"
+          showStatusBar="false"
+          fontSize="11"
+          title="@Resource(key='versions', bundle='strings')"
+          creationComplete="creationCompleteHandler(event)"
+          closing="closingHandler(event)">
+
+    <s:layout>
+        <s:VerticalLayout paddingLeft="10"
+                          paddingRight="10"
+                          paddingTop="10"
+                          paddingBottom="10"/>
+    </s:layout>
+
+    <fx:Script>
+        <![CDATA[
+            import mx.collections.ArrayCollection;
+            import mx.events.CloseEvent;
+            import mx.events.FlexEvent;
+
+            import spark.events.GridSelectionEvent;
+
+            import nail.components.controls.Alert;
+            import nail.utils.StringUtil;
+            import nail.utils.isNullOrEmpty;
+
+            import otlib.assets.Assets;
+            import otlib.core.IVersionStorage;
+            import otlib.core.Version;
+            import otlib.core.VersionStorage;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            private var _versionStorage:IVersionStorage;
+            private var _value:uint;
+            private var _datSignature:uint;
+            private var _sprSignature:uint;
+            private var _otbversion:uint;
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Private
+            //--------------------------------------
+
+            private function checkVersion():void
+            {
+                var versionValueText:String = versionValueComboBox.selectedItem;
+                if (isNullOrEmpty(versionValueText)) return;
+
+                while (versionValueText.indexOf(".") != -1)
+                    versionValueText = versionValueText.replace(".", "");
+
+                _value = uint(versionValueText);
+                if (_value < 710) return;
+
+                var datText:String = datTextInput.text;
+                if (datText.length != 8) return;
+
+                _datSignature = uint("0x" + datText);
+
+                var sprText:String = sprTextInput.text;
+                if (sprText.length != 8) return;
+
+                _sprSignature = uint("0x" + sprText);
+                _otbversion = otbVersionNumericStepper.value;
+
+                var version:Version = _versionStorage.getBySignatures(_datSignature, _sprSignature);
+                if (version && version.otbVersion == _otbversion) {
+                    addVersionButton.enabled = false;
+                    removeVersionButton.enabled = true;
+                    versionsDataGrid.selectedIndex = versionsDataGrid.dataProvider.getItemIndex(version);
+                } else {
+                    addVersionButton.enabled = true;
+                    removeVersionButton.enabled = false;
+                    versionsDataGrid.selectedIndex = -1;
+                }
+            }
+
+            private function setVersions():void
+            {
+                var versions:ArrayCollection = new ArrayCollection( _versionStorage.getList() );
+                versionsDataGrid.dataProvider = versions;
+                versionsDataGrid.selectedIndex = -1;
+                versionValueComboBox.dataProvider = versions;
+                versionValueComboBox.selectedIndex = -1;
+                datTextInput.text = "";
+                sprTextInput.text = "";
+                otbVersionNumericStepper.value = 0;
+                addVersionButton.enabled = false;
+                removeVersionButton.enabled = false;
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                _versionStorage = VersionStorage.getInstance();
+                _versionStorage.addEventListener(Event.CHANGE, storageChangeHandler);
+                setVersions();
+            }
+
+            protected function closingHandler(event:Event):void
+            {
+                _versionStorage.removeEventListener(Event.CHANGE, storageChangeHandler);
+            }
+
+            protected function addVersionButtonClickHandler(event:MouseEvent):void
+            {
+                if (_value != 0 && _datSignature != 0 && _sprSignature != 0)
+                    _versionStorage.addVersion(_value, _datSignature, _sprSignature, _otbversion)
+            }
+
+            protected function removeVersionButtonClickHandler(event:MouseEvent):void
+            {
+                var version:Version = versionsDataGrid.selectedItem as Version;
+                if (!version) return;
+
+                var message:String = StringUtil.format(
+                    resourceManager.getString("strings", "wantToRemove"),
+                    resourceManager.getString("strings", "version").toLowerCase(),
+                    version);
+
+                Alert.show(
+                    message,
+                    resourceManager.getString("strings", "remove"),
+                    Alert.YES | Alert.NO,
+                    this,
+                    closeHandler);
+
+                function closeHandler(event:CloseEvent):void
+                {
+                    if (event.detail == Alert.YES)
+                        _versionStorage.removeVersion(version);
+                }
+            }
+
+            protected function versionsDataGridSelectionChangeHandler(event:GridSelectionEvent):void
+            {
+                var version:Version = versionsDataGrid.selectedItem as Version;
+                if (version) {
+                    versionValueComboBox.selectedItem = version;
+                    datTextInput.text = version.datSignature.toString(16).toUpperCase();
+                    sprTextInput.text = version.sprSignature.toString(16).toUpperCase();
+                    otbVersionNumericStepper.value = version.otbVersion;
+                    removeVersionButton.enabled = true;
+                } else {
+                    versionValueComboBox.selectedIndex = -1;
+                    datTextInput.text = "";
+                    sprTextInput.text = "";
+                    otbVersionNumericStepper.value = 0;
+                    removeVersionButton.enabled = false;
+                }
+            }
+
+            protected function storageChangeHandler(event:Event):void
+            {
+                setVersions();
+            }
+
+        ]]>
+    </fx:Script>
+
+    <s:DataGrid id="versionsDataGrid"
+                width="100%"
+                height="100%"
+                selectionChange="versionsDataGridSelectionChangeHandler(event)">
+
+        <s:columns>
+            <s:ArrayList>
+                <s:GridColumn dataField="value" headerText="@Resource(key='value', bundle='strings')"/>
+                <s:GridColumn dataField="valueStr" headerText="String"/>
+                <s:GridColumn dataField="datSignature" headerText="Dat"
+                              itemRenderer="otlib.components.renders.SignatureItemRenderer"/>
+                <s:GridColumn dataField="sprSignature" headerText="Spr"
+                              itemRenderer="otlib.components.renders.SignatureItemRenderer"/>
+                <s:GridColumn dataField="otbVersion" headerText="Otb"/>
+            </s:ArrayList>
+        </s:columns>
+    </s:DataGrid>
+
+    <nail:ShadowLine width="100%"/>
+
+    <s:HGroup width="100%"
+              horizontalAlign="left"
+              verticalAlign="middle">
+        <s:Button id="addVersionButton"
+                  toolTip="@Resource(key='addVersion', bundle='strings')"
+                  width="19"
+                  height="19"
+                  icon="{Assets.NEW}"
+                  enabled="false"
+                  click="addVersionButtonClickHandler(event)"/>
+
+        <s:Button id="removeVersionButton"
+                  toolTip="@Resource(key='remove', bundle='strings')"
+                  width="19"
+                  height="19"
+                  icon="{Assets.DELETE}"
+                  enabled="false"
+                  click="removeVersionButtonClickHandler(event)"/>
+
+        <nail:ShadowLine height="100%"/>
+        <s:Label text="{resourceManager.getString('strings', 'value') + ':'}"/>
+        <s:ComboBox id="versionValueComboBox"
+                    width="70"
+                    change="checkVersion()"/>
+
+        <nail:ShadowLine height="100%"/>
+        <s:Label text="Dat:"/>
+        <s:TextInput id="datTextInput"
+                     width="80"
+                     maxChars="8"
+                     restrict="0-9 A-F a-f"
+                     change="checkVersion()"/>
+
+        <nail:ShadowLine height="100%"/>
+        <s:Label text="Spr:"/>
+        <s:TextInput id="sprTextInput"
+                     width="80"
+                     maxChars="8"
+                     restrict="0-9 A-F a-f"
+                     change="checkVersion()"/>
+
+        <nail:ShadowLine height="100%"/>
+        <s:Label text="Otb:"/>
+        <s:NumericStepper id="otbVersionNumericStepper"
+                          minimum="0"
+                          maximum="1000"
+                          change="checkVersion()"/>
+    </s:HGroup>
+
+    <nail:ShadowLine width="100%"/>
+
+    <s:HGroup width="100%"
+              horizontalAlign="right"
+              verticalAlign="middle">
+
+        <s:Button label="@Resource(key='close', bundle='strings')"
+                  minWidth="70"
+                  click="close()"/>
+    </s:HGroup>
+</s:Window>

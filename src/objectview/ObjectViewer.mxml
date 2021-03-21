@@ -1,0 +1,611 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          xmlns:nail="library://ns.nail.com/naillib"
+          xmlns:otlib="otlib.components.*"
+          xmlns:ns="http://flex.apache.org/experimental/ns"
+          minWidth="500"
+          minHeight="400"
+          fontSize="11"
+          showStatusBar="false"
+          backgroundColor="0x494949"
+          title="@Resource(key='objectViewer', bundle='strings')"
+          creationComplete="creationCompleteHandler(event)"
+          closing="closingHandler(event)">
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.utils.FileUtil;
+            import com.mignari.utils.WindowUtil;
+            import com.mignari.workers.IWorkerCommunicator;
+
+            import mx.collections.ArrayCollection;
+            import mx.core.FlexGlobals;
+            import mx.events.FlexEvent;
+
+            import spark.events.IndexChangeEvent;
+
+            import flashx.textLayout.conversion.TextConverter;
+
+            import nail.components.controls.Alert;
+            import nail.errors.NullArgumentError;
+            import nail.utils.StringUtil;
+
+            import ob.commands.SetClientInfoCommand;
+            import ob.commands.things.ImportThingsFromFilesCommand;
+            import ob.core.IObjectBuilder;
+
+            import objectview.settings.ObjectViewerSettings;
+
+            import otlib.assets.Assets;
+            import otlib.loaders.PathHelper;
+            import otlib.settings.ISettingsManager;
+            import otlib.settings.SettingsManager;
+            import otlib.things.ThingCategory;
+            import otlib.things.ThingData;
+            import otlib.utils.ClientInfo;
+            import otlib.utils.OTFormat;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            private var m_application:IObjectBuilder;
+            private var m_communicator:IWorkerCommunicator;
+            private var m_settingsManager:ISettingsManager;
+            private var m_settings:ObjectViewerSettings;
+            private var m_lastDirectory:File;
+            private var m_zoom:Number = 1.0;
+            private var m_zoomChanged:Boolean;
+
+            private var m_backgroundColor:uint;
+            private var m_backgroundColorChanged:Boolean;
+            private var m_showBackgroundColor:Boolean;
+            private var m_showBackgroundColorChanged:Boolean;
+
+            [Bindable]
+            private var m_files:ArrayCollection = new ArrayCollection();
+
+            private const STATUS:String = "<b>{0}</b>: {1} - <b>{2}</b>: {3} - <b>{4}</b>: {5} - <b>{6}</b>: {7}";
+
+            //--------------------------------------
+            // Getters / Setters
+            //--------------------------------------
+
+            public function get communicator():IWorkerCommunicator { return m_communicator; }
+            public function set communicator(value:IWorkerCommunicator):void
+            {
+                if (m_communicator) {
+                    m_communicator.unregisterCallback(SetClientInfoCommand, clientInfoCallback);
+                    m_communicator = null;
+                }
+
+                m_communicator = value;
+
+                if (m_communicator) {
+                    m_communicator.registerCallback(SetClientInfoCommand, clientInfoCallback);
+                }
+            }
+
+            public function get file():File { return fileList ? fileList.selectedItem : null; }
+            public function set file(value:File):void
+            {
+                var current:File = fileList ? fileList.selectedItem : null;
+                if (!FileUtil.equals(current, value)) {
+                    setFile(value);
+                }
+            }
+
+            public function get showBackgroundColor():Boolean { return m_showBackgroundColor; }
+            public function set showBackgroundColor(value:Boolean):void
+            {
+                if (m_showBackgroundColor != value) {
+                    m_showBackgroundColor = value;
+                    m_showBackgroundColorChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get backgroundColor():uint { return m_backgroundColor; }
+            public function set backgroundColor(value:uint):void
+            {
+                if (m_backgroundColor != value) {
+                    m_backgroundColor = value;
+                    m_backgroundColorChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            [Bindable]
+            public function get zoom():Number { return m_zoom; }
+            public function set zoom(value:Number):void
+            {
+                if (isNaN(value))
+                    value = 1.0;
+                else
+                    value = parseFloat(value.toFixed(1));
+
+                if (m_zoom != value && value >= zoomSlider.minimum && value <= zoomSlider.maximum) {
+                    m_zoom = value;
+                    m_zoomChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get hasFiles():Boolean { return m_files.length != 0; }
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Override Protected
+            //--------------------------------------
+
+            override protected function commitProperties():void
+            {
+                super.commitProperties();
+
+                if (m_zoomChanged) {
+                    m_zoomChanged = false;
+                    thingView.scaleX = m_zoom;
+                    thingView.scaleY = m_zoom;
+                }
+
+                if (m_showBackgroundColorChanged) {
+                    m_showBackgroundColorChanged = false;
+                    backgroundColorCheckBox.selected = m_showBackgroundColor;
+                    colorPicker.enabled = m_showBackgroundColor;
+                    colorPicker.selectedColor = m_backgroundColor;
+                    thingView.backgroundColor = m_showBackgroundColor ? m_backgroundColor :  NaN;
+                }
+
+                if (m_backgroundColorChanged) {
+                    m_backgroundColorChanged = false;
+                    colorPicker.selectedColor = m_backgroundColor;
+                    thingView.backgroundColor = m_showBackgroundColor ? m_backgroundColor :  NaN;
+                }
+            }
+
+            //--------------------------------------
+            // Private
+            //--------------------------------------
+
+            private function loadSettings():void
+            {
+                m_settings = new ObjectViewerSettings();
+                m_settingsManager.loadSettings(m_settings);
+
+                if (m_settings.maximized)
+                {
+                    maximize();
+                }
+                else
+                {
+                    width = Math.max(minWidth, Math.min(maxWidth, m_settings.width));
+                    height = Math.max(minHeight, Math.min(maxHeight, m_settings.height));
+                    WindowUtil.centralizeWindowOnScreen(nativeWindow);
+                }
+
+                zoom = m_settings.zoom;
+                showBackgroundColor = m_settings.showBackgroundColor;
+                backgroundColor = m_settings.backgroundColor;
+            }
+
+            private function saveSettings():void
+            {
+                m_settings.maximized = (nativeWindow.displayState == NativeWindowDisplayState.MAXIMIZED);
+                m_settings.width = width;
+                m_settings.height = height;
+                m_settings.zoom = zoom;
+                m_settings.showBackgroundColor = showBackgroundColor;
+                m_settings.backgroundColor = backgroundColor;
+                m_settingsManager.saveSettings(m_settings);
+            }
+
+            private function clientInfoCallback(info:ClientInfo):void
+            {
+                if (!info)
+                    throw new NullArgumentError("info");
+
+                importButton.enabled = (info.loaded && hasFiles);
+            }
+
+            private function getFileIndex(file:File):int
+            {
+                if (!file || !file.exists)
+                    return -1;
+
+                for (var i:int = m_files.length - 1; i >= 0; i--) {
+                    if (file.nativePath == File(m_files.getItemAt(i)).nativePath)
+                        return i;
+                }
+
+                return -1;
+            }
+
+            private function setFile(fileTarget:File):void
+            {
+                if (!fileTarget || fileTarget.extension != OTFormat.OBD) {
+                    thingView.thingData = null;
+                    descriptionText.text = "";
+                    importButton.enabled = false;
+                    deleteButton.enabled = false;
+                    return;
+                }
+
+                var directory:File = FileUtil.getDirectory(fileTarget);
+
+                // Checks if the new directory and the current directory are equal.
+                if (hasFiles && m_lastDirectory && FileUtil.equals(m_lastDirectory, directory)) {
+                    selectFile(fileTarget);
+                    return;
+                }
+
+                m_files.removeAll();
+
+                var files:Vector.<File> = FileUtil.getFullListing(directory, OTFormat.OBD);
+                var list:Array = [];
+
+                for (var i:int = files.length - 1; i >= 0; i--)
+                    list[i] = files[i];
+
+                list.sortOn("name");
+
+                m_files.source = list;
+                m_lastDirectory = directory;
+                selectFile(fileTarget);
+            }
+
+            private function onOpenFile():void
+            {
+                var filter:FileFilter = new FileFilter("Object Builder Data", "*.obd;");
+                var file:File = m_lastDirectory ? new File(m_lastDirectory.nativePath) : m_settings.lastDirectory;
+                file.addEventListener(Event.SELECT, fileSelectHandler);
+                file.browseForOpen(resourceManager.getString("strings", "selectFile"), [filter]);
+
+                function fileSelectHandler(event:Event):void
+                {
+                    m_settings.lastDirectory = FileUtil.getDirectory(file);
+                    setFile(file);
+                }
+            }
+
+            private function selectFile(file:File):void
+            {
+                importButton.enabled = (m_application && m_application.clientLoaded && hasFiles);
+                deleteButton.enabled = hasFiles;
+                fileList.selectedIndex = getFileIndex(file);
+                loadThingData(file);
+            }
+
+            private function loadThingData(file:File):void
+            {
+                try
+                {
+                    var thingData:ThingData = ThingData.createFromFile(file);
+                    thingView.thingData = thingData;
+
+                    if (thingData) {
+                        var statusText:String = StringUtil.format(STATUS,
+                                                resourceManager.getString("strings", "name"),
+                                                FileUtil.getName(file),
+                                                resourceManager.getString("strings", "type"),
+                                                resourceManager.getString("strings", thingData.category),
+                                                resourceManager.getString("strings", "client"),
+                                                (thingData.clientVersion / 100).toString(),
+                                                "OBD",
+                                                (thingData.obdVersion / 100).toString());
+
+                        descriptionText.textFlow = TextConverter.importToFlow(statusText, TextConverter.TEXT_FIELD_HTML_FORMAT);
+
+                        if (thingData.category == ThingCategory.OUTFIT) {
+                            thingView.patternX = 2;
+                            thingView.drawBlendLayer = false;
+                        } else {
+                            thingView.patternX = 0;
+                            thingView.drawBlendLayer = true;
+                        }
+
+                        thingView.play();
+                    }
+                }
+                catch(error:Error)
+                {
+                    Alert.show(error.getStackTrace(),
+                               resourceManager.getString("strings", "error"),
+                               Alert.OK,
+                               this);
+                }
+
+                ensureIndexIsVisible();
+            }
+
+            private function previousObject():void
+            {
+                if (hasFiles) {
+                    var currentIndex:int = fileList.selectedIndex;
+                    fileList.selectedIndex = Math.max(0, Math.min(m_files.length - 1, fileList.selectedIndex - 1));
+
+                    if (currentIndex != fileList.selectedIndex)
+                        loadThingData(fileList.selectedItem);
+                }
+            }
+
+            private function nextObject():void
+            {
+                if (hasFiles) {
+                    var currentIndex:int = fileList.selectedIndex;
+                    fileList.selectedIndex = Math.max(0, Math.min(m_files.length - 1, fileList.selectedIndex + 1));
+
+                    if (currentIndex != fileList.selectedIndex)
+                        loadThingData(fileList.selectedItem);
+                }
+            }
+
+            private function ensureIndexIsVisible():void
+            {
+                if (m_files.length != 0 && fileList.selectedIndex != -1)
+                    fileList.ensureIndexIsVisible(fileList.selectedIndex);
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                m_application = IObjectBuilder(FlexGlobals.topLevelApplication);
+                m_settingsManager = SettingsManager.getInstance();
+                systemManager.stage.addEventListener(KeyboardEvent.KEY_DOWN, keyDownHandler);
+                importButton.enabled = (m_application.clientLoaded && this.hasFiles);
+                loadSettings();
+                ensureIndexIsVisible();
+            }
+
+            protected function closingHandler(event:Event):void
+            {
+                communicator = null;
+                systemManager.stage.removeEventListener(KeyboardEvent.KEY_DOWN, keyDownHandler);
+                saveSettings();
+            }
+
+            protected function previousButtonDownHandler(event:FlexEvent):void
+            {
+                previousObject();
+            }
+
+            protected function nextButtonDownHandler(event:FlexEvent):void
+            {
+                nextObject();
+            }
+
+            protected function importButtonClickHandler(event:MouseEvent):void
+            {
+                if (!m_application.clientLoaded) return;
+
+                var file:File = fileList.selectedItem as File;
+                var list:Vector.<PathHelper> = new Vector.<PathHelper>(1, true);
+                list[0] = new PathHelper(file.nativePath);
+                m_communicator.sendCommand(new ImportThingsFromFilesCommand(list));
+            }
+
+            protected function deleteButtonClickHandler(event:MouseEvent):void
+            {
+                if (!thingView.thingData) return;
+
+                try
+                {
+                    file.moveToTrash();
+                    if (!file.exists) {
+                        m_files.removeItemAt(fileList.selectedIndex);
+                        m_files.refresh();
+                        nextObject();
+                    }
+                }
+                catch(error:Error) { }
+            }
+
+            override protected function keyDownHandler(event:KeyboardEvent):void
+            {
+                var keyCode:uint = event.keyCode;
+
+                if (event.ctrlKey) {
+                    switch(keyCode) {
+                        case Keyboard.O:
+                            onOpenFile();
+                            break;
+                    }
+                } else if (m_files && m_files.length > 1) {
+                    switch(keyCode) {
+                        case Keyboard.LEFT:
+                            previousObject();
+                            break;
+                        case Keyboard.RIGHT:
+                            nextObject();
+                            break;
+                    }
+                }
+            }
+
+            protected function zoomChangeHandler(event:Event):void
+            {
+                zoom = HSlider(event.target).value;
+            }
+
+            protected function previewAreaMouseWheelHandler(event:MouseEvent):void
+            {
+                if (zoomSlider.enabled) {
+                    if (event.delta < 0)
+                        zoom -= 0.1;
+                    else
+                        zoom += 0.1;
+                }
+            }
+
+            protected function fileListChangeHandler(event:IndexChangeEvent):void
+            {
+                loadThingData(fileList.selectedItem);
+            }
+
+            protected function backgroundColorCheckBoxChangeHandler(event:Event):void
+            {
+                showBackgroundColor = backgroundColorCheckBox.selected;
+            }
+
+            protected function colorPickerChangeHandler(event:Event):void
+            {
+                backgroundColor = colorPicker.selectedColor;
+            }
+
+        ]]>
+    </fx:Script>
+
+    <s:layout>
+        <s:VerticalLayout />
+    </s:layout>
+
+    <!-- tool bar -->
+    <s:Group width="100%" height="35" top="0">
+
+        <!-- highlight -->
+        <s:Rect left="-1" right="-1" top="1" bottom="0">
+            <s:stroke>
+                <s:SolidColorStroke color="0x636363" />
+            </s:stroke>
+        </s:Rect>
+
+        <!-- border -->
+        <s:Rect left="-1" right="-1" top="0" bottom="0">
+            <s:stroke>
+                <s:SolidColorStroke color="0x272727" />
+            </s:stroke>
+        </s:Rect>
+
+        <s:HGroup width="100%" height="100%" verticalAlign="middle" paddingLeft="10" paddingRight="10">
+            <s:Button id="openButton"
+                      toolTip="@Resource(key='menu.open', bundle='strings')"
+                      width="25"
+                      height="25"
+                      icon="{Assets.OPEN}"
+                      skinClass="nail.components.skins.IconButtonSkin"
+                      click="onOpenFile()" />
+
+            <nail:ShadowLine height="80%" />
+
+            <s:Spacer width="100%" />
+
+            <s:HGroup height="100%" gap="5" verticalAlign="middle">
+                <s:CheckBox id="backgroundColorCheckBox" label="Background"
+                            selected="false"
+                            change="backgroundColorCheckBoxChangeHandler(event)" />
+                <mx:ColorPicker id="colorPicker"
+                                enabled="false"
+                                focusEnabled="false"
+                                change="colorPickerChangeHandler(event)" />
+            </s:HGroup>
+        </s:HGroup>
+    </s:Group>
+
+    <s:HGroup width="100%" height="100%">
+        <s:Group width="250" height="100%">
+            <s:List id="fileList" width="100%" height="100%" dataProvider="{m_files}"
+                    requireSelection="true"
+                    itemRenderer="objectview.renders.FileListItemRenderer"
+                    horizontalScrollPolicy="off"
+                    change="fileListChangeHandler(event)"/>
+        </s:Group>
+
+        <s:Group width="100%" height="100%"
+                 mouseWheel="previewAreaMouseWheelHandler(event)">
+            <otlib:ThingDataView id="thingView" horizontalCenter="0" verticalCenter="0" />
+        </s:Group>
+    </s:HGroup>
+
+    <s:HGroup width="100%" horizontalAlign="center" verticalAlign="middle">
+
+        <s:Button id="previousButton"
+                  toolTip="@Resource(key='previous', bundle='strings')"
+                  width="25"
+                  height="25"
+                  icon="{Assets.FIRST}"
+                  enabled="{m_files.length != 0}"
+                  autoRepeat="true"
+                  repeatInterval="200"
+                  buttonDown="previousButtonDownHandler(event)" />
+
+        <s:Button id="importButton"
+                  toolTip="@Resource(key='import', bundle='strings')"
+                  width="25"
+                  height="25"
+                  icon="{Assets.IMPORT}"
+                  enabled="false"
+                  click="importButtonClickHandler(event)" />
+
+        <s:Button id="deleteButton"
+                  toolTip="@Resource(key='delete', bundle='strings')"
+                  width="25"
+                  height="25"
+                  icon="{Assets.DELETE}"
+                  enabled="false"
+                  click="deleteButtonClickHandler(event)" />
+
+        <s:Button id="nextButton"
+                  toolTip="@Resource(key='next', bundle='strings')"
+                  width="25"
+                  height="25"
+                  icon="{Assets.LAST}"
+                  enabled="{m_files.length != 0}"
+                  autoRepeat="true"
+                  repeatInterval="200"
+                  buttonDown="nextButtonDownHandler(event)" />
+    </s:HGroup>
+
+    <nail:StatusBar width="100%" height="24">
+
+        <nail:layout>
+            <s:HorizontalLayout verticalAlign="middle" paddingLeft="10" paddingRight="10" />
+        </nail:layout>
+
+        <s:Spacer width="100%"/>
+
+        <s:RichEditableText id="descriptionText" editable="false" focusEnabled="false" />
+
+        <s:Spacer width="100%"/>
+
+        <s:Label text="{resourceManager.getString('strings', 'zoom')+':'}" />
+
+        <s:HSlider id="zoomSlider"
+                   width="100"
+                   minimum="1.0"
+                   maximum="5.0"
+                   stepSize="0.1"
+                   value="{zoom}"
+                   focusEnabled="false"
+                   enabled="{m_files.length != 0}"
+                   change="zoomChangeHandler(event)" />
+    </nail:StatusBar>
+</s:Window>

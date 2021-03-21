@@ -1,0 +1,1132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          xmlns:nail="library://ns.nail.com/naillib"
+          xmlns:components="nail.otlib.components.*"
+          xmlns:animator="com.mignari.animator.components.*"
+          xmlns:otlib="otlib.components.*"
+          implements="com.mignari.animator.IAnimationEditor"
+          minWidth="800"
+          minHeight="600"
+          fontSize="11"
+          backgroundColor="0x494949"
+          showStatusBar="false"
+          title="@Resource(key='animationEditor', bundle='strings')"
+          creationComplete="creationCompleteHandler(event)"
+          closing="closingHandler(event)">
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.animator.events.FrameListEvent;
+            import com.mignari.animator.settings.AnimationEditorSettings;
+            import com.mignari.settings.ISettingsManager;
+            import com.mignari.settings.SettingsManager;
+            import com.mignari.utils.DialogDetail;
+            import com.worlize.gif.GIFDecoder;
+            import com.worlize.gif.GIFFrame;
+            import com.worlize.gif.events.GIFDecoderEvent;
+            
+            import mx.events.DragEvent;
+            import mx.events.FlexEvent;
+            import mx.events.MoveEvent;
+            import mx.managers.DragManager;
+            
+            import spark.events.IndexChangeEvent;
+            
+            import nail.assets.NailAssets;
+            import nail.components.controls.Alert;
+            import nail.image.ClipboardBitmapLoader;
+            import nail.image.ImageCodec;
+            import nail.image.ImageFormat;
+            import nail.managers.PopUpWindowManager;
+            import nail.utils.BitmapUtil;
+            import nail.utils.FileUtil;
+            import nail.utils.SaveHelper;
+            import nail.utils.StringUtil;
+            import nail.utils.WindowUtil;
+            
+            import ob.utils.ObUtils;
+            
+            import otlib.animation.FrameDuration;
+            import otlib.assets.Assets;
+            import otlib.components.ExportWindow;
+            import otlib.components.SurfaceCells;
+            import otlib.geom.Size;
+            import otlib.obd.OBDEncoder;
+            import otlib.obd.OBDVersions;
+            import otlib.sprites.SpriteData;
+            import otlib.things.ThingCategory;
+            import otlib.things.ThingData;
+            import otlib.things.ThingType;
+            import otlib.utils.OTFormat;
+            import otlib.utils.SpriteUtils;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            private var _settingsManager:ISettingsManager;
+            private var _settings:AnimationEditorSettings;
+            private var _surfaceCells:SurfaceCells;
+            private var _dragBounds:Rectangle = new Rectangle();
+            private var _size:Size = new Size(32, 32);
+            private var _file:File;
+            private var _fileChanged:Boolean;
+            private var _bitmap:BitmapData;
+            private var _nextBitmap:BitmapData;
+            private var _bitmapChanged:Boolean;
+            private var _mouseDown:Boolean;
+            private var _zoom:Number;
+            private var _zoomChanged:Boolean;
+            private var _lastValues:Rectangle = new Rectangle();
+            private var _transparency:Boolean = true;
+
+            //--------------------------------------
+            // Getters / Setters
+            //--------------------------------------
+
+            public function get file():File { return _file; }
+            public function set file(value:File):void
+            {
+                _file = value;
+                _fileChanged = true;
+                invalidateProperties();
+            }
+
+            public function get bitmap():BitmapData { return _nextBitmap ? _nextBitmap : _bitmap; }
+            public function set bitmap(value:BitmapData):void
+            {
+                if (_bitmap != value) {
+                    _nextBitmap = value;
+                    _bitmapChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get hasImage():Boolean { return (_bitmap || (imageControl && imageControl.source)); }
+
+            [Bindable]
+            public function get zoom():Number { return _zoom; }
+            public function set zoom(value:Number):void
+            {
+                if (_zoom != value && value >= zoomSlider.minimum && value <= zoomSlider.maximum) {
+                    _zoom = value;
+                    _zoomChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get transparency():Boolean { return _transparency; }
+            public function set transparency(value:Boolean):void { _transparency = value; }
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Public
+            //--------------------------------------
+
+            public function openFile():void
+            {
+                var filters:Array = ObUtils.createImagesFileFilter();
+                filters[0].extension += "*.obd";
+                filters.splice(1, 0, new FileFilter("Object Builder Data (*.OBD)", "*.obd"));
+                var file:File = _settings.getLastDirectory();
+                file.addEventListener(Event.SELECT, fileSelectHandler);
+                file.browseForOpen(resourceManager.getString("strings", "selectFile"), filters);
+
+                function fileSelectHandler(event:Event):void
+                {
+                    setFile(file);
+                }
+            }
+
+            public function saveAnimation():void
+            {
+                if (!thingView.thingData)
+                    return;
+
+                var window:ExportWindow = new ExportWindow();
+                window.enableObdFormat = true;
+                window.fileName = getCurrentCategory() + "_" + StringUtil.randomKeyString();
+                window.directory = _settings.getLastDirectory();
+                window.format = _settings.getLastExportFormat();
+                window.version = _settings.getLastExportVersion();
+                window.title = resourceManager.getString("strings", "menu.save");
+                window.addEventListener(Event.CLOSE, windowCloseHandler);
+                window.open(this);
+
+                function windowCloseHandler(event:Event):void
+                {
+                    if (window.detail != DialogDetail.OK)
+                        return;
+
+                    var file:File = window.directory.resolvePath(window.fileName + "." + window.format);
+                    var backgoundColor:uint = true ? 0x00FF00FF : 0xFFFF00FF;
+                    var bytes:ByteArray;
+                    var bitmap:BitmapData;
+                    var format:String = file.extension;
+
+                    var helper:SaveHelper = new SaveHelper();
+                    if (ImageFormat.hasImageFormat(format)) {
+                        bitmap = thingView.thingData.getSpriteSheet(null, backgoundColor);
+                        bytes = ImageCodec.encode(bitmap, format);
+                    } else if (format == OTFormat.OBD) {
+                        bytes = new OBDEncoder().encode(thingView.thingData);
+                    }
+
+                    helper.addFile(bytes, window.fileName, format, file);
+                    helper.save();
+
+                    _settings.setLastDirectory(window.directory);
+                    _settings.setLastExportFormat(format);
+                    _settings.setLastExportVersion(window.version);
+                }
+            }
+
+            public function pasteImageFromClipboard():void
+            {
+                if (!ClipboardBitmapLoader.hasBitmapFormat)
+                    return;
+
+                var loader:ClipboardBitmapLoader = new ClipboardBitmapLoader();
+                loader.addEventListener(Event.COMPLETE, completeHandler);
+                loader.load();
+
+                function completeHandler(event:Event):void
+                {
+                    setBitmap(loader.bitmap);
+                }
+            }
+
+            public function rotateImageRight90():void
+            {
+                if (this.hasImage)
+                    this.bitmap = BitmapUtil.rotate(_bitmap, 90);
+            }
+
+            public function rotateImageLeft90():void
+            {
+                if (this.hasImage)
+                    this.bitmap = BitmapUtil.rotate(_bitmap, 270);
+            }
+
+            public function flipImageVertical():void
+            {
+                if (this.hasImage)
+                    this.bitmap = BitmapUtil.flip(_bitmap, false, true);
+            }
+
+            public function flipImageHorizontal():void
+            {
+                if (this.hasImage)
+                    this.bitmap = BitmapUtil.flip(this.bitmap, true, false);
+            }
+
+            //--------------------------------------
+            // Protected
+            //--------------------------------------
+
+            protected function update():void
+            {
+                if (!this.hasImage) return;
+
+                _surfaceCells.cellWidth = _size.width;
+                _surfaceCells.cellHeight = _size.height;
+                _surfaceCells.columns = columnsStepper.value;
+                _surfaceCells.rows = rowsStepper.value;
+
+                var sw:uint = (_size.width * _surfaceCells.columns);
+                var sh:uint = (_size.height * _surfaceCells.rows);
+                var dx:int = (_surfaceCells.x + sw) - this.bitmap.width;
+                var dy:int = (_surfaceCells.y + sh) - this.bitmap.height;
+                var up:Boolean;
+
+                if (dx > 0) {
+                    _surfaceCells.x -= dx;
+                    up = true;
+                }
+
+                if (dy > 0) {
+                    _surfaceCells.y -= dy;
+                    up = true;
+                }
+
+                if (_surfaceCells.x < 0) {
+                    _surfaceCells.x = 0;
+                    up = true;
+                }
+
+                if (_surfaceCells.y < 0) {
+                    _surfaceCells.y = 0;
+                    up = true;
+                }
+
+                if (up) {
+                    offsetXStepper.value = _surfaceCells.x;
+                    offsetYStepper.value = _surfaceCells.y;
+                }
+
+                _dragBounds.width = bitmap.width - (_surfaceCells.cellWidth * _surfaceCells.columns);
+                _dragBounds.height = bitmap.height - (_surfaceCells.cellHeight * _surfaceCells.rows);
+
+                offsetXStepper.maximum = this.bitmap.width - sw;
+                offsetYStepper.maximum = this.bitmap.height - sh;
+                widthStepper.maximum = Math.floor(this.bitmap.width / 32) * 32;
+                heightStepper.maximum = Math.floor(this.bitmap.height / 32) * 32;
+                columnsStepper.maximum = Math.floor(this.bitmap.width / _size.width);
+                rowsStepper.maximum = Math.floor(this.bitmap.height / _size.height);
+            }
+
+            protected function onCutImage():void
+            {
+                var x:int = offsetXStepper.value;
+                var y:int = offsetYStepper.value;
+                var width:uint = _size.width;
+                var height:uint = _size.height;
+                var columns:uint = columnsStepper.value;
+                var rows:uint = rowsStepper.value;
+                var rect:Rectangle = new Rectangle(0, 0, width, height);
+                var point:Point = new Point();
+                var list:Vector.<Frame> = new Vector.<Frame>();
+
+                _lastValues.setTo(x, y, columns, rows);
+
+                for (var c:uint = 0; c < columns; c++) {
+                    for (var r:uint = 0; r < rows; r++) {
+                        rect.x = x + (c * width);
+                        rect.y = y + (r * height);
+
+                        var bmp:BitmapData;
+                        if (_transparency)
+                            bmp = new BitmapData(width, height, true, 0xFFFF00FF);
+                        else
+                            bmp = new BitmapData(width, height, false, 0xFF00FF);
+
+                        bmp.copyPixels(this.bitmap, rect, point);
+                        bmp = SpriteUtils.removeMagenta(bmp);
+
+                        if (!SpriteUtils.isEmpty(bmp)) {
+                            this.framesList.addObject(new Frame(bmp));
+                        }
+                    }
+                }
+            }
+
+            protected function createThingData():void
+            {
+                if (framesList.isEmpty) {
+                    thingView.thingData = null;
+                    toolbar.saveButton.enabled = false;
+                    return;
+                }
+
+                var width:uint = _size.width;
+                var height:uint = _size.height;
+                var thing:ThingType = new ThingType();
+                thing.category = getCurrentCategory();
+                thing.id = 0;
+                thing.width = (width / 32);
+                thing.height = (height / 32);
+                thing.layers = 1;
+                thing.frames = framesList.length;
+                thing.patternX = 1;
+                thing.patternY = 1;
+                thing.patternZ = 1;
+                thing.exactSize = Math.max(width, height);
+                thing.animateAlways = (thing.category == ThingCategory.OUTFIT);
+                thing.isAnimation = (thing.frames > 1)
+
+                var spriteCount:uint = thing.width * thing.height * thing.frames;
+                var spriteIndices:Vector.<uint> = new Vector.<uint>(spriteCount);
+                thing.spriteIndex = spriteIndices;
+
+                var sprites:Vector.<SpriteData> = new Vector.<SpriteData>(spriteCount);
+                var id:uint = uint.MAX_VALUE;
+                var rect:Rectangle = new Rectangle(0, 0, 32, 32);
+                var f:uint;
+
+                if (thing.frames > 1) {
+                    thing.isAnimation = true;
+                    thing.frameDurations = new Vector.<FrameDuration>(thing.frames, true);
+
+                    var duration:uint = FrameDuration.getDefaultDuration(thing.category);
+
+                    for (f = 0; f < thing.frames; f++) {
+                        var frame:Frame = framesList.getObjectAt(f) as Frame;
+                        if (frame && frame.duration)
+                            thing.frameDurations[f] = frame.duration;
+                        else
+                            thing.frameDurations[f] = new FrameDuration(duration, duration);
+                    }
+                }
+
+                for (f = 0; f < thing.frames; f++) {
+                    var bmp:BitmapData = framesList.getObjectAt(f).getBitmap();
+                    for (var w:uint = 0; w < thing.width; w++) {
+                        for (var h:uint = 0; h < thing.height; h++) {
+
+                            var index:uint = thing.getSpriteIndex(w, h, 0, 0, 0, 0, f);
+                            rect.x = (thing.width - w - 1) * rect.width;
+                            rect.y = (thing.height - h - 1) * rect.height;
+                            var spriteData:SpriteData = new SpriteData();
+                            spriteData.id = id;
+                            spriteData.pixels = bmp.getPixels(rect);
+                            sprites[index] = spriteData;
+                            spriteIndices[index] = id;
+                        }
+                    }
+                }
+
+                // TODO temporary version
+                this.thingView.thingData = ThingData.create(OBDVersions.OBD_VERSION_2, 1041, thing, sprites);
+                toolbar.saveButton.enabled = true;
+            }
+
+            protected function getCurrentCategory():String
+            {
+                switch (categoryDropDownList.selectedIndex) {
+                    case 0:
+                        return ThingCategory.ITEM;
+                    case 1:
+                        return ThingCategory.OUTFIT;
+                    case 2:
+                        return ThingCategory.EFFECT;
+                    case 3:
+                        return ThingCategory.MISSILE;
+                }
+                return null;
+            }
+
+            protected function resetControls():void
+            {
+                offsetXStepper.value = 0;
+                offsetYStepper.value = 0;
+                columnsStepper.value = 1;
+                rowsStepper.value = 1;
+                zoomSlider.value = 1.0;
+                zoom = 1.0;
+                _surfaceCells.x = 0;
+                _surfaceCells.y = 0;
+                widthStepper.value = 32;
+                heightStepper.value = 32;
+                _size.width = 32;
+                _size.height = 32;
+                thingView.thingData = null;
+                framesList.removeAll();
+            }
+
+            //--------------------------------------
+            // Override Protected
+            //--------------------------------------
+
+            override protected function createChildren():void
+            {
+                super.createChildren();
+
+                _surfaceCells = new SurfaceCells();
+                _surfaceCells.blendMode = BlendMode.INVERT;
+                _surfaceCells.addEventListener(MouseEvent.MOUSE_DOWN, surfaceCellsMouseDownHandler);
+                _surfaceCells.addEventListener(MouseEvent.MOUSE_UP, surfaceCellsMouseUpHandler);
+                _surfaceCells.addEventListener(MoveEvent.MOVE, surfaceCellsMoveHandler);
+                imageConteinerGroup.addElement(_surfaceCells);
+            }
+
+            override protected function commitProperties():void
+            {
+                super.commitProperties();
+
+                if (_fileChanged) {
+                    setFile(_file);
+                    _fileChanged = false;
+                }
+
+                if (_bitmapChanged) {
+                    setBitmap(_nextBitmap);
+                    _nextBitmap = null;
+                    _bitmapChanged = false;
+                }
+
+                if (_zoomChanged)
+                {
+                    if (zoomSlider.value != _zoom)
+                        zoomSlider.value = _zoom;
+
+                    imageConteinerGroup.scaleX = _zoom;
+                    imageConteinerGroup.scaleY = _zoom;
+                    ruler.zoom = _zoom;
+                    _zoomChanged = false;
+                }
+            }
+
+            //--------------------------------------
+            // Private
+            //--------------------------------------
+
+            private function loadSettings():void
+            {
+                _settings = new AnimationEditorSettings();
+                _settingsManager.loadSettings(_settings);
+
+                if (_settings.maximized)
+                    this.maximize();
+                else
+                    WindowUtil.centralizeWindowOnScreen(this);
+            }
+
+            private function saveSettings():void
+            {
+                _settings.maximized = (nativeWindow.displayState == NativeWindowDisplayState.MAXIMIZED);
+                _settingsManager.saveSettings(_settings);
+            }
+
+            private function setFile(file:File):void
+            {
+                if (!file || (file.extension != OTFormat.OBD && !ImageFormat.hasImageFormat(file.extension)))
+                    return;
+
+                try
+                {
+                    if (file.extension == OTFormat.OBD)
+                        openOBD(file);
+                    else if (file.extension == ImageFormat.GIF)
+                        openGif(file);
+                    else
+                        ImageCodec.decodeFromFile(file, imageReadCallback);
+
+                    _settings.setLastDirectory(file);
+                } catch(error:Error) {
+                    Alert.show(error.getStackTrace(), resourceManager.getString("strings", "error"), Alert.OK, this);
+                }
+
+                function imageReadCallback(bitmap:BitmapData):void
+                {
+                    setBitmap(bitmap);
+                }
+            }
+
+            private function openOBD(file:File):void
+            {
+                var thingData:ThingData = ThingData.createFromFile(file);
+                if (!thingData)
+                    return;
+
+                var bitmap:BitmapData = thingData.getSpriteSheet();
+                setBitmap(bitmap);
+            }
+
+            private function openGif(file:File):void
+            {
+                var stream:FileStream = new FileStream();
+                stream.open(file, FileMode.READ);
+
+                var decoder:GIFDecoder = new GIFDecoder();
+                decoder.addEventListener(GIFDecoderEvent.DECODE_COMPLETE, gifDecoderCompleteHandler);
+                decoder.decode(stream);
+                stream.close();
+            }
+
+            private function setBitmap(bitmap:BitmapData):void
+            {
+                _bitmap = bitmap;
+                imageControl.source = bitmap;
+                toolbar.rotateLeft90Button.enabled = (bitmap != null);
+                toolbar.rotateRight90Button.enabled = (bitmap != null);
+                toolbar.flipHorizontalButton.enabled = (bitmap != null);
+                toolbar.flipVerticalButton.enabled = (bitmap != null);
+
+                _dragBounds.setEmpty();
+
+                resetControls();
+                update();
+            }
+
+            private function removeSelectedFrames():void
+            {
+                if (!thingView.thingData)
+                    return;
+
+                this.framesList.removeSelectedIndices();
+                this.framesList.refresh();
+                this.createThingData();
+            }
+
+            private function importImagesFromFiles(list:Vector.<File>):void
+            {
+                ImageCodec.decodeFromFile(list[0], imageDecodeCallback);
+
+                function imageDecodeCallback(bitmap:BitmapData):void
+                {
+                    setBitmap(bitmap);
+                }
+            }
+
+            private function duplicateSelectedFrames():void
+            {
+                var list:Vector.<Frame> = framesList.selectedFrames;
+                if (list.length > 0) {
+                    var length:uint = list.length;
+                    for (var i:int = length - 1; i >= 0; i--) {
+                        framesList.addObject(list[i].clone());
+                    }
+                }
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                _settingsManager = SettingsManager.getInstance();
+                this.toolbar.editor = this;
+
+                loadSettings();
+
+                systemManager.stage.addEventListener(KeyboardEvent.KEY_DOWN, keyDownHandler);
+            }
+
+            protected function closingHandler(event:Event):void
+            {
+                systemManager.stage.removeEventListener(KeyboardEvent.KEY_DOWN, keyDownHandler);
+
+                saveSettings();
+            }
+
+            protected function imageContainerMouseMoveHandler(event:MouseEvent):void
+            {
+                if (_bitmap && _mouseDown) {
+                    offsetXStepper.value = _surfaceCells.x;
+                    offsetYStepper.value = _surfaceCells.y;
+                }
+            }
+
+            protected function imageContainerMouseDownHandler(event:MouseEvent):void
+            {
+                if (!this.hasImage) return;
+
+                imageConteinerGroup.setFocus();
+
+                if (event.target != _surfaceCells && event.localX <= this.bitmap.width && event.localY <= this.bitmap.height) {
+                    var px:Number = Math.round(event.localX - _surfaceCells.width * 0.5);
+                    var py:Number = Math.round(event.localY - _surfaceCells.height * 0.5);
+
+                    _surfaceCells.move(px, py);
+
+                    update();
+                    surfaceCellsMouseDownHandler(event);
+                }
+            }
+
+            protected function surfaceCellsMouseDownHandler(event:MouseEvent):void
+            {
+                _mouseDown = true;
+
+                cursorManager.setCursor(NailAssets.MOVE_CURSOR, 2, -8, -8);
+
+                _surfaceCells.startDrag(false, _dragBounds);
+
+                systemManager.stage.addEventListener(MouseEvent.MOUSE_UP, surfaceCellsMouseUpHandler);
+            }
+
+            protected function surfaceCellsMouseUpHandler(event:MouseEvent):void
+            {
+                systemManager.stage.removeEventListener(MouseEvent.MOUSE_UP, surfaceCellsMouseUpHandler);
+
+                _mouseDown = false;
+
+                _surfaceCells.stopDrag();
+
+                cursorManager.removeCursor(cursorManager.currentCursorID);
+            }
+
+            protected function surfaceCellsMoveHandler(event:MoveEvent):void
+            {
+                _surfaceCells.x = Math.round(_surfaceCells.x);
+                _surfaceCells.y = Math.round(_surfaceCells.y);
+            }
+
+            protected function offsetStepperChangeHandler(event:Event):void
+            {
+                _surfaceCells.x = offsetXStepper.value;
+                _surfaceCells.y = offsetYStepper.value;
+            }
+
+            protected function sizeStepperChangeHandler(event:Event):void
+            {
+                _size.width = widthStepper.value;
+                _size.height = heightStepper.value;
+                framesList.removeAll();
+                thingView.thingData = null;
+                update();
+            }
+
+            protected function zoomChangeHandler(event:Event):void
+            {
+                this.zoom = HSlider(event.target).value;
+            }
+
+            protected function imageConteinerGroupNativeDragEnterHandler(event:NativeDragEvent):void
+            {
+                if (event.target == imageConteinerGroup) {
+                    if (event.clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT)) {
+                        NativeDragManager.dropAction = NativeDragActions.LINK;
+                        DragManager.acceptDragDrop(imageConteinerGroup);
+                    }
+                }
+            }
+
+            protected function imageConteinerGroupNativeDragDropHandler(event:NativeDragEvent):void
+            {
+                var clipboard:Clipboard = event.clipboard;
+                if (clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT)) {
+                    var dropfiles:Array = clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
+
+                    FileUtil.sortFiles(dropfiles, Array.NUMERIC | Array.DESCENDING);
+
+                    var length:uint = dropfiles.length;
+                    var list:Vector.<File> = new Vector.<File>();
+                    for (var i:uint = 0; i < length; i++) {
+                        var file:File = dropfiles[i];
+                        if (FileUtil.hasBitmapFormat(file)) {
+                            list[list.length] = file;
+                        }
+                    }
+                }
+
+                if (list.length > 0) {
+                    importImagesFromFiles(list);
+                }
+            }
+
+            protected function animationsListDuplicateHandler(event:FrameListEvent):void
+            {
+                duplicateSelectedFrames();
+            }
+
+            protected function cutButtonClickHandler(event:MouseEvent):void
+            {
+                if (!this.hasImage) return;
+
+                this.onCutImage();
+                this.createThingData();
+            }
+
+            protected function animationsListDragCompleteHandler(event:DragEvent):void
+            {
+                this.createThingData();
+                this.framesList.refresh();
+            }
+
+            protected function playButtonChangeHandler(event:Event):void
+            {
+                if (playButton.selected)
+                    thingView.play();
+                else
+                    thingView.pause();
+            }
+
+            protected function dulicateFrameButtonClickHandler(event:MouseEvent):void
+            {
+                this.duplicateSelectedFrames();
+            }
+
+            protected function deleteFrameButtonClickHandler(event:MouseEvent):void
+            {
+                if (!thingView.thingData)
+                    return;
+
+                this.framesList.removeSelectedIndices();
+                this.framesList.refresh();
+                this.createThingData();
+            }
+
+            protected function thingViewChangeHandler(event:Event):void
+            {
+                framesList.selectedIndex = thingView.frame;
+            }
+
+            protected function framesListChangeHandler(event:IndexChangeEvent):void
+            {
+                if (!thingView.thingData)
+                    return;
+
+                thingView.frame = framesList.selectedIndex;
+            }
+
+            protected function gifDecoderCompleteHandler(event:GIFDecoderEvent):void
+            {
+                var gifFrames:Vector.<GIFFrame> = GIFDecoder(event.target).frames;
+                var frames:Vector.<Frame> = new Vector.<Frame>();
+                var length:uint = gifFrames.length;
+                for (var i:uint = 0; i < length; i++) {
+                    var frame:GIFFrame = gifFrames[i];
+
+                    var duration:uint;
+                    if (frame.delayMs != 0)
+                        duration = Math.min(frame.delayMs, 500);
+                    else
+                        duration = FrameDuration.getDefaultDuration( getCurrentCategory() );
+
+                    var f:Frame = new Frame(frame.bitmap);
+                    f.duration = new FrameDuration(duration, duration);
+                    frames[i] = f;
+                }
+
+                _size.width = gifFrames[0].width;
+                _size.height = gifFrames[0].height;
+                framesList.setListObjects(frames);
+                createThingData();
+            }
+
+            override protected function keyDownHandler(event:KeyboardEvent):void
+            {
+                if (!event.ctrlKey &&
+                    !event.shiftKey &&
+                    !event.altKey &&
+                    focusManager.getFocus() != zoomSlider)
+                {
+                    switch (event.keyCode)
+                    {
+                        case Keyboard.LEFT:
+                            _surfaceCells.x = Math.max(0, _surfaceCells.x - 1);
+                            break;
+
+                        case Keyboard.RIGHT:
+                            _surfaceCells.x = Math.min(_dragBounds.width, _surfaceCells.x + 1);
+                            break;
+
+                        case Keyboard.UP:
+                            _surfaceCells.y = Math.max(0, _surfaceCells.y - 1);
+                            break;
+
+                        case Keyboard.DOWN:
+                            _surfaceCells.y = Math.min(_dragBounds.height, _surfaceCells.y + 1);
+                            break;
+                    }
+
+                    offsetXStepper.value = _surfaceCells.x;
+                    offsetYStepper.value = _surfaceCells.y;
+                }
+                else if (event.ctrlKey && !event.shiftKey && !event.altKey)
+                {
+                    switch (event.keyCode)
+                    {
+                        case Keyboard.O:
+                            this.openFile();
+                            break;
+
+                        case Keyboard.S:
+                            this.saveAnimation();
+                            break;
+
+                        case Keyboard.V:
+                            this.pasteImageFromClipboard();
+                            break;
+
+                        case Keyboard.MINUS:
+                            this.zoom = Math.max(zoomSlider.minimum, zoomSlider.value - zoomSlider.stepSize);
+                            break;
+
+                        case Keyboard.EQUAL:
+                            this.zoom = Math.min(zoomSlider.maximum, zoomSlider.value + zoomSlider.stepSize);
+                            break;
+                    }
+                }
+            }
+
+        ]]>
+    </fx:Script>
+
+    <s:layout>
+        <s:VerticalLayout/>
+    </s:layout>
+
+    <!-- tool bar -->
+    <animator:Toolbar id="toolbar" width="100%" height="35" top="0" />
+
+    <mx:HDividedBox width="100%" height="100%">
+        <s:BorderContainer id="controlsContainer"
+                           minWidth="245"
+                           maxWidth="300"
+                           width="300"
+                           height="100%"
+                           skinClass="nail.components.skins.BorderContainerSkin">
+            <s:layout>
+                <s:VerticalLayout paddingLeft="5"
+                                  paddingRight="5"
+                                  paddingTop="10"
+                                  paddingBottom="10"
+                                  verticalAlign="bottom"/>
+            </s:layout>
+
+            <nail:GroupBox id="thingViewGroup"
+                           label="@Resource(key='preview', bundle='strings')"
+                           width="100%"
+                           height="100%">
+                <otlib:ThingDataView id="thingView"
+                                     horizontalCenter="0"
+                                     verticalCenter="0"
+                                     change="thingViewChangeHandler(event)"/>
+
+            </nail:GroupBox>
+
+            <nail:GroupBox label="@Resource(key='properties', bundle='strings')"
+                           width="100%">
+                <nail:layout>
+                    <s:VerticalLayout paddingLeft="10"
+                                      paddingRight="10"
+                                      paddingTop="10"
+                                      paddingBottom="10"
+                                      horizontalAlign="right"/>
+                </nail:layout>
+                <s:TileGroup requestedColumnCount="2"
+                             columnWidth="100"
+                             verticalAlign="middle">
+                    <s:Label text="{resourceManager.getString('strings', 'category') + ':'}"
+                             textAlign="right"/>
+                    <s:DropDownList id="categoryDropDownList"
+                                    requireSelection="true"
+                                    minWidth="70"
+                                    change="createThingData()">
+                        <s:dataProvider>
+                            <s:ArrayList>
+                                <fx:String>{resourceManager.getString('strings', 'item')}</fx:String>
+                                <fx:String>{resourceManager.getString('strings', 'outfit')}</fx:String>
+                                <fx:String>{resourceManager.getString('strings', 'effect')}</fx:String>
+                                <fx:String>{resourceManager.getString('strings', 'missile')}</fx:String>
+                            </s:ArrayList>
+                        </s:dataProvider>
+                    </s:DropDownList>
+                    <s:Label text="X:"
+                             textAlign="right"/>
+                    <s:NumericStepper id="offsetXStepper"
+                                      minWidth="70"
+                                      minimum="0"
+                                      maximum="608"
+                                      change="offsetStepperChangeHandler(event)"/>
+                    <s:Label text="Y:"
+                             textAlign="right"/>
+                    <s:NumericStepper id="offsetYStepper"
+                                      minWidth="70"
+                                      minimum="0"
+                                      maximum="608"
+                                      change="offsetStepperChangeHandler(event)"/>
+                    <s:Label text="{resourceManager.getString('strings', 'width') + ':'}"
+                             textAlign="right"/>
+                    <s:NumericStepper id="widthStepper"
+                                      minWidth="70"
+                                      minimum="32"
+                                      maximum="1028"
+                                      stepSize="32"
+                                      change="sizeStepperChangeHandler(event)"/>
+                    <s:Label text="{resourceManager.getString('strings', 'height') + ':'}"
+                             textAlign="right"/>
+                    <s:NumericStepper id="heightStepper"
+                                      minWidth="70"
+                                      minimum="32"
+                                      maximum="1028"
+                                      stepSize="32"
+                                      change="sizeStepperChangeHandler(event)"/>
+                    <s:Label text="{resourceManager.getString('strings', 'columns') + ':'}"
+                             textAlign="right"/>
+                    <s:NumericStepper id="columnsStepper"
+                                      minWidth="70"
+                                      minimum="1"
+                                      maximum="20"
+                                      change="update()"/>
+                    <s:Label text="{resourceManager.getString('strings', 'rows') + ':'}"
+                             textAlign="right"/>
+                    <s:NumericStepper id="rowsStepper"
+                                      minWidth="70"
+                                      minimum="1"
+                                      maximum="20"
+                                      change="update()"/>
+                </s:TileGroup>
+            </nail:GroupBox>
+
+            <nail:GroupBox label="@Resource(key='zoom', bundle='strings')"
+                           width="100%">
+                <nail:layout>
+                    <s:VerticalLayout paddingLeft="5"
+                                      paddingRight="5"
+                                      paddingTop="10"
+                                      paddingBottom="10"/>
+                </nail:layout>
+                <s:HSlider id="zoomSlider"
+                           width="100%"
+                           minimum="1.0"
+                           maximum="5.0"
+                           stepSize="0.1"
+                           value="{zoom}"
+                           bottom="10"
+                           right="10"
+                           change="zoomChangeHandler(event)"/>
+            </nail:GroupBox>
+
+            <s:Spacer height="3"/>
+            <nail:ShadowLine width="100%"/>
+            <s:Spacer height="3"/>
+
+            <s:Button id="cutButton"
+                      label="@Resource(key='crop', bundle='strings')"
+                      width="100%"
+                      click="cutButtonClickHandler(event)"/>
+        </s:BorderContainer>
+
+        <s:VGroup width="100%"
+                  height="100%"
+                  gap="0">
+            <s:BorderContainer width="100%"
+                               height="100%"
+                               skinClass="nail.components.skins.BorderContainerSkin">
+
+                <!-- background fill -->
+                <otlib:CheckerBoard left="0"
+                                    right="0"
+                                    top="0"
+                                    bottom="0"
+                                    cellColors="{[0x636363, 0x535353]}"
+                                    mouseChildren="false"
+                                    mouseEnabled="false"/>
+
+                <otlib:Ruler id="ruler"
+                             width="100%"
+                             height="100%"
+                             mouseChildren="false"
+                             mouseEnabled="false"
+                             lineColor="0x636363"/>
+
+                <s:Scroller left="15"
+                            right="0"
+                            top="15"
+                            bottom="0"
+                            height="100%"
+                            verticalScrollPolicy="on"
+                            horizontalScrollPolicy="on">
+
+                    <s:Group id="imageConteinerGroup"
+                             width="100%"
+                             height="100%"
+                             mouseMove="imageContainerMouseMoveHandler(event)"
+                             mouseDown="imageContainerMouseDownHandler(event)"
+                             nativeDragEnter="imageConteinerGroupNativeDragEnterHandler(event)"
+                             nativeDragDrop="imageConteinerGroupNativeDragDropHandler(event)">
+
+                        <otlib:CheckerBoard id="checkerboard"
+                                                 width="{imageControl.width}"
+                                                 height="{imageControl.height}"/>
+
+                        <s:Image id="imageControl"/>
+
+                    </s:Group>
+                </s:Scroller>
+            </s:BorderContainer>
+
+            <s:BorderContainer width="100%"
+                               height="155"
+                               skinClass="nail.components.skins.BorderContainerSkin">
+                <s:layout>
+                    <s:VerticalLayout gap="0"/>
+                </s:layout>
+                <animator:FrameList id="framesList"
+                                           width="100%"
+                                           height="100%"
+                                           contentBackgroundColor="0x494949"
+                                           borderVisible="false"
+                                           requireSelection="true"
+                                           allowMultipleSelection="true"
+                                           dragEnabled="true"
+                                           dragMoveEnabled="true"
+                                           dropEnabled="true"
+                                           horizontalScrollPolicy="on"
+                                           verticalScrollPolicy="off"
+                                           itemRenderer="com.mignari.animator.renders.FrameListRenderer"
+                                           duplicate="animationsListDuplicateHandler(event)"
+                                           remove="removeSelectedFrames()"
+                                           dragComplete="animationsListDragCompleteHandler(event)"
+                                           change="framesListChangeHandler(event)">
+                    <animator:layout>
+                        <s:HorizontalLayout verticalAlign="middle"
+                                            gap="0"/>
+                    </animator:layout>
+                </animator:FrameList>
+
+                <s:HGroup width="100%"
+                          height="25"
+                          paddingLeft="5"
+                          paddingRight="5"
+                          paddingTop="2"
+                          paddingBottom="2">
+                    <s:Button id="firstFrameButton"
+                              width="19"
+                              height="19"
+                              toolTip="@Resource(key='firstFrame', bundle='strings')"
+                              icon="{Assets.FIRST}"
+                              click="{thingView.fistFrame()}"/>
+                    <s:Button id="previousFrameButton"
+                              width="19"
+                              height="19"
+                              toolTip="@Resource(key='previousFrame', bundle='strings')"
+                              icon="{Assets.PREVIOUS}"
+                              autoRepeat="true"
+                              repeatInterval="200"
+                              buttonDown="{thingView.prevFrame()}"/>
+                    <otlib:PlayButton id="playButton"
+                                      width="19"
+                                      height="19"
+                                      change="playButtonChangeHandler(event)"/>
+                    <s:Button id="nextFrameButton" width="19"
+                              height="19"
+                              toolTip="@Resource(key='nextFrame', bundle='strings')"
+                              icon="{Assets.NEXT}"
+                              autoRepeat="true"
+                              repeatInterval="200"
+                              buttonDown="{thingView.nextFrame()}"/>
+                    <s:Button id="lastFrameButton"
+                              width="19"
+                              height="19"
+                              toolTip="@Resource(key='lastFrame', bundle='strings')"
+                              icon="{Assets.LAST}"
+                              click="{thingView.lastFrame()}"/>
+                    <nail:ShadowLine height="100%"/>
+                    <s:Button id="dulicateFrameButton"
+                              width="19"
+                              height="19"
+                              toolTip="@Resource(key='duplicateFrame', bundle='strings')"
+                              icon="{Assets.DUPLICATE}"
+                              click="dulicateFrameButtonClickHandler(event)"/>
+                    <s:Button id="deleteFrameButton" width="19"
+                              height="19"
+                              toolTip="@Resource(key='deleteFrame', bundle='strings')"
+                              icon="{Assets.DELETE}"
+                              click="deleteFrameButtonClickHandler(event)"/>
+                </s:HGroup>
+            </s:BorderContainer>
+        </s:VGroup>
+    </mx:HDividedBox>
+</s:Window>

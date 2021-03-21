@@ -1,0 +1,886 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          xmlns:nail="library://ns.nail.com/naillib"
+          xmlns:otlib="otlib.components.*"
+          width="800"
+          height="600"
+          minWidth="600"
+          minHeight="400"
+          fontSize="11"
+          backgroundColor="0x494949"
+          showStatusBar="false"
+          title="Slicer"
+          creationComplete="creationCompleteHandler(event)"
+          closing="slicerClosingHandler(event)">
+
+    <fx:Metadata>
+        [ResourceBundle("strings")]
+    </fx:Metadata>
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.workers.IWorkerCommunicator;
+
+            import mx.collections.ArrayCollection;
+            import mx.core.FlexGlobals;
+            import mx.events.CollectionEvent;
+            import mx.events.FlexEvent;
+            import mx.events.MoveEvent;
+            import mx.managers.DragManager;
+
+            import nail.assets.NailAssets;
+            import nail.components.controls.Alert;
+            import nail.image.ImageCodec;
+            import nail.utils.BitmapUtil;
+            import nail.utils.FileUtil;
+            import nail.utils.WindowUtil;
+
+            import ob.commands.SetClientInfoCommand;
+            import ob.commands.sprites.ImportSpritesCommand;
+            import ob.core.IObjectBuilder;
+            import ob.utils.ObUtils;
+
+            import otlib.assets.Assets;
+            import otlib.components.SurfaceCells;
+            import otlib.settings.ISettingsManager;
+            import otlib.settings.SettingsManager;
+            import otlib.sprites.Sprite;
+            import otlib.utils.ClientInfo;
+            import otlib.utils.SpriteUtils;
+
+            import slicer.settings.SlicerSettings;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            private var _application:IObjectBuilder;
+            private var _communicator:IWorkerCommunicator;
+            private var _settingsManager:ISettingsManager;
+            private var _settings:SlicerSettings;
+            private var _sprites:ArrayCollection = new ArrayCollection();
+            private var _surfaceCells:SurfaceCells;
+            private var _dragBounds:Rectangle = new Rectangle();
+            private var _file:File;
+            private var _fileChanged:Boolean;
+            private var _bitmap:BitmapData;
+            private var _nextBitmap:BitmapData;
+            private var _bitmapChanged:Boolean;
+            private var _mouseDown:Boolean;
+            private var _zoom:Number;
+            private var _zoomChanged:Boolean;
+            private var _lastValues:Rectangle = new Rectangle();
+
+            //--------------------------------------
+            // Getters / Setters
+            //--------------------------------------
+
+            public function get communicator():IWorkerCommunicator { return _communicator; }
+            public function set communicator(value:IWorkerCommunicator):void
+            {
+                if (_communicator) {
+                    _communicator.unregisterCallback(SetClientInfoCommand, clientInfoCallback);
+                    _communicator = null;
+                }
+
+                _communicator = value;
+
+                if (_communicator) {
+                    _communicator.registerCallback(SetClientInfoCommand, clientInfoCallback);
+                }
+            }
+
+            public function get file():File { return _file; }
+            public function set file(value:File):void
+            {
+                _file = value;
+                _fileChanged = true;
+                invalidateProperties();
+            }
+
+            public function get bitmap():BitmapData { return _bitmap; }
+            public function set bitmap(value:BitmapData):void
+            {
+                if (_bitmap != value) {
+                    _nextBitmap = value;
+                    _bitmapChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get hasImage():Boolean { return (_bitmap || (imageControl && imageControl.source)); }
+
+            [Bindable]
+            public function get zoom():Number { return _zoom; }
+            public function set zoom(value:Number):void
+            {
+                if (_zoom != value && value >= zoomSlider.minimum && value <= zoomSlider.maximum) {
+                    _zoom = value;
+                    _zoomChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get bitmapList():Vector.<BitmapData>
+            {
+                var length:uint = _sprites.length;
+                if (length > 0) {
+                    var list:Vector.<BitmapData> = new Vector.<BitmapData>(length, true);
+                    for (var i:uint = 0; i < length; i++) {
+                        list[i] = _sprites.getItemAt(i) as BitmapData;
+                    }
+                    return list;
+                }
+                return null;
+            }
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Protected
+            //--------------------------------------
+
+            protected function update():void
+            {
+                if (!this.hasImage) return;
+
+                var size:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
+                _surfaceCells.cellWidth = size;
+                _surfaceCells.cellHeight = size;
+                _surfaceCells.columns = columnsStepper.value;
+                _surfaceCells.rows = rowsStepper.value;
+                _surfaceCells.subdivisions = subdivisionsCheckBox.selected;
+
+                var sw:uint = (size * _surfaceCells.columns);
+                var sh:uint = (size * _surfaceCells.rows);
+                var dx:int = (_surfaceCells.x + sw) - this.bitmap.width;
+                var dy:int = (_surfaceCells.y + sh) - this.bitmap.height;
+
+                if (dx > 0)
+                {
+                    _surfaceCells.x -= dx;
+                    offsetXStepper.value = _surfaceCells.x;
+                }
+
+                if (dy > 0)
+                {
+                    _surfaceCells.y -= dy;
+                    offsetYStepper.value = _surfaceCells.y;
+                }
+
+                if (_surfaceCells.x < 0)
+                {
+                    _surfaceCells.x = 0;
+                    offsetXStepper.value = _surfaceCells.x;
+                }
+
+                if (_surfaceCells.y < 0)
+                {
+                    _surfaceCells.y = 0;
+                    offsetYStepper.value = _surfaceCells.y;
+                }
+
+                _dragBounds.width = _bitmap.width - (_surfaceCells.cellWidth * _surfaceCells.columns);
+                _dragBounds.height = _bitmap.height - (_surfaceCells.cellHeight * _surfaceCells.rows);
+
+                offsetXStepper.maximum = this.bitmap.width - sw;
+                offsetYStepper.maximum = this.bitmap.height - sh;
+                columnsStepper.maximum = Math.floor(this.bitmap.width / size);
+                rowsStepper.maximum = Math.floor(this.bitmap.height / size);
+            }
+
+            protected function onCutImage():void
+            {
+                if (!this.hasImage) return;
+
+                var x:int = offsetXStepper.value;
+                var y:int = offsetYStepper.value;
+                var width:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
+                var height:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
+                var columns:uint = columnsStepper.value;
+                var rows:uint = rowsStepper.value;
+
+                // Returns if the values ​​have not changed.
+                if (_sprites.length != 0 &&
+                    _lastValues.x == x &&
+                    _lastValues.y == y &&
+                    _lastValues.width == columns &&
+                    _lastValues.height == rows) {
+                    return;
+                }
+
+                var rect:Rectangle = new Rectangle(0, 0, width, height);
+                var point:Point = new Point();
+
+                _lastValues.setTo(x, y, columns, rows);
+
+                for (var c:uint = 0; c < columns; c++)
+                {
+                    for (var r:uint = 0; r < rows; r++)
+                    {
+                        rect.x = x + (c * width);
+                        rect.y = y + (r * height);
+
+                        var spritePart:BitmapData = new BitmapData(width, height, true, 0);
+                        spritePart.copyPixels(this.bitmap, rect, point);
+                        spritePart = SpriteUtils.removeMagenta(spritePart);
+
+                        if (!SpriteUtils.isEmpty(spritePart))
+                            _sprites.addItem(spritePart);
+                    }
+                }
+            }
+
+            protected function resetControls():void
+            {
+                offsetXStepper.value = 0;
+                offsetYStepper.value = 0;
+                columnsStepper.value = 1;
+                rowsStepper.value = 1;
+                zoomSlider.value = 1.0;
+                zoom = 1.0;
+                _surfaceCells.x = 0;
+                _surfaceCells.y = 0;
+            }
+
+            protected function importImagesFromFiles(list:Vector.<File>):void
+            {
+                ImageCodec.decodeFromFile(list[0], imageDecodeCallback);
+
+                function imageDecodeCallback(bitmap:BitmapData):void
+                {
+                    setBitmap(bitmap);
+                }
+            }
+
+            //--------------------------------------
+            // Override Protected
+            //--------------------------------------
+
+            override protected function createChildren():void
+            {
+                super.createChildren();
+
+                _surfaceCells = new SurfaceCells();
+                _surfaceCells.blendMode = BlendMode.INVERT;
+                _surfaceCells.addEventListener(MouseEvent.MOUSE_DOWN, surfaceCellsMouseDownHandler);
+                _surfaceCells.addEventListener(MouseEvent.MOUSE_UP, surfaceCellsMouseUpHandler);
+                _surfaceCells.addEventListener(MoveEvent.MOVE, surfaceCellsMoveHandler);
+                imageConteinerGroup.addElement(_surfaceCells);
+            }
+
+            override protected function commitProperties():void
+            {
+                super.commitProperties();
+
+                if (_fileChanged) {
+                    setFile(_file);
+                    _fileChanged = false;
+                }
+
+                if (_bitmapChanged) {
+                    setBitmap(_nextBitmap);
+                    _nextBitmap = null;
+                    _bitmapChanged = false;
+                }
+
+                if (_zoomChanged)
+                {
+                    if (zoomSlider.value != _zoom)
+                        zoomSlider.value = _zoom;
+
+                    imageConteinerGroup.scaleX = _zoom;
+                    imageConteinerGroup.scaleY = _zoom;
+                    ruler.zoom = _zoom;
+                    _zoomChanged = false;
+                }
+            }
+
+            //--------------------------------------
+            // Private
+            //--------------------------------------
+
+            private function clientInfoCallback(info:ClientInfo):void
+            {
+                importButton.enabled = (_sprites.length != 0 && info.loaded);
+            }
+
+            private function loadSettings():void
+            {
+                _settings = new SlicerSettings();
+                _settingsManager.loadSettings(_settings);
+
+                if (_settings.maximized)
+                    this.maximize();
+                else
+                    WindowUtil.centralizeWindowOnScreen(this);
+
+                subdivisionsCheckBox.selected = _settings.subdivisions;
+            }
+
+            private function saveSettings():void
+            {
+                _settings.maximized = (nativeWindow.displayState == NativeWindowDisplayState.MAXIMIZED);
+                _settings.subdivisions = subdivisionsCheckBox.selected;
+                _settingsManager.saveSettings(_settings);
+            }
+
+            private function setFile(file:File):void
+            {
+                if (!file || !FileUtil.hasBitmapFormat(file)) return;
+
+                try
+                {
+                    ImageCodec.decodeFromFile(file, imageReadCallback);
+                    _settings.setLastDirectory(file);
+                }
+                catch(error:Error)
+                {
+                    Alert.show(error.getStackTrace(),
+                               resourceManager.getString("strings", "error"),
+                               Alert.OK,
+                               this);
+                }
+
+                function imageReadCallback(bitmap:BitmapData):void
+                {
+                    setBitmap(bitmap);
+                }
+            }
+
+            private function setBitmap(bitmap:BitmapData):void
+            {
+                var reset:Boolean = true;
+
+                if (_bitmap)
+                {
+                    if (_bitmap.width == bitmap.width && _bitmap.height == bitmap.height)
+                        reset = false;
+
+                    _bitmap.dispose();
+                }
+
+                _bitmap = bitmap;
+                imageControl.source = bitmap;
+                rotateLeft90Button.enabled = (bitmap != null);
+                rotateRight90Button.enabled = (bitmap != null);
+                flipHorizontalButton.enabled = (bitmap != null);
+                flipVerticalButton.enabled = (bitmap != null);
+                _lastValues.setEmpty();
+
+                _dragBounds.setEmpty();
+
+                if (reset)
+                {
+                    resetControls();
+                    update();
+                }
+            }
+
+            private function onOpenFile():void
+            {
+                var filters:Array = ObUtils.createImagesFileFilter();
+                var file:File = _settings.getLastDirectory();
+                file.addEventListener(Event.SELECT, fileSelectHandler);
+                file.browseForOpen(resourceManager.getString("strings", "selectImage"), filters);
+
+                function fileSelectHandler(event:Event):void
+                {
+                    setFile(file);
+                }
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                _application = IObjectBuilder(FlexGlobals.topLevelApplication);
+                _settingsManager = SettingsManager.getInstance();
+                _sprites.addEventListener(CollectionEvent.COLLECTION_CHANGE, spritesCollectionChange);
+
+                spritePartList.dataProvider = _sprites;
+                loadSettings();
+                systemManager.stage.addEventListener(KeyboardEvent.KEY_DOWN, keyDownHandler);
+            }
+
+            protected function slicerClosingHandler(event:Event):void
+            {
+                this.communicator = null;
+                systemManager.stage.removeEventListener(KeyboardEvent.KEY_DOWN, keyDownHandler);
+                saveSettings();
+            }
+
+            protected function spritesCollectionChange(event:CollectionEvent):void
+            {
+                importButton.enabled = (_sprites.length != 0 && _application.clientLoaded);
+            }
+
+            protected function imageContainerMouseMoveHandler(event:MouseEvent):void
+            {
+                if (_bitmap && _mouseDown) {
+                    offsetXStepper.value = _surfaceCells.x;
+                    offsetYStepper.value = _surfaceCells.y;
+                }
+            }
+
+            protected function imageContainerMouseDownHandler(event:MouseEvent):void
+            {
+                if (!this.hasImage) return;
+
+                imageConteinerGroup.setFocus();
+
+                if (event.target != _surfaceCells &&
+                    event.localX <= this.bitmap.width &&
+                    event.localY <= this.bitmap.height)
+                {
+                    var px:Number = Math.round(event.localX - _surfaceCells.width * 0.5);
+                    var py:Number = Math.round(event.localY - _surfaceCells.height * 0.5);
+
+                    _surfaceCells.move(px, py);
+
+                    update();
+                    surfaceCellsMouseDownHandler(event);
+                }
+            }
+
+            protected function imageConteinerGroupNativeDragEnterHandler(event:NativeDragEvent):void
+            {
+                if (event.target == imageConteinerGroup) {
+                    if (event.clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT)) {
+                        NativeDragManager.dropAction = NativeDragActions.LINK;
+                        DragManager.acceptDragDrop(imageConteinerGroup);
+                    }
+                }
+            }
+
+            protected function imageConteinerGroupNativeDragDropHandler(event:NativeDragEvent):void
+            {
+                var clipboard:Clipboard = event.clipboard;
+                if (clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT)) {
+                    var dropfiles:Array = clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
+
+                    FileUtil.sortFiles(dropfiles, Array.NUMERIC | Array.DESCENDING);
+
+                    var length:uint = dropfiles.length;
+                    var list:Vector.<File> = new Vector.<File>();
+                    for (var i:uint = 0; i < length; i++) {
+                        var file:File = dropfiles[i];
+                        if (FileUtil.hasBitmapFormat(file)) {
+                            list[list.length] = file;
+                        }
+                    }
+                }
+
+                if (list.length > 0)
+                    importImagesFromFiles(list);
+            }
+
+            protected function surfaceCellsMouseDownHandler(event:MouseEvent):void
+            {
+                _mouseDown = true;
+                cursorManager.setCursor(NailAssets.MOVE_CURSOR, 2, -8, -8);
+                _surfaceCells.startDrag(false, _dragBounds);
+                systemManager.stage.addEventListener(MouseEvent.MOUSE_UP, surfaceCellsMouseUpHandler);
+            }
+
+            protected function surfaceCellsMouseUpHandler(event:MouseEvent):void
+            {
+                systemManager.stage.removeEventListener(MouseEvent.MOUSE_UP, surfaceCellsMouseUpHandler);
+                _mouseDown = false;
+                _surfaceCells.stopDrag();
+                cursorManager.removeCursor(cursorManager.currentCursorID);
+            }
+
+            protected function surfaceCellsMoveHandler(event:MoveEvent):void
+            {
+                _surfaceCells.x = Math.round(_surfaceCells.x);
+                _surfaceCells.y = Math.round(_surfaceCells.y);
+            }
+
+            protected function subdivisionsCheckBoxChangeHandler(event:Event):void
+            {
+                _surfaceCells.subdivisions = subdivisionsCheckBox.selected;
+            }
+
+            protected function offsetStepperChangeHandler(event:Event):void
+            {
+                _surfaceCells.x = offsetXStepper.value;
+                _surfaceCells.y = offsetYStepper.value;
+            }
+
+            protected function zoomChangeHandler(event:Event):void
+            {
+                this.zoom = HSlider(event.target).value;
+            }
+
+            protected function importButtonClickHandler(event:MouseEvent):void
+            {
+                var length:uint = _sprites.length;
+                if (length > 0) {
+                    var rect:Rectangle = new Rectangle(0, 0, 32, 32);
+                    var list:Vector.<ByteArray> = new Vector.<ByteArray>(length, true);
+                    for (var i:uint = 0; i < length; i++) {
+                        var bitmap:BitmapData = _sprites.getItemAt(i) as BitmapData;
+                        list[i] = bitmap.getPixels(rect);;
+                    }
+
+                    _communicator.sendCommand(new ImportSpritesCommand(list));
+                }
+            }
+
+            protected function clearButtonClickHandler(event:MouseEvent):void
+            {
+                _sprites.removeAll();
+            }
+
+            protected function rotateOrFlipClickHandler(event:MouseEvent):void
+            {
+                if (!this.hasImage) return;
+
+                if (event.target === rotateRight90Button)
+                    this.bitmap = BitmapUtil.rotate(_bitmap, 90);
+                else if (event.target === rotateLeft90Button)
+                    this.bitmap = BitmapUtil.rotate(_bitmap, 270);
+                else if (event.target === flipHorizontalButton)
+                    this.bitmap = BitmapUtil.flip(_bitmap, true, false);
+                else if (event.target === flipVerticalButton)
+                    this.bitmap = BitmapUtil.flip(_bitmap, false, true);
+            }
+
+            override protected function keyDownHandler(event:KeyboardEvent):void
+            {
+                if (!event.ctrlKey &&
+                    !event.shiftKey &&
+                    !event.altKey &&
+                    focusManager.getFocus() != zoomSlider)
+                {
+                    switch (event.keyCode)
+                    {
+                        case Keyboard.LEFT:
+                            _surfaceCells.x = Math.max(0, _surfaceCells.x - 1);
+                            break;
+
+                        case Keyboard.RIGHT:
+                            _surfaceCells.x = Math.min(_dragBounds.width, _surfaceCells.x + 1);
+                            break;
+
+                        case Keyboard.UP:
+                            _surfaceCells.y = Math.max(0, _surfaceCells.y - 1);
+                            break;
+
+                        case Keyboard.DOWN:
+                            _surfaceCells.y = Math.min(_dragBounds.height, _surfaceCells.y + 1);
+                            break;
+                    }
+
+                    offsetXStepper.value = _surfaceCells.x;
+                    offsetYStepper.value = _surfaceCells.y;
+                }
+                else if (event.ctrlKey && !event.shiftKey && !event.altKey)
+                {
+                    switch (event.keyCode)
+                    {
+                        case Keyboard.O:
+                            onOpenFile();
+                            break;
+
+                        case Keyboard.MINUS:
+                            zoom = Math.max(zoomSlider.minimum, zoomSlider.value - zoomSlider.stepSize);
+                            break;
+
+                        case Keyboard.EQUAL:
+                            zoom = Math.min(zoomSlider.maximum, zoomSlider.value + zoomSlider.stepSize);
+                            break;
+                    }
+                }
+            }
+
+        ]]>
+    </fx:Script>
+
+    <s:layout>
+        <s:VerticalLayout/>
+    </s:layout>
+
+    <!-- tool bar -->
+    <s:Group width="100%"
+             height="35"
+             top="0">
+
+        <!-- highlight -->
+        <s:Rect left="-1" right="-1" top="1" bottom="0">
+            <s:stroke>
+                <s:SolidColorStroke color="0x636363"/>
+            </s:stroke>
+        </s:Rect>
+
+        <!-- border -->
+        <s:Rect left="-1" right="-1" top="0" bottom="0">
+            <s:stroke>
+                <s:SolidColorStroke color="0x272727"/>
+            </s:stroke>
+        </s:Rect>
+
+        <s:HGroup width="100%"
+                  height="100%"
+                  verticalAlign="middle"
+                  paddingLeft="10"
+                  paddingRight="10">
+
+            <s:Button id="openButton"
+                      toolTip="@Resource(key='menu.open', bundle='strings')"
+                      width="25"
+                      height="25"
+                      icon="{Assets.OPEN}"
+                      skinClass="nail.components.skins.IconButtonSkin"
+                      click="onOpenFile()"/>
+
+            <nail:ShadowLine height="20"/>
+
+            <s:Button id="rotateRight90Button"
+                      toolTip="@Resource(key='rotateRight90', bundle='strings')"
+                      width="25"
+                      height="25"
+                      icon="{Assets.ROTATE_RIGHT_90}"
+                      enabled="false"
+                      skinClass="nail.components.skins.IconButtonSkin"
+                      click="rotateOrFlipClickHandler(event)"/>
+
+            <s:Button id="rotateLeft90Button"
+                      label="@Resource(key='rotateLeft90', bundle='strings')"
+                      width="25"
+                      height="25"
+                      icon="{Assets.ROTATE_LEFT_90}"
+                      enabled="false"
+                      skinClass="nail.components.skins.IconButtonSkin"
+                      click="rotateOrFlipClickHandler(event)"/>
+
+            <s:Button id="flipVerticalButton"
+                      toolTip="@Resource(key='flipVertical', bundle='strings')"
+                      width="25"
+                      height="25"
+                      icon="{Assets.FLIP_VERTICAL}"
+                      enabled="false"
+                      skinClass="nail.components.skins.IconButtonSkin"
+                      click="rotateOrFlipClickHandler(event)"/>
+
+            <s:Button id="flipHorizontalButton"
+                      toolTip="@Resource(key='flipHorizontal', bundle='strings')"
+                      width="25"
+                      height="25"
+                      icon="{Assets.FLIP_HORIZONTAL}"
+                      enabled="false"
+                      skinClass="nail.components.skins.IconButtonSkin"
+                      click="rotateOrFlipClickHandler(event)"/>
+
+        </s:HGroup>
+    </s:Group>
+
+    <s:HGroup width="100%"
+              height="100%">
+
+        <!-- controls -->
+        <s:BorderContainer width="150"
+                           height="100%"
+                           skinClass="nail.components.skins.BorderContainerSkin">
+            <s:layout>
+                <s:VerticalLayout paddingLeft="5"
+                                  paddingRight="5"
+                                  paddingTop="10"
+                                  paddingBottom="10"
+                                  verticalAlign="bottom"/>
+            </s:layout>
+
+            <!-- cells controls -->
+            <nail:GroupBox label="@Resource(key='cells', bundle='strings')"
+                           width="100%">
+
+                <nail:layout>
+                    <s:VerticalLayout paddingLeft="5"
+                                      paddingRight="5"
+                                      paddingTop="10"
+                                      paddingBottom="10"/>
+                </nail:layout>
+
+                <s:CheckBox id="subdivisionsCheckBox" label="Subdivisions"
+                            change="subdivisionsCheckBoxChangeHandler(event)"/>
+
+                <s:Spacer height="10" />
+
+                <s:TileGroup width="100%"
+                             requestedColumnCount="2"
+                             verticalAlign="middle">
+
+                    <s:Label text="X:"
+                             textAlign="right"/>
+                    <s:NumericStepper id="offsetXStepper"
+                                      width="55"
+                                      minimum="0"
+                                      maximum="608"
+                                      change="offsetStepperChangeHandler(event)"/>
+
+                    <s:Label text="Y:"
+                             textAlign="right"/>
+                    <s:NumericStepper id="offsetYStepper"
+                                      width="55"
+                                      minimum="0"
+                                      maximum="608"
+                                      change="offsetStepperChangeHandler(event)"/>
+
+                    <s:Label text="{resourceManager.getString('strings', 'columns') + ':'}"
+                             textAlign="right"/>
+                    <s:NumericStepper id="columnsStepper"
+                                      width="55"
+                                      minimum="1"
+                                      maximum="20"
+                                      change="update()"/>
+
+                    <s:Label text="{resourceManager.getString('strings', 'rows') + ':'}"
+                             textAlign="right"/>
+                    <s:NumericStepper id="rowsStepper"
+                                      width="55"
+                                      minimum="1"
+                                      maximum="20"
+                                      change="update()"/>
+                </s:TileGroup>
+            </nail:GroupBox>
+
+            <!-- zoom control -->
+            <nail:GroupBox label="@Resource(key='zoom', bundle='strings')"
+                           width="100%">
+
+                <nail:layout>
+                    <s:VerticalLayout paddingLeft="5"
+                                      paddingRight="5"
+                                      paddingTop="10"
+                                      paddingBottom="10"/>
+                </nail:layout>
+
+                <s:HSlider id="zoomSlider"
+                           width="100%"
+                           minimum="1.0"
+                           maximum="5.0"
+                           stepSize="0.1"
+                           value="{zoom}"
+                           bottom="10"
+                           right="10"
+                           change="zoomChangeHandler(event)"/>
+            </nail:GroupBox>
+
+            <s:Button id="cutButton"
+                      label="@Resource(key='crop', bundle='strings')"
+                      width="100%"
+                      click="onCutImage()"/>
+        </s:BorderContainer>
+
+        <!-- image container -->
+        <s:BorderContainer width="100%"
+                           height="100%"
+                           skinClass="nail.components.skins.BorderContainerSkin">
+
+            <!-- background fill -->
+            <otlib:CheckerBoard left="0"
+                                right="0"
+                                top="0"
+                                bottom="0"
+                                cellColors="{[0x636363, 0x535353]}"
+                                mouseChildren="false"
+                                mouseEnabled="false"/>
+
+            <otlib:Ruler id="ruler"
+                         width="100%"
+                         height="100%"
+                         mouseChildren="false"
+                         mouseEnabled="false"
+                         lineColor="0x636363"/>
+
+            <s:Scroller left="15"
+                        right="0"
+                        top="15"
+                        bottom="0"
+                        height="100%"
+                        verticalScrollPolicy="on"
+                        horizontalScrollPolicy="on">
+
+                <s:Group id="imageConteinerGroup"
+                         width="100%"
+                         height="100%"
+                         mouseMove="imageContainerMouseMoveHandler(event)"
+                         mouseDown="imageContainerMouseDownHandler(event)"
+                         nativeDragEnter="imageConteinerGroupNativeDragEnterHandler(event)"
+                         nativeDragDrop="imageConteinerGroupNativeDragDropHandler(event)">
+
+                    <otlib:CheckerBoard id="checkerboard"
+                                        width="{imageControl.width}"
+                                        height="{imageControl.height}"/>
+
+                    <s:Image id="imageControl"/>
+
+                </s:Group>
+            </s:Scroller>
+        </s:BorderContainer>
+
+        <!-- sprite part list -->
+        <s:BorderContainer width="150"
+                           height="100%"
+                           skinClass="nail.components.skins.BorderContainerSkin">
+            <s:layout>
+                <s:VerticalLayout paddingLeft="5"
+                                  paddingRight="5"
+                                  paddingTop="10"
+                                  paddingBottom="10"/>
+            </s:layout>
+
+            <nail:GroupBox label="@Resource(key='sprites', bundle='strings')"
+                           width="100%"
+                           height="100%">
+
+                <s:List id="spritePartList"
+                        width="100%"
+                        height="100%"
+                        contentBackgroundColor="0x494949"
+                        borderVisible="false"
+                        itemRenderer="otlib.components.renders.BitmapListRenderer"/>
+            </nail:GroupBox>
+
+            <s:Button id="importButton"
+                      label="@Resource(key='import', bundle='strings')"
+                      width="100%"
+                      enabled="false"
+                      click="importButtonClickHandler(event)"/>
+
+            <s:Button id="clearButton"
+                      label="@Resource(key='clear', bundle='strings')"
+                      width="100%"
+                      click="clearButtonClickHandler(event)"/>
+        </s:BorderContainer>
+    </s:HGroup>
+</s:Window>
