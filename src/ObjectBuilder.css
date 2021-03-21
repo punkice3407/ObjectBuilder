@@ -1,0 +1,284 @@
+/*
+*  Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+*
+*  Permission is hereby granted, free of charge, to any person obtaining a copy
+*  of this software and associated documentation files (the "Software"), to deal
+*  in the Software without restriction, including without limitation the rights
+*  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+*  copies of the Software, and to permit persons to whom the Software is
+*  furnished to do so, subject to the following conditions:
+*
+*  The above copyright notice and this permission notice shall be included in
+*  all copies or substantial portions of the Software.
+*
+*  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+*  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+*  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+*  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+*  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+*  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+*  THE SOFTWARE.
+*/
+
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+@namespace mg "library://ns.mignari.com/mg";
+@namespace otlib "otlib.components.*";
+@namespace ob "ob.components.*";
+
+@font-face
+{
+    src: url("../assets/fonts/Ubuntu/Ubuntu-L.ttf");
+    fontFamily: ubuntu;
+    advancedAntiAliasing: true;
+    fontStyle: normal;
+    embedAsCFF:true;
+}
+
+@font-face
+{
+    src: url("../assets/fonts/Ubuntu/Ubuntu-B.ttf");
+    fontFamily: ubuntu;
+    advancedAntiAliasing: true;
+    fontStyle: normal;
+    fontWeight: bold;
+    embedAsCFF:true;
+}
+
+@font-face
+{
+    src: url("../assets/fonts/Ubuntu/Ubuntu-LI.ttf");
+    fontFamily: ubuntu;
+    advancedAntiAliasing: true;
+    fontStyle: italic;
+    fontWeight: normal;
+    embedAsCFF:true;
+}
+
+global
+{
+    chromeColor: #444444;
+    rollOverColor: #3385b2;
+    selectionColor: #156692;
+    color: #CBCBCB;
+    contentBackgroundColor: #444444;
+    focusedTextSelectionColor: #272727;
+    symbolColor: #DFDFDF;
+    fontFamily: Ubuntu;
+    modal-transparency-blur: 0;
+    modal-transparency: 0.3;
+    modalTransparencyColor: #656565;
+}
+
+/*
+//--------------------------------------
+// mx components
+//--------------------------------------
+*/
+
+mx|HDividedBox
+{
+    dividerSkin: ClassReference("nail.assets.NailAssets_DIVIDER");
+    dividerColor: #272727;
+    horizontalGap: 6;
+}
+
+mx|ProgressBar
+{
+    barSkin: ClassReference("com.mignari.skins.ProgressBarSkin");
+}
+
+mx|ScrollBar
+{
+    paddingBottom: 0;
+    paddingLeft: 0;
+    paddingRight: 0;
+    paddingTop: 0;
+    thumbOffset: 0;
+    thumbSkin: ClassReference("com.mignari.skins.ScrollBarThumbSkin");
+    trackSkin: ClassReference("com.mignari.skins.ScrollBarTrackSkin");
+    downArrowSkin: ClassReference(null);
+    upArrowSkin: ClassReference(null);
+}
+
+mx|ToolTip
+{
+    backgroundAlpha: 1.0;
+    backgroundColor: #212121;
+    borderColor: #69BEEF;
+    color: #69BEEF;
+    cornerRadius: 0;
+    fontSize: 11;
+}
+
+/*
+//--------------------------------------
+// spark components
+//--------------------------------------
+*/
+
+s|Application
+{
+    backgroundColor: #212F43;
+    skinClass: ClassReference("spark.skins.spark.ApplicationSkin");
+}
+
+s|BorderContainer
+{
+    backgroundColor: #212F43;
+    borderStyle : "solid"; 
+    cornerRadius: 0;
+    skinClass: ClassReference("spark.skins.spark.BorderContainerSkin");
+}
+
+s|Button
+{
+    skinClass: ClassReference("com.mignari.skins.ButtonSkin");
+}
+
+s|CheckBox
+{
+    skinClass: ClassReference("com.mignari.skins.SwitchSkin");
+}
+
+s|ComboBox
+{
+    paddingBottom: 3;
+    paddingLeft: 3;
+    paddingRight: 3;
+    paddingTop: 5;
+    skinClass: ClassReference("nail.components.skins.ComboBoxSkin");
+}
+
+s|DropDownList
+{
+    skinClass: ClassReference("com.mignari.skins.DropDownListSkin");
+}
+
+s|HScrollBar
+{
+    skinClass: ClassReference("com.mignari.skins.HScrollBarSkin");
+}
+
+s|HSlider
+{
+    skinClass: ClassReference("nail.components.skins.HSliderSkin");
+}
+
+s|NumericStepper
+{
+    skinClass: ClassReference("com.mignari.skins.NumericStepperSkin");
+}
+
+s|RadioButton
+{
+    skinClass: ClassReference("com.mignari.skins.RadioButtonSkin");
+}
+
+s|SkinnableComponent
+{
+    errorSkin: ClassReference("com.mignari.skins.ErrorSkin");
+    focusSkin: ClassReference("com.mignari.skins.FocusSkin");
+}
+
+s|TextInput
+{
+    paddingBottom: 3;
+    paddingLeft: 3;
+    paddingRight: 3;
+    paddingTop: 5;
+    color: #272727;
+    borderColor: #272727;
+    contentBackgroundColor: #A2A2A2;
+    focusedTextSelectionColor: #CCCCCC;
+    skinClass: ClassReference("com.mignari.skins.TextInputSkin");
+}
+
+s|ToggleButton
+{
+    skinClass: ClassReference("nail.components.skins.ToggleButtonSkin");
+}
+
+s|VScrollBar
+{
+    skinClass: ClassReference("com.mignari.skins.VScrollBarSkin");
+}
+
+s|VSlider
+{
+    skinClass: ClassReference("nail.components.skins.VSliderSkin");
+}
+
+/*
+//--------------------------------------
+// mg components
+//--------------------------------------
+*/
+
+mg|GroupBox
+{
+    backgroundColor: #494949;
+    borderColor: #272727;
+    shadowColor: #535353;
+    skinClass: ClassReference("com.mignari.skins.GroupBoxSkin");
+}
+
+mg|GroupCheckBox
+{
+    backgroundColor: #494949;
+    borderColor: #272727;
+    shadowColor: #535353;
+    skinClass: ClassReference("com.mignari.skins.GroupSwitchSkin");
+}
+
+mg|ProgressBar
+{
+    barSkin: ClassReference("com.mignari.skins.ProgressBarSkin");
+}
+
+mg|ProgressWidget
+{
+    skinClass: ClassReference("com.mignari.skins.ProgressWidgetSkin");
+}
+
+/*
+//--------------------------------------
+// otlib components
+//--------------------------------------
+*/
+
+otlib|AmountNumericStepper
+{
+    skinClass: ClassReference("otlib.components.skins.AmountNumericStepperSkin");
+}
+
+otlib|DirectionButton
+{
+    skinClass: ClassReference("otlib.components.skins.DirectionButtonSkin");
+}
+
+otlib|HSIColorPicker
+{
+    skinClass: ClassReference("otlib.components.skins.HSIColorPickerSkin");
+}
+
+otlib|EightBitColorPicker
+{
+    skinClass: ClassReference("otlib.components.skins.EightBitColorPickerSkin");
+}
+
+otlib|PatternSlider
+{
+    skinClass: ClassReference("otlib.components.skins.PatternSliderSkin");
+}
+
+/*
+//--------------------------------------
+// ob components
+//--------------------------------------
+*/
+
+ob|Toolbar
+{
+    skinClass: ClassReference("ob.components.skins.ToolbarSkin");
+}

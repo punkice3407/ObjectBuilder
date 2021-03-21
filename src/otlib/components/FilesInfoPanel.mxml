@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<nail:GroupBox xmlns:fx="http://ns.adobe.com/mxml/2009"
+               xmlns:s="library://ns.adobe.com/flex/spark"
+               xmlns:mx="library://ns.adobe.com/flex/mx"
+               xmlns:nail="library://ns.nail.com/naillib"
+               label="@Resource(key='info', bundle='strings')"
+               fontSize="11"
+               creationComplete="creationCompleteHandler(event)">
+
+    <fx:Script>
+        <![CDATA[
+            import mx.core.FlexGlobals;
+            import mx.events.FlexEvent;
+
+            import nail.errors.NullArgumentError;
+
+            import ob.core.IObjectBuilder;
+
+            import otlib.core.IVersionStorage;
+            import otlib.core.Version;
+            import otlib.utils.ClientInfo;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            private var m_versions:IVersionStorage;
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Public
+            //--------------------------------------
+
+            public function setFilesInfo(info:ClientInfo):void
+            {
+                if (!info)
+                    throw new NullArgumentError("info");
+
+                var version:Version = m_versions.getBySignatures(info.datSignature, info.sprSignature);
+
+                if (version)
+                {
+                    filesVersionLabel.text = version.toString();
+                    datSignatureLabel.text = info.datSignature.toString(16).toUpperCase();
+                    itemsCountLabel.text = info.maxItemId.toString();
+                    outfitsCountLabel.text  =info.maxOutfitId.toString();
+                    effectsCountLabel.text = info.maxEffectId.toString();
+                    missilesCountLabel.text = info.maxMissileId.toString();
+                    sprSignatureLabel.text = info.sprSignature.toString(16).toUpperCase();
+                    spritesCountLabel.text = info.maxSpriteId.toString();
+                    extendedValueLabel.text = resourceManager.getString("strings", info.extended ? "yes" : "no");
+                    transparencyValueLabel.text = resourceManager.getString("strings", info.transparency ? "yes" : "no");
+                    improvedAnimationsValueLabel.text = resourceManager.getString("strings", info.improvedAnimations ? "yes" : "no");
+                }
+                else
+                    this.clear();
+            }
+
+            public function clear():void
+            {
+                filesVersionLabel.text = null;
+                datSignatureLabel.text = null;
+                itemsCountLabel.text = null;
+                outfitsCountLabel.text = null;
+                effectsCountLabel.text = null;
+                missilesCountLabel.text = null;
+                sprSignatureLabel.text = null;
+                spritesCountLabel.text = null;
+                extendedValueLabel.text = null;
+                transparencyValueLabel.text = null;
+                improvedAnimationsValueLabel.text = null;
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                m_versions = IObjectBuilder(FlexGlobals.topLevelApplication).versionStorage;
+            }
+
+        ]]>
+    </fx:Script>
+
+    <s:Group width="100%"
+             height="100%">
+
+        <s:layout>
+            <s:TileLayout verticalGap="3"
+                          horizontalGap="10"
+                          requestedColumnCount="2"
+                          paddingLeft="5"
+                          paddingRight="5"
+                          paddingTop="10"
+                          paddingBottom="10"/>
+        </s:layout>
+
+        <s:Label text="{resourceManager.getString('strings', 'version') + ':'}"
+                 textAlign="right"/>
+        <s:Label id="filesVersionLabel"
+                 color="0x9AC9F8"/>
+
+        <s:Label text="Dat:"
+                 textAlign="right"/>
+        <s:RichEditableText id="datSignatureLabel"
+                            editable="false"
+                            focusEnabled="false"
+                            height="13"
+                            color="0x9AC9F8"/>
+
+        <s:Label text="{resourceManager.getString('strings', 'items') + ':'}"
+                 textAlign="right"/>
+        <s:RichEditableText id="itemsCountLabel"
+                            editable="false"
+                            focusEnabled="false"
+                            height="13"
+                            color="0x9AC9F8"/>
+
+        <s:Label text="{resourceManager.getString('strings', 'outfits') + ':'}"
+                 textAlign="right"/>
+        <s:RichEditableText id="outfitsCountLabel"
+                            editable="false"
+                            focusEnabled="false"
+                            height="13"
+                            color="0x9AC9F8"/>
+
+        <s:Label text="{resourceManager.getString('strings', 'effects') + ':'}"
+                 textAlign="right"/>
+        <s:RichEditableText id="effectsCountLabel"
+                            editable="false"
+                            focusEnabled="false"
+                            height="13"
+                            color="0x9AC9F8"/>
+
+        <s:Label text="{resourceManager.getString('strings', 'missiles') + ':'}"
+                 textAlign="right"/>
+        <s:RichEditableText id="missilesCountLabel"
+                            editable="false"
+                            focusEnabled="false"
+                            height="13"
+                            color="0x9AC9F8"/>
+
+        <s:Label text="Spr:"
+                 textAlign="right"/>
+        <s:RichEditableText id="sprSignatureLabel"
+                            editable="false"
+                            focusEnabled="false"
+                            height="13"
+                            color="0x9AC9F8"/>
+
+        <s:Label text="{resourceManager.getString('strings', 'sprites') + ':'}"
+                 textAlign="right"/>
+        <s:RichEditableText id="spritesCountLabel"
+                            editable="false"
+                            focusEnabled="false"
+                            height="13"
+                            color="0x9AC9F8"/>
+
+        <s:Label text="{resourceManager.getString('strings', 'extended') + ':'}"
+                 textAlign="right"/>
+        <s:RichEditableText id="extendedValueLabel"
+                            editable="false"
+                            focusEnabled="false"
+                            height="13"
+                            color="0x9AC9F8"/>
+
+        <s:Label text="{resourceManager.getString('strings', 'transparency') + ':'}"
+                 textAlign="right"/>
+        <s:RichEditableText id="transparencyValueLabel"
+                            editable="false"
+                            focusEnabled="false"
+                            height="13"
+                            color="0x9AC9F8"/>
+
+        <s:Label text="{resourceManager.getString('strings', 'improvAnim') + ':'}"
+                 textAlign="right"/>
+        <s:RichEditableText id="improvedAnimationsValueLabel"
+                            editable="false"
+                            focusEnabled="false"
+                            height="13"
+                            color="0x9AC9F8"/>
+    </s:Group>
+</nail:GroupBox>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+                xmlns:s="library://ns.adobe.com/flex/spark"
+                xmlns:mx="library://ns.adobe.com/flex/mx"
+                xmlns:gamelib="otlib.components.*"
+                minHeight="36"
+                maxHeight="132"
+                dataChange="dataChangeHandler(event)">
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.utils.FileUtil;
+            
+            import mx.events.FlexEvent;
+            
+            import otlib.things.ThingCategory;
+            import otlib.things.ThingData;
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            private function dataChangeHandler(event:FlexEvent):void
+            {
+                var file:File = data as File;
+                if (!file || !file.exists)
+                    return;
+
+                try
+                {
+                    var data:ThingData = ThingData.createFromFile(file);
+                    var patternX:uint = 0;
+
+                    if (data.category == ThingCategory.OUTFIT)
+                        patternX = 2;
+
+                    image.source = data.getBitmap(0, patternX);
+                    nameLabel.text = FileUtil.getName(file);
+                }
+                catch(error:Error)
+                {
+                    
+                }
+            }
+        ]]>
+    </fx:Script>
+
+    <s:Rect width="{image.width}" height="{image.height}" verticalCenter="0" left="3">
+        <s:fill>
+            <s:SolidColor color="0x535353" />
+        </s:fill>
+    </s:Rect>
+
+    <s:HGroup width="100%" height="100%" verticalAlign="middle" gap="8" padding="2" left="3">
+        <s:BitmapImage id="image" minWidth="32" minHeight="32" maxWidth="128" maxHeight="128" />
+        <s:Label id="nameLabel" />
+    </s:HGroup>
+</s:ItemRenderer>

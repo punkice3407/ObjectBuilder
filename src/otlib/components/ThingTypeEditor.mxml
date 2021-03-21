@@ -1,0 +1,1741 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         xmlns:nail="library://ns.nail.com/naillib"
+         xmlns:mg="library://ns.mignari.com/mg"
+         xmlns:otlib="otlib.components.*"
+         minWidth="300"
+         minHeight="0"
+         fontSize="11"
+         creationComplete="creationCompleteHandler(event)">
+
+    <fx:Declarations>
+        <s:RadioButtonGroup id="renderOrder"
+                            enabled="{!groundGroupCheckBox.selected}"
+                            change="renderOrderChangeHandler(event)"/>
+    </fx:Declarations>
+
+    <fx:Metadata>
+        [Event(name="thingChange", type="otlib.events.ThingEditorEvent")]
+        [Event(name="thingPropertyChange", type="otlib.events.ThingEditorEvent")]
+        [Event(name="spriteDoubleClick", type="otlib.events.ThingEditorEvent")]
+        [ResourceBundle("strings")]
+    </fx:Metadata>
+
+    <fx:Script>
+        <![CDATA[
+            import mx.core.DragSource;
+            import mx.core.IVisualElement;
+            import mx.events.DragEvent;
+            import mx.events.FlexEvent;
+            import mx.events.PropertyChangeEvent;
+            import mx.managers.DragManager;
+            
+            import spark.components.Button;
+            import spark.events.IndexChangeEvent;
+            
+            import otlib.animation.FrameDuration;
+            import otlib.components.skins.SpriteButtonSkin;
+            import otlib.events.ThingEditorEvent;
+            import otlib.geom.Direction;
+            import otlib.sprites.Sprite;
+            import otlib.sprites.SpriteData;
+            import otlib.things.BindableThingType;
+            import otlib.things.ThingCategory;
+            import otlib.things.ThingData;
+            import otlib.things.ThingType;
+            import otlib.utils.ClientInfo;
+            import otlib.utils.OutfitData;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            [Bindable]
+            private var _thingBinding:BindableThingType;
+
+            [Bindable]
+            private var _thingData:ThingData;
+            private var _thingDataChanged:Boolean;
+            private var _changed:Boolean;
+            private var _loading:Boolean;
+            private var _rect:Rectangle;
+            private var _point:Point;
+            private var _patternX:uint;
+            private var _patternY:uint;
+            private var _invalidateThingData:Boolean;
+            private var _filesInfo:ClientInfo;
+            private var _filesInfoChanged:Boolean;
+            private var _previewMode:Boolean;
+            private var _lastAnimationFrame:uint;
+
+            //--------------------------------------
+            // Getters / Setters
+            //--------------------------------------
+
+            public function get bindableThingType():BindableThingType { return _thingBinding; }
+
+            public function get thingData():ThingData { return _thingData; }
+            public function set thingData(value:ThingData):void
+            {
+                if (_thingData != value) {
+                    _thingData = value;
+                    _thingDataChanged = true;
+                    _changed = false;
+                    invalidateProperties();
+                    dispatchEvent(new ThingEditorEvent(ThingEditorEvent.THING_CHANGE, this.thingData));
+                }
+            }
+
+            public function get changed():Boolean { return _thingData ? _changed : false; }
+
+            public function get filesInfo():ClientInfo { return _filesInfo; }
+            public function set filesInfo(value:ClientInfo):void
+            {
+                if (_filesInfo != value) {
+                    _filesInfo = value;
+                    _filesInfoChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Public
+            //--------------------------------------
+
+            public function saveChanges():Boolean
+            {
+                if (_thingData && _changed) {
+                    if (_thingBinding.copyToThingData(_thingData)) {
+                        _changed = false;
+                        dispatchEvent(new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, this.thingData));
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            public function getThingTypeResult():ThingType
+            {
+                if (_thingData) {
+                    var thing:ThingType = new ThingType();
+                    if (_thingBinding.copyToThingType(thing)) {
+                        return thing;
+                    }
+                }
+                return null;
+            }
+
+            public function updatePreview():void
+            {
+                if (_thingData) {
+                    animationCountLabel.text = (animationSlider.value + 1) + '/' + (animationSlider.maximum + 1);
+                    addonCountLabel.text = (addonsSlider.value + 1) + '/' + (addonsSlider.maximum + 1);
+                    mountCountLabel.text = (mountSlider.value + 1) + '/' + (mountSlider.maximum + 1);
+                    layerCountLabel.text = (layerSlider.value + 1) + '/' + (layerSlider.maximum + 1);
+                    thingView.patternX = _patternX;
+                    thingView.patternY = _patternY;
+                    thingView.patternZ = mountSlider.value;
+
+                    var frameDuration:FrameDuration = _thingBinding.getFrameDuration(animationSlider.value);
+                    if (frameDuration) {
+                        minimumNumericStepper.value = frameDuration.minimum;
+                        maximumNumericStepper.value = frameDuration.maximum;
+                    }
+
+                    if (_thingData.category == ThingCategory.OUTFIT || _thingData.category == ThingCategory.MISSILE) {
+                        addonGroup.visible = (_thingData.category == ThingCategory.OUTFIT && patternYNumericStepper.value > 1);
+                        updateViewWithDirection();
+                    } else {
+                        updateView();
+                    }
+                }
+            }
+
+            public function invalidateThingData():void
+            {
+                _invalidateThingData = true;
+                invalidateProperties();
+            }
+
+            //--------------------------------------
+            // Override Protected
+            //--------------------------------------
+
+            override protected function commitProperties():void
+            {
+                super.commitProperties();
+
+                if (_thingDataChanged) {
+                    setThingData(_thingData);
+                    setFilesInfo(_filesInfo)
+                    _thingDataChanged = false;
+                }
+
+                if (_invalidateThingData) {
+                    _changed = true;
+                    _invalidateThingData = false;
+                }
+
+                if (_filesInfoChanged) {
+                    setFilesInfo(_filesInfo);
+                    _filesInfoChanged = false;
+                }
+            }
+
+            //--------------------------------------
+            // Private
+            //--------------------------------------
+
+            private function setThingData(thingData:ThingData):void
+            {
+                _loading = true;
+                _lastAnimationFrame = 0;
+                thingView.thingData = thingData;
+
+                _thingBinding.reset();
+                animationSlider.value = 0;
+                mountSlider.value = 0;
+                addonsSlider.value = 0;
+                addonGroup.visible = false;
+                layerSlider.value = 0;
+                layerGroup.visible = false;
+                setPreviewMode(false);
+
+                if (thingData) {
+
+                    var isOutfit:Boolean = (thingData.category == ThingCategory.OUTFIT);
+                    var isMissile:Boolean = (thingData.category == ThingCategory.MISSILE);
+                    directionGroup.visible = (isOutfit || isMissile);
+                    topLeftButton.visible = isMissile;
+                    topRightButton.visible = isMissile;
+                    bottomRightButton.visible = isMissile;
+                    bottomLeftButton.visible = isMissile;
+                    addonGroup.visible = (isOutfit && thingData.thing.patternY > 1);
+                    cropSizeNumericStepper.maximum = Math.max(thingData.thing.width * 32, thingData.thing.height * 32);
+
+                    _thingBinding.copyFrom(thingData);
+
+                    animationModeDropDownList.selectedIndex = _thingBinding.animationMode;
+                    loopCountNumericStepper.value = _thingBinding.loopCount;
+                    startFrameNumericStepper.value = _thingBinding.startFrame;
+                    frameStrategyDropDownList.selectedIndex = _thingBinding.loopCount != -1 ? 0 : 1;
+
+                    if (isOutfit || isMissile)
+                        selectDirectionButton(bottomCenterButton);
+                    else
+                        updatePreview();
+                }
+
+                _changed = false;
+                _loading = false;
+
+                checkThingOrder();
+            }
+
+            private function setFilesInfo(info:ClientInfo):void
+            {
+                if (!this.thingData || !info) return;
+
+                var category:String = thingData.category;
+                var visible:Boolean = (category == ThingCategory.ITEM || category == ThingCategory.OUTFIT);
+                flagsGroupBox.visible = visible;
+                flagsGroupBox.includeInLayout = visible;
+
+                visible = (category == ThingCategory.OUTFIT);
+                animateAlwaysCheckBox.visible = visible;
+                animateAlwaysCheckBox.includeInLayout = visible;
+
+                var isItem:Boolean = (category == ThingCategory.ITEM);
+                groundGroupCheckBox.visible = isItem;
+                groundGroupCheckBox.includeInLayout = isItem;
+                automapGroupCheckBox.visible = isItem;
+                automapGroupCheckBox.includeInLayout = isItem;
+                hasElevationGroupCheckBox.visible = isItem;
+                hasElevationGroupCheckBox.includeInLayout = isItem;
+                writeReadGroupCheckBox.visible = isItem;
+                writeReadGroupCheckBox.includeInLayout = isItem;
+                flagsLeftColumn.visible = isItem;
+                flagsLeftColumn.includeInLayout = isItem;
+                pickupableCheckBox.visible = isItem;
+                pickupableCheckBox.includeInLayout = isItem;
+                rotatableCheckBox.visible = isItem;
+                rotatableCheckBox.includeInLayout = isItem;
+                isLyingObjectCheckBox.visible = isItem;
+                isLyingObjectCheckBox.includeInLayout = isItem;
+                fullGroundCheckBox.visible = isItem;
+                fullGroundCheckBox.includeInLayout = isItem;
+                isLensHelpGroupCheckBox.visible = isItem;
+                isLensHelpGroupCheckBox.includeInLayout = isItem;
+
+                if (info.clientVersion >= 755) {
+                    offsetXNumericStepper.minimum = 1;
+                    offsetXNumericStepper.maximum = 32;
+                    offsetYNumericStepper.minimum = 1;
+                    offsetYNumericStepper.maximum = 32;
+                } else {
+                    offsetXNumericStepper.minimum = 8;
+                    offsetXNumericStepper.maximum = 8;
+                    offsetYNumericStepper.minimum = 8;
+                    offsetYNumericStepper.maximum = 8;
+                }
+
+                visible = (isItem && info.clientVersion >= 755);
+                groundBorderRadioButton.enabled = visible;
+                groundBorderRadioButton.includeInLayout = visible;
+                hangableCheckBox.visible = visible;
+                hangableCheckBox.includeInLayout = visible;
+                horizontalCheckBox.visible = visible;
+                horizontalCheckBox.includeInLayout = visible;
+                verticalCheckBox.visible = visible;
+                verticalCheckBox.includeInLayout = visible;
+
+                visible = (info.clientVersion >= 755);
+                patternZLabel.visible = visible;
+                patternZLabel.includeInLayout = visible;
+                patternZNumericStepper.visible = visible;
+                patternZNumericStepper.includeInLayout = visible;
+
+                visible = (isItem && info.clientVersion >= 780);
+                dontHideCheckBox.visible = visible;
+                dontHideCheckBox.includeInLayout = visible;
+                ignoreLookCheckBox.visible = visible;
+                ignoreLookCheckBox.includeInLayout = visible;
+
+                visible = (isItem && info.clientVersion >= 780 && info.clientVersion <= 854);
+                chargesCheckBox.visible = visible;
+                chargesCheckBox.includeInLayout = visible;
+
+                visible = (isItem && info.clientVersion >= 710 && info.clientVersion <= 854);
+                floorChangeCheckBox.visible = visible;
+                floorChangeCheckBox.includeInLayout = visible;
+
+                visible = (isItem && info.clientVersion >= 860);
+                translucentCheckBox.visible = visible;
+                translucentCheckBox.includeInLayout = visible;
+
+                visible = (isItem && info.clientVersion >= 900);
+                equipGroupCheckBox.visible = visible;
+                equipGroupCheckBox.includeInLayout = visible;
+
+                visible = (isItem && info.clientVersion >= 940);
+                marketGroupCheckBox.visible = visible;
+                marketGroupCheckBox.includeInLayout = visible;
+
+                visible = (isItem && info.clientVersion >= 1010);
+                noMoveAnimationCheckBox.visible = visible;
+                noMoveAnimationCheckBox.includeInLayout = visible;
+
+                visible = (isItem && info.clientVersion >= 1021);
+                actionGroupCheckBox.visible = visible;
+                actionGroupCheckBox.includeInLayout = visible;
+                usableCheckBox.visible = visible;
+                usableCheckBox.includeInLayout = visible;
+
+                updateAnimationControls();
+            }
+
+            private function updateAnimationControls():void
+            {
+                var category:String = _thingBinding.category;
+                var visible:Boolean = false;
+
+                if (_thingBinding && _filesInfo && _filesInfo.improvedAnimations && _thingBinding.frames > 1) {
+                    if (category == ThingCategory.ITEM || (category == ThingCategory.OUTFIT && _thingBinding.animateAlways)) {
+                        visible = true;
+                    }
+                }
+
+                animationGroupBox.visible = visible;
+                animationGroupBox.includeInLayout = visible;
+                minimumGroup.visible = visible;
+                minimumGroup.includeInLayout = visible;
+                maximumGroup.visible = visible;
+                maximumGroup.includeInLayout = visible;
+            }
+
+            private function updateViewWithDirection():void
+            {
+                removeButtons();
+
+                if (!_thingData) return;
+
+                var width:uint = _thingBinding.width;
+                var height:uint = _thingBinding.height;
+                var size:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
+                var bitmapWidth:Number = Math.max(size, width * size);
+                var bitmapHeight:Number = Math.max(size, height * size);
+                var bitmap:BitmapData = new BitmapData(bitmapWidth, bitmapHeight, true, 0x00FF00FF);
+                var f:uint = animationSlider.value;
+                var l:uint = layerSlider.value;
+                var x:uint = _patternX % _thingBinding.patternX;
+                var y:uint = (_patternY + addonsSlider.value) % _thingBinding.patternY;
+                var z:uint = mountSlider.value;
+
+                for (var w:uint = 0; w < width; w++) {
+                    for (var h:uint = 0; h < height; h++) {
+                        var index:int = getSpriteIndex(_thingBinding, w, h, l, x, y, z, f);
+                        var id:uint = _thingBinding.spriteIndex[index];
+                        var px:int = ((width - w - 1) * size);
+                        var py:int = ((height - h - 1) * size);
+                        copyPixels(index, bitmap, px, py);
+                        addButton(index, id, px, py);
+                    }
+                }
+
+                if (bitmapView.source) {
+                    bitmapView.source.dispose();
+                    bitmapView.source = null;
+                }
+
+                bitmapView.source = bitmap;
+            }
+
+            private function updateView():void
+            {
+                removeButtons();
+
+                if (!_thingData) return;
+
+                var width:uint = _thingBinding.width;
+                var height:uint = _thingBinding.height;
+                var layers:uint = _thingBinding.layers;
+                var patternX:uint = _thingBinding.patternX;
+                var patternY:uint = _thingBinding.patternY;
+                var size:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
+                var bitmapWidth:Number  = Math.max(size, (patternX * width) * size);
+                var bitmapHeight:Number = Math.max(size, (patternY * height) * size);
+                var pixelsWidth:int = width * size;
+                var pixelsHeight:int = height * size;
+                var bitmap:BitmapData = new BitmapData(bitmapWidth, bitmapHeight, true, 0x00FF00FF);
+                var f:uint = animationSlider.value;
+                var l:uint = layerSlider.value;
+                var z:uint = mountSlider.value;
+
+                for (var y:uint = 0; y < patternY; y++) {
+                    for (var x:uint = 0; x < patternX; x++) {
+                        var fx:int = x * pixelsWidth;
+                        var fy:int = y * pixelsHeight;
+                        for (var w:uint = 0; w < width; w++) {
+                            for (var h:uint = 0; h < height; h++) {
+                                var index:int = getSpriteIndex(_thingBinding, w, h, l, x, y, z, f);
+                                var id:uint = _thingBinding.spriteIndex[index];
+                                var px:int = ((width - w - 1) * size) + fx;
+                                var py:int = ((height - h - 1) * size) + fy;
+                                copyPixels(index, bitmap, px, py);
+                                addButton(index, id, px, py);
+                            }
+                        }
+                    }
+                }
+
+                if (bitmapView.source) {
+                    bitmapView.source.dispose();
+                    bitmapView.source = null;
+                }
+
+                bitmapView.source = bitmap;
+            }
+
+            private function addButton(index:uint, id:uint, x:uint, y:uint):void
+            {
+                var button:Button = new Button();
+                button.width = 32;
+                button.height = 32;
+                button.alpha = showGridCheckBox.selected ? 1 : 0;
+                button.label = index.toString();
+                button.toolTip = id.toString();
+                button.setStyle("fontSize", 10);
+                button.setStyle("skinClass", SpriteButtonSkin);
+                buttonsContainer.addElement(button);
+                button.move(x, y);
+                button.doubleClickEnabled = true;
+                button.addEventListener(DragEvent.DRAG_ENTER, buttonDragEnterHandler);
+                button.addEventListener(DragEvent.DRAG_EXIT, buttonDragExitHandler);
+                button.addEventListener(DragEvent.DRAG_DROP, buttonDragDropHandler);
+                button.addEventListener(MouseEvent.DOUBLE_CLICK, buttonDoubleClickHandler);
+            }
+
+            private function drawCropSize():void
+            {
+                if (!_thingData) return;
+
+                var size:uint = cropSizeNumericStepper.value;
+                buttonsContainer.graphics.clear();
+                if (showCropSizeCheckBox.selected &&
+                    size > 0 &&
+                    buttonsContainer.width > 0 &&
+                    buttonsContainer.height > 0) {
+                    var w:uint = Math.min(_thingBinding.width * 32, size);
+                    var h:uint = Math.min(_thingBinding.height * 32, size);
+                    var px:int = bitmapView.width - w;
+                    var py :int = bitmapView.height - h;
+                    buttonsContainer.graphics.lineStyle(1, 0x00FF00);
+                    buttonsContainer.graphics.drawRect(px, py, w, h);
+                }
+                buttonsContainer.graphics.endFill();
+            }
+
+            private function removeButtons():void
+            {
+                var length:uint = buttonsContainer.numElements;
+                for (var i:uint = 0; i < length; i++)
+                {
+                    var button:Button = buttonsContainer.getElementAt(i) as Button;
+                    button.removeEventListener(DragEvent.DRAG_ENTER, buttonDragEnterHandler);
+                    button.removeEventListener(DragEvent.DRAG_DROP, buttonDragDropHandler);
+                    button.removeEventListener(MouseEvent.DOUBLE_CLICK, buttonDoubleClickHandler);
+                }
+                buttonsContainer.removeAllElements();
+            }
+
+            private function changeButtonsVisible(visible:Boolean):void
+            {
+                var length:uint = buttonsContainer.numElements;
+                for (var i:uint = 0; i < length; i++) {
+                    var button:Button = buttonsContainer.getElementAt(i) as Button;
+                    button.alpha = visible ? 1 : 0;
+                }
+            }
+
+            private function getSpriteIndex(thing:BindableThingType, w:int, h:int, l:int, x:int, y:int, z:int, f:int):uint
+            {
+                return ((((((f % thing.frames)
+                    * thing.patternZ + z)
+                    * thing.patternY + y)
+                    * thing.patternX + x)
+                    * thing.layers + l)
+                    * thing.height + h)
+                    * thing.width + w;
+            }
+
+            private function copyPixels(index:uint, bitmap:BitmapData, x:uint, y:uint):void
+            {
+                var bmp:BitmapData = _thingBinding.getSpriteBitmap(index);
+                if (bmp) {
+                    _point.x = x;
+                    _point.y = y;
+                    bitmap.copyPixels(bmp, _rect, _point);
+                }
+            }
+
+            private function selectDirectionButton(button:DirectionButton):void
+            {
+                if (!_thingData || !button) return;
+
+                var length:uint = directionGroup.numElements;
+                for (var i:uint = 0; i < length; i++) {
+                    var element:IVisualElement = directionGroup.getElementAt(i);
+                    if (element is DirectionButton) {
+                        DirectionButton(element).selected = false;
+                    }
+                }
+
+                var isOutfit:Boolean = (_thingData.category == ThingCategory.OUTFIT);
+                button.selected = true;
+
+                switch(button.direction) {
+                    case Direction.NORTH:
+                        _patternX = isOutfit ? 0 : 1;
+                        _patternY = 0;
+                        break;
+                    case Direction.EAST:
+                        _patternX = isOutfit ? 1 : 2;
+                        _patternY = isOutfit ? 0 : 1;
+                        break;
+                    case Direction.SOUTH:
+                        _patternX = isOutfit ? 2 : 1;
+                        _patternY = isOutfit ? 0 : 2;
+                        break;
+                    case Direction.WEST:
+                        _patternX = isOutfit ? 3 : 0;
+                        _patternY = isOutfit ? 0 : 1;
+                        break;
+                    case Direction.NORTHWEST:
+                        _patternX = 0;
+                        _patternY = 0;
+                        break;
+                    case Direction.NORTHEAST:
+                        _patternX = 2;
+                        _patternY = 0;
+                        break;
+                    case Direction.SOUTHWEST:
+                        _patternX = 0;
+                        _patternY = 2;
+                        break;
+                    case Direction.SOUTHEAST:
+                        _patternX = 2;
+                        _patternY = 2;
+                        break;
+                    default:
+                        _patternX = 0;
+                        _patternY = 0;
+                        break;
+                }
+
+                updatePreview();
+            }
+
+            private function checkThingOrder():void
+            {
+                if (filesInfo.clientVersion > 750 && _thingBinding.isGroundBorder)
+                    renderOrder.selectedIndex = 1;
+                else if (_thingBinding.isOnBottom)
+                    renderOrder.selectedIndex = 2;
+                else if (_thingBinding.isOnTop)
+                    renderOrder.selectedIndex = 3;
+                else
+                    renderOrder.selectedIndex = 0;
+            }
+
+            private function setPreviewMode(enabled:Boolean):void
+            {
+                var thingData:ThingData;
+
+                _previewMode = enabled;
+                if (_previewMode) {
+                    thingData = _thingBinding.toThingData(_thingData.clientVersion);
+                    thingView.outfitData = new OutfitData(0, 0, 0, 0, addonsSlider.value);
+                    _lastAnimationFrame = animationSlider.value;
+                } else {
+                    setAnimationSlide(_lastAnimationFrame);
+                }
+
+                if (_previewMode != playAnimationButton.selected)
+                    playAnimationButton.selected = _previewMode;
+
+                thingView.thingData = thingData;
+                thingView.visible = _previewMode;
+                if (_previewMode) thingView.play();
+
+                var controlsEnabled:Boolean = !_previewMode;
+                bitmapView.visible = controlsEnabled;
+                animationSlider.mouseChildren = controlsEnabled;
+                mountGroup.enabled = controlsEnabled;
+                addonGroup.enabled = controlsEnabled;
+                patternsTileGroup.enabled = controlsEnabled;
+                minimumGroup.enabled = controlsEnabled;
+                maximumGroup.enabled = controlsEnabled;
+                layerGroup.enabled = controlsEnabled;
+                animationTileGroup.enabled = controlsEnabled;
+            }
+
+            private function setAnimationSlide(value:uint):void
+            {
+                animationSlider.value = value;
+                animationCountLabel.text = (value + 1) + '/' + (animationSlider.maximum + 1);
+            }
+
+            private function propertyChanged(property:String, oldValue:Object, newValue:Object):void
+            {
+                _changed = true;
+
+                //trace(property, oldValue, newValue);
+
+                var evt:ThingEditorEvent = new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, this.thingData);
+                evt.property = BindableThingType.toLabel(property);
+                evt.oldValue = oldValue;
+                evt.newValue = newValue;
+                dispatchEvent(evt);
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                _thingBinding = new BindableThingType();
+                _thingBinding.addEventListener(PropertyChangeEvent.PROPERTY_CHANGE, thingPropertyChangeHandler);
+                _rect = new Rectangle(0, 0, 32, 32);
+                _point = new Point();
+            }
+
+            protected function buttonDragEnterHandler(event:DragEvent):void
+            {
+                var button:Button = event.target as Button;
+                if (!_previewMode && _thingBinding && button) {
+                    DragManager.acceptDragDrop(button);
+                    button.alpha = 1;
+                }
+            }
+
+            protected function buttonDragExitHandler(event:DragEvent):void
+            {
+                var button:Button = event.target as Button;
+                if (button && !showGridCheckBox.selected) button.alpha = 0;
+            }
+
+            protected function buttonDragDropHandler(event:DragEvent):void
+            {
+                var button:Button = event.target as Button;
+                if (!button || !_thingBinding) return;
+
+                if(!showGridCheckBox.selected) button.alpha = 0;
+                var index:int = int(button.label);
+                var source:DragSource = event.dragSource;
+                var spriteData:SpriteData = source.dataForFormat(source.formats[0])[0] as SpriteData;
+                if (spriteData) {
+                    _thingBinding.setSprite(index, spriteData);
+                    updatePreview();
+                }
+            }
+
+            protected function buttonDoubleClickHandler(event:MouseEvent):void
+            {
+                var index:uint = uint(event.target.toolTip);
+                dispatchEvent(new ThingEditorEvent(ThingEditorEvent.SPRITE_DOUBLE_CLICK, this.thingData, index));
+            }
+
+            protected function thingPropertyChangeHandler(event:PropertyChangeEvent):void
+            {
+                if (!_loading) {
+                    _changed = true;
+                    if (event.property != null) {
+                        var evt:ThingEditorEvent = new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, this.thingData);
+                        evt.property = BindableThingType.toLabel(event.property as String);
+                        evt.oldValue = event.oldValue;
+                        evt.newValue = event.newValue;
+                        dispatchEvent(evt);
+                    }
+                }
+            }
+
+            protected function textureUpdate(event:Event):void
+            {
+                _thingBinding.updateSpriteCount();
+                updatePreview();
+            }
+
+            protected function directionButtonClickHandler(event:MouseEvent):void
+            {
+                selectDirectionButton(event.target as DirectionButton);
+            }
+
+            protected function renderOrderChangeHandler(event:Event):void
+            {
+                _thingBinding.isGroundBorder = (renderOrder.selectedIndex == 1);
+                _thingBinding.isOnBottom = (renderOrder.selectedIndex == 2);
+                _thingBinding.isOnTop = (renderOrder.selectedIndex == 3);
+                checkThingOrder();
+            }
+
+            protected function playAnimationButtonClickHandler(event:MouseEvent):void
+            {
+                setPreviewMode(playAnimationButton.selected);
+            }
+
+            protected function thingViewFrameChangeHandler(event:Event):void
+            {
+                if (_previewMode)
+                    setAnimationSlide(thingView.frame);
+            }
+
+            protected function thingViewAnimationCompleteHandler(event:Event):void
+            {
+                setPreviewMode(false);
+            }
+
+            protected function minimumNumericStepperChangeHandler(event:Event):void
+            {
+                if (minimumNumericStepper.value > maximumNumericStepper.value)
+                    maximumNumericStepper.value = minimumNumericStepper.value;
+
+                var oldDuration:FrameDuration = _thingBinding.frameDurations[animationSlider.value];
+                var newDuration:FrameDuration = oldDuration.clone();
+                newDuration.minimum = minimumNumericStepper.value;
+                newDuration.maximum = maximumNumericStepper.value;
+
+                if (!oldDuration.equals(newDuration)) {
+                    _thingBinding.frameDurations[animationSlider.value] = newDuration;
+
+                    if (oldDuration.minimum != newDuration.minimum)
+                        propertyChanged("minimumDuration", oldDuration.minimum, newDuration.minimum);
+
+                    if (oldDuration.maximum != newDuration.maximum)
+                        propertyChanged("maximumDuration", oldDuration.maximum, newDuration.maximum);
+                }
+            }
+
+            protected function maximumNumericStepperChangeHandler(event:Event):void
+            {
+                if (maximumNumericStepper.value < minimumNumericStepper.value)
+                    minimumNumericStepper.value = maximumNumericStepper.value;
+
+                var oldDuration:FrameDuration = _thingBinding.frameDurations[animationSlider.value];
+                var newDuration:FrameDuration = oldDuration.clone();
+                newDuration.minimum = minimumNumericStepper.value;
+                newDuration.maximum = maximumNumericStepper.value;
+
+                if (!oldDuration.equals(newDuration)) {
+                    _thingBinding.frameDurations[animationSlider.value] = newDuration;
+
+                    if (oldDuration.minimum != newDuration.minimum)
+                        propertyChanged("minimumDuration", oldDuration.minimum, newDuration.minimum);
+
+                    if (oldDuration.maximum != newDuration.maximum)
+                        propertyChanged("maximumDuration", oldDuration.maximum, newDuration.maximum);
+                }
+            }
+
+            protected function animationModeDropDownListChangeHandler(event:IndexChangeEvent):void
+            {
+                var oldValue:uint = _thingBinding.animationMode;
+                _thingBinding.animationMode = animationModeDropDownList.selectedIndex;
+                propertyChanged("animationMode", oldValue, _thingBinding.animationMode);
+            }
+
+            protected function frameStrategyDropDownListChangeHandler(event:IndexChangeEvent):void
+            {
+                var loop:Boolean = frameStrategyDropDownList.selectedIndex == 0;
+
+                var oldValue:int = _thingBinding.loopCount;
+                _thingBinding.loopCount = loop ? loopCountNumericStepper.value : -1;
+                loopCountNumericStepper.enabled = loop;
+                propertyChanged("loopCount", oldValue, _thingBinding.loopCount);
+            }
+
+            protected function loopCountNumericStepperChangeHandler(event:Event):void
+            {
+                var oldValue:int = _thingBinding.loopCount;
+                _thingBinding.loopCount = loopCountNumericStepper.value;
+                propertyChanged("loopCount", oldValue, _thingBinding.loopCount);
+            }
+
+            protected function startFrameNumericStepperChangeHandler(event:Event):void
+            {
+                var oldValue:int = _thingBinding.startFrame;
+                _thingBinding.startFrame = startFrameNumericStepper.value;
+                propertyChanged("startFrame", oldValue, _thingBinding.startFrame);
+            }
+
+        ]]>
+    </fx:Script>
+
+    <nail:TabNavigator id="tabNavigator"
+                       width="100%" height="100%"
+                       change="{setPreviewMode(false);}">
+        <s:NavigatorContent label="@Resource(key='texture', bundle='strings')"
+                            width="100%" height="100%">
+            <s:Scroller width="100%" height="100%">
+                <s:Group>
+                    <s:layout>
+                        <s:VerticalLayout padding="10" gap="10"/>
+                    </s:layout>
+
+                    <!-- appearance group -->
+                    <mg:GroupBox id="appearanceGroupBox"
+                                 label="@Resource(key='appearance', bundle='strings')"
+                                 width="100%"
+                                 minHeight="470">
+                        <mg:layout>
+                            <s:VerticalLayout padding="10" gap="10"/>
+                        </mg:layout>
+
+                        <s:Group width="100%" height="100%">
+
+                            <s:Group id="directionGroup"
+                                     width="100%" height="100%">
+                                <otlib:DirectionButton id="topLeftButton"
+                                                top="0" left="0"
+                                                direction="{Direction.NORTHWEST}"
+                                                toolTip="@Resource(key='northwest', bundle='strings')"
+                                                icon="@Embed('../../../assets/icons/arrow_top_left.png')"
+                                                click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="topCenterButton"
+                                                top="0" horizontalCenter="0"
+                                                direction="{Direction.NORTH}"
+                                                toolTip="@Resource(key='north', bundle='strings')"
+                                                icon="@Embed('../../../assets/icons/arrow_up.png')"
+                                                click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="topRightButton"
+                                                top="0" right="0"
+                                                direction="{Direction.NORTHEAST}"
+                                                toolTip="@Resource(key='northeast', bundle='strings')"
+                                                icon="@Embed('../../../assets/icons/arrow_top_right.png')"
+                                                click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="middleRightButton"
+                                                verticalCenter="0" right="0"
+                                                direction="{Direction.EAST}"
+                                                toolTip="@Resource(key='east', bundle='strings')"
+                                                icon="@Embed('../../../assets/icons/arrow_right.png')"
+                                                click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="bottomRightButton"
+                                                bottom="0" right="0"
+                                                direction="{Direction.SOUTHEAST}"
+                                                toolTip="@Resource(key='southeast', bundle='strings')"
+                                                icon="@Embed('../../../assets/icons/arrow_bottom_right.png')"
+                                                click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="bottomCenterButton"
+                                                bottom="0" horizontalCenter="0"
+                                                direction="{Direction.SOUTH}"
+                                                toolTip="@Resource(key='south', bundle='strings')"
+                                                icon="@Embed('../../../assets/icons/arrow_down.png')"
+                                                click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="bottomLeftButton"
+                                                bottom="0" left="0"
+                                                direction="{Direction.SOUTHWEST}"
+                                                toolTip="@Resource(key='southwest', bundle='strings')"
+                                                icon="@Embed('../../../assets/icons/arrow_bottom_left.png')"
+                                                click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="middleLeftButton"
+                                                bottom="0" verticalCenter="0"
+                                                direction="{Direction.WEST}"
+                                                toolTip="@Resource(key='west', bundle='strings')"
+                                                icon="@Embed('../../../assets/icons/arrow_left.png')"
+                                                click="directionButtonClickHandler(event)"/>
+                            </s:Group>
+
+                            <s:Group verticalCenter="0" horizontalCenter="0">
+                                <s:Rect width="{bitmapView.width}"
+                                        height="{bitmapView.height}"
+                                        visible="{bitmapView.visible}">
+                                    <s:fill>
+                                        <s:SolidColor color="0x636363"/>
+                                    </s:fill>
+                                </s:Rect>
+
+                                <s:Image id="bitmapView"/>
+
+                                <otlib:ThingDataView id="thingView"
+                                                     visible="false"
+                                                     change="thingViewFrameChangeHandler(event)"
+                                                     complete="thingViewAnimationCompleteHandler(event)"/>
+
+                                <s:Group id="buttonsContainer"
+                                         updateComplete="drawCropSize()"
+                                         width="{bitmapView.width}"
+                                         height="{bitmapView.height}"/>
+                            </s:Group>
+                        </s:Group>
+
+                        <nail:ShadowLine width="100%"/>
+
+                        <s:Spacer height="5"/>
+
+                        <s:HGroup id="animationGroup" width="100%"
+                                  verticalAlign="middle"
+                                  horizontalAlign="right"
+                                  visible="{_thingBinding.frames > 1}">
+                            <s:Label text="{resourceManager.getString('strings', 'animations') + ':'}"/>
+                            <otlib:PatternSlider id="animationSlider"
+                                                 maximum="{_thingBinding.frames - 1}"
+                                                 change="updatePreview()"/>
+                            <s:Label id="animationCountLabel"
+                                     minWidth="40"/>
+
+                            <otlib:PlayButton id="playAnimationButton"
+                                              width="20" height="20"
+                                              click="playAnimationButtonClickHandler(event)"/>
+                        </s:HGroup>
+
+                        <s:HGroup id="minimumGroup" width="100%" horizontalAlign="right" visible="false">
+                            <s:Label text="{resourceManager.getString('strings', 'minimumDuration') + ':'}"/>
+                            <s:NumericStepper id="minimumNumericStepper"
+                                              width="100"
+                                              minimum="0"
+                                              maximum="500"
+                                              change="minimumNumericStepperChangeHandler(event)"/>
+                        </s:HGroup>
+
+                        <s:HGroup id="maximumGroup" width="100%" verticalAlign="middle" horizontalAlign="right" visible="false">
+                            <s:Label text="{resourceManager.getString('strings', 'maximumDuration') + ':'}"/>
+                            <s:NumericStepper id="maximumNumericStepper"
+                                              width="100"
+                                              minimum="0"
+                                              maximum="500"
+                                              change="maximumNumericStepperChangeHandler(event)"/>
+                        </s:HGroup>
+
+                        <s:HGroup id="addonGroup"
+                                  width="100%"
+                                  verticalAlign="middle"
+                                  horizontalAlign="right"
+                                  paddingRight="27"
+                                  visible="false">
+                            <s:Label text="{resourceManager.getString('strings', 'addons') + ':'}"/>
+                            <otlib:PatternSlider id="addonsSlider"
+                                                 maximum="{_thingBinding.patternY - 1}"
+                                                 change="updatePreview()"/>
+                            <s:Label id="addonCountLabel"
+                                     minWidth="40"/>
+                        </s:HGroup>
+
+                        <s:HGroup id="mountGroup"
+                                  width="100%"
+                                  verticalAlign="middle"
+                                  horizontalAlign="right"
+                                  paddingRight="27"
+                                  visible="{_thingBinding.patternZ > 1}">
+                            <s:Label text="{resourceManager.getString('strings', 'mount') + ':'}"/>
+                            <otlib:PatternSlider id="mountSlider"
+                                                 maximum="{_thingBinding.patternZ - 1}"
+                                                 change="updatePreview()"/>
+                            <s:Label id="mountCountLabel"
+                                     minWidth="40"/>
+                        </s:HGroup>
+
+                        <s:HGroup id="layerGroup"
+                                  width="100%"
+                                  verticalAlign="middle"
+                                  horizontalAlign="right"
+                                  paddingRight="27"
+                                  visible="{_thingBinding.layers > 1}">
+                            <s:Label text="{resourceManager.getString('strings', 'layer') + ':'}"/>
+                            <otlib:PatternSlider id="layerSlider"
+                                                 maximum="{_thingBinding.layers - 1}"
+                                                 change="updatePreview()"/>
+                            <s:Label id="layerCountLabel"
+                                     minWidth="40"/>
+                        </s:HGroup>
+
+                        <s:CheckBox id="showCropSizeCheckBox"
+                                    label="@Resource(key='showCropSize', bundle='strings')"
+                                    change="drawCropSize()"/>
+
+                        <s:CheckBox id="showGridCheckBox"
+                                    label="@Resource(key='showGrid', bundle='strings')"
+                                    change="{changeButtonsVisible(showGridCheckBox.selected);}"/>
+                    </mg:GroupBox>
+
+                    <!-- patterns group -->
+                    <mg:GroupBox id="patternsGroupBox"
+                                 label="@Resource(key='patterns', bundle='strings')"
+                                 width="100%">
+
+                        <s:TileGroup id="patternsTileGroup" right="35"
+                                     requestedColumnCount="2"
+                                     padding="10">
+
+                            <s:Label text="{resourceManager.getString('strings', 'width') + ':'}"
+                                     verticalAlign="middle"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="widthNumericStepper"
+                                              width="70"
+                                              minimum="1"
+                                              value="{_thingBinding.width}"
+                                              change="{_thingBinding.width = widthNumericStepper.value; textureUpdate(event);}"/>
+                            <s:Label text="{resourceManager.getString('strings', 'height') + ':'}"
+                                     verticalAlign="middle"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="heightNumericStepper"
+                                              width="70"
+                                              minimum="1"
+                                              value="{_thingBinding.height}"
+                                              change="{_thingBinding.height = heightNumericStepper.value; textureUpdate(event);}"/>
+                            <s:Label text="{resourceManager.getString('strings', 'cropSize') + ':'}"
+                                     verticalAlign="middle"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="cropSizeNumericStepper"
+                                              width="70"
+                                              maximum="1000"
+                                              value="{_thingBinding.exactSize}"
+                                              change="{_thingBinding.exactSize = cropSizeNumericStepper.value; textureUpdate(event);}"/>
+                            <s:Label text="{resourceManager.getString('strings', 'layers') + ':'}"
+                                     verticalAlign="middle"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="layersNumericStepper"
+                                              width="70"
+                                              minimum="1"
+                                              value="{_thingBinding.layers}"
+                                              change="{_thingBinding.layers = layersNumericStepper.value; textureUpdate(event);}"/>
+                            <s:Label text="{resourceManager.getString('strings', 'patternX') + ':'}"
+                                     verticalAlign="middle"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="patternXNumericStepper"
+                                              width="70"
+                                              minimum="1"
+                                              value="{_thingBinding.patternX}"
+                                              change="{_thingBinding.patternX = patternXNumericStepper.value; textureUpdate(event);}"/>
+                            <s:Label text="{resourceManager.getString('strings', 'patternY') + ':'}"
+                                     verticalAlign="middle"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="patternYNumericStepper"
+                                              width="70"
+                                              minimum="1"
+                                              value="{_thingBinding.patternY}"
+                                              change="{_thingBinding.patternY = patternYNumericStepper.value; textureUpdate(event);}"/>
+                            <s:Label id="patternZLabel"
+                                     text="{resourceManager.getString('strings', 'patternZ') + ':'}"
+                                     verticalAlign="middle"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="patternZNumericStepper"
+                                              width="70"
+                                              minimum="1"
+                                              value="{_thingBinding.patternZ}"
+                                              change="{_thingBinding.patternZ = patternZNumericStepper.value; textureUpdate(event);}"/>
+                            <s:Label text="{resourceManager.getString('strings', 'animations') + ':'}"
+                                     verticalAlign="middle"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="framesNumericStepper"
+                                              width="70"
+                                              minimum="1"
+                                              maximum="60"
+                                              value="{_thingBinding.frames}"
+                                              change="{_thingBinding.frames = framesNumericStepper.value; textureUpdate(event); updateAnimationControls();}"/>
+                        </s:TileGroup>
+                    </mg:GroupBox>
+
+                    <!-- animation -->
+                    <mg:GroupBox id="animationGroupBox"
+                                 label="@Resource(key='animation', bundle='strings')"
+                                 width="100%"
+                                 visible="{_thingBinding.frames > 1}"
+                                 includeInLayout="{_thingBinding.frames > 1}">
+                        <s:TileGroup id="animationTileGroup"
+                                     right="35"
+                                     requestedColumnCount="2"
+                                     padding="10">
+
+                            <s:Label text="{resourceManager.getString('strings', 'animationMode') + ':'}"
+                                     verticalAlign="middle"
+                                     textAlign="right"/>
+                            <s:DropDownList id="animationModeDropDownList"
+                                            requireSelection="true"
+                                            width="170"
+                                            change="animationModeDropDownListChangeHandler(event)">
+                                <s:dataProvider>
+                                    <s:ArrayList>
+                                        <fx:String>{resourceManager.getString('strings', 'asynchronous')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'synchronous')}</fx:String>
+                                    </s:ArrayList>
+                                </s:dataProvider>
+                            </s:DropDownList>
+
+                            <s:Label text="{resourceManager.getString('strings', 'frameStrategy') + ':'}"
+                                     verticalAlign="middle"
+                                     textAlign="right"/>
+                            <s:DropDownList id="frameStrategyDropDownList"
+                                            requireSelection="true"
+                                            width="170"
+                                            change="frameStrategyDropDownListChangeHandler(event)">
+                                <s:dataProvider>
+                                    <s:ArrayList>
+                                        <fx:String>{resourceManager.getString('strings', 'loop')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'pingPong')}</fx:String>
+                                    </s:ArrayList>
+                                </s:dataProvider>
+                            </s:DropDownList>
+
+                            <!-- loop count -->
+                            <s:Label text="{resourceManager.getString('strings', 'loopCount') + ':'}"
+                                     verticalAlign="middle"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="loopCountNumericStepper"
+                                              width="170"
+                                              change="loopCountNumericStepperChangeHandler(event)"/>
+
+                            <s:Label text="{resourceManager.getString('strings', 'startFrame') + ':'}"
+                                     verticalAlign="middle"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="startFrameNumericStepper"
+                                              width="70"
+                                              minimum="-1"
+                                              maximum="{_thingBinding.frames - 1}"
+                                              change="startFrameNumericStepperChangeHandler(event)"/>
+                        </s:TileGroup>
+                    </mg:GroupBox>
+                </s:Group>
+            </s:Scroller>
+        </s:NavigatorContent>
+        <s:NavigatorContent label="@Resource(key='properties', bundle='strings')"
+                            width="100%" height="100%">
+            <s:Scroller width="100%" height="100%">
+                <s:Group>
+                    <s:layout>
+                        <s:VerticalLayout padding="10" gap="10"/>
+                    </s:layout>
+
+                    <!-- ground group -->
+                    <mg:GroupCheckBox id="groundGroupCheckBox"
+                                      label="@Resource(key='isGround', bundle='strings')"
+                                      width="100%"
+                                      selected="{_thingBinding.isGround}"
+                                      change="{_thingBinding.isGround = groundGroupCheckBox.selected;}">
+                        <s:Group width="100%" height="100%"
+                                 enabled="{groundGroupCheckBox.selected}">
+                            <s:layout>
+                                <s:HorizontalLayout padding="10" verticalAlign="middle" horizontalAlign="right"/>
+                            </s:layout>
+                            <s:Label text="{resourceManager.getString('strings', 'groundSpeed') + ':'}"
+                                     minWidth="60"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="groundSpeedNumericStepper"
+                                              width="80"
+                                              maximum="1000"
+                                              value="{_thingBinding.groundSpeed}"
+                                              change="{_thingBinding.groundSpeed = groundSpeedNumericStepper.value;}"/>
+                            <s:Spacer width="30"/>
+                        </s:Group>
+                    </mg:GroupCheckBox>
+
+                    <!-- has ligth group -->
+                    <mg:GroupCheckBox id="hasLigthGroupCheckBox"
+                                      label="@Resource(key='hasLight', bundle='strings')"
+                                      width="100%"
+                                      selected="{_thingBinding.hasLight}"
+                                      change="{_thingBinding.hasLight = hasLigthGroupCheckBox.selected;}">
+                        <s:Group width="100%" height="100%"
+                                 enabled="{hasLigthGroupCheckBox.selected}">
+                            <s:layout>
+                                <s:VerticalLayout padding="10"/>
+                            </s:layout>
+                            <s:HGroup width="100%"
+                                      verticalAlign="middle"
+                                      horizontalAlign="right">
+                                <s:Label text="{resourceManager.getString('strings', 'lightColor') + ':'}"
+                                         minWidth="60"
+                                         textAlign="right"/>
+                                <s:NumericStepper id="lightColorNumericStepper"
+                                                  width="80"
+                                                  maximum="215"
+                                                  value="{_thingBinding.lightColor}"
+                                                  change="{_thingBinding.lightColor = lightColorNumericStepper.value;}"/>
+
+                                <otlib:EightBitColorPicker id="lightColorSwitchColor"
+                                                           color="{_thingBinding.lightColor}"
+                                                           change="{_thingBinding.lightColor = lightColorSwitchColor.color;}"/>
+                            </s:HGroup>
+                            <s:HGroup width="100%"
+                                      verticalAlign="middle"
+                                      horizontalAlign="right">
+                                <s:Label text="{resourceManager.getString('strings', 'lightIntensity') + ':'}"
+                                         minWidth="60"
+                                         textAlign="right"/>
+                                <s:NumericStepper id="lightLevelNumericStepper"
+                                                  width="80"
+                                                  value="{_thingBinding.lightLevel}"
+                                                  change="{_thingBinding.lightLevel = lightLevelNumericStepper.value;}"/>
+                                <s:Spacer width="30"/>
+                            </s:HGroup>
+                        </s:Group>
+                    </mg:GroupCheckBox>
+
+                    <!-- automap group -->
+                    <mg:GroupCheckBox id="automapGroupCheckBox"
+                                      label="@Resource(key='automap', bundle='strings')"
+                                      width="100%"
+                                      selected="{_thingBinding.miniMap}"
+                                      change="{_thingBinding.miniMap = automapGroupCheckBox.selected;}">
+                        <s:Group width="100%"
+                                 height="100%"
+                                 enabled="{automapGroupCheckBox.selected}">
+                            <s:layout>
+                                <s:HorizontalLayout padding="10" verticalAlign="middle" horizontalAlign="right"/>
+                            </s:layout>
+                            <s:Label text="{resourceManager.getString('strings', 'automapColor') + ':'}"
+                                     minWidth="60"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="automapColorNumericStepper"
+                                              width="80"
+                                              maximum="215"
+                                              value="{_thingBinding.miniMapColor}"
+                                              change="{_thingBinding.miniMapColor = automapColorNumericStepper.value;}"/>
+                            <otlib:EightBitColorPicker id="automapColorSwitchColor"
+                                                       color="{_thingBinding.miniMapColor}"
+                                                       change="{_thingBinding.miniMapColor = automapColorSwitchColor.color;}"/>
+                        </s:Group>
+                    </mg:GroupCheckBox>
+
+                    <!-- has offset group -->
+                    <mg:GroupCheckBox id="hasOffsetGroupCheckBox"
+                                      label="@Resource(key='hasOffset', bundle='strings')"
+                                      width="100%"
+                                      selected="{_thingBinding.hasOffset}"
+                                      change="{_thingBinding.hasOffset = hasOffsetGroupCheckBox.selected;}">
+                        <s:Group width="100%"
+                                 height="100%"
+                                 enabled="{hasOffsetGroupCheckBox.selected}">
+                            <s:layout>
+                                <s:VerticalLayout padding="10"/>
+                            </s:layout>
+                            <s:HGroup width="100%"
+                                      verticalAlign="middle"
+                                      horizontalAlign="right">
+                                <s:Label text="{resourceManager.getString('strings', 'offsetX') + ':'}"
+                                         minWidth="60"
+                                         textAlign="right"/>
+                                <s:NumericStepper id="offsetXNumericStepper"
+                                                  width="80"
+                                                  maximum="32"
+                                                  value="{_thingBinding.offsetX}"
+                                                  change="{_thingBinding.offsetX = offsetXNumericStepper.value;}"/>
+                                <s:Spacer width="30"/>
+                            </s:HGroup>
+                            <s:HGroup width="100%"
+                                      verticalAlign="middle"
+                                      horizontalAlign="right">
+                                <s:Label text="{resourceManager.getString('strings', 'offsetY') + ':'}"
+                                         minWidth="60"
+                                         textAlign="right"/>
+                                <s:NumericStepper id="offsetYNumericStepper"
+                                                  width="80"
+                                                  maximum="32"
+                                                  value="{_thingBinding.offsetY}"
+                                                  change="{_thingBinding.offsetY = offsetYNumericStepper.value;}"/>
+                                <s:Spacer width="30"/>
+                            </s:HGroup>
+                        </s:Group>
+                    </mg:GroupCheckBox>
+
+                    <!-- has elevation group -->
+                    <mg:GroupCheckBox id="hasElevationGroupCheckBox"
+                                      label="@Resource(key='hasElevation', bundle='strings')"
+                                      width="100%"
+                                      selected="{_thingBinding.hasElevation}"
+                                      change="{_thingBinding.hasElevation = hasElevationGroupCheckBox.selected;}">
+                        <s:Group width="100%"
+                                 height="100%"
+                                 enabled="{hasElevationGroupCheckBox.selected}">
+                            <s:layout>
+                                <s:HorizontalLayout padding="10" verticalAlign="middle" horizontalAlign="right"/>
+                            </s:layout>
+                            <s:Label text="{resourceManager.getString('strings', 'elevation') + ':'}"
+                                     minWidth="60"
+                                     textAlign="right"/>
+                            <s:NumericStepper id="elevationNumericStepper"
+                                              width="80"
+                                              maximum="32"
+                                              value="{_thingBinding.elevation}"
+                                              change="{_thingBinding.elevation = elevationNumericStepper.value;}"/>
+                            <s:Spacer width="30"/>
+                        </s:Group>
+                    </mg:GroupCheckBox>
+
+                    <!-- equip group -->
+                    <mg:GroupCheckBox id="equipGroupCheckBox"
+                                      label="@Resource(key='cloth', bundle='strings')"
+                                      width="100%"
+                                      selected="{_thingBinding.cloth}"
+                                      change="{_thingBinding.cloth = equipGroupCheckBox.selected;
+                                      if (!equipGroupCheckBox.selected)equipSlotDropDownList.selectedIndex = -1;}">
+                        <s:Group width="100%"
+                                 height="100%"
+                                 enabled="{equipGroupCheckBox.selected}">
+                            <s:layout>
+                                <s:HorizontalLayout padding="10" verticalAlign="middle" horizontalAlign="right"/>
+                            </s:layout>
+                            <s:Label text="{resourceManager.getString('strings', 'clothSlot') + ':'}"
+                                     minWidth="60"
+                                     textAlign="right"/>
+                            <s:DropDownList id="equipSlotDropDownList"
+                                            width="100%"
+                                            height="20"
+                                            fontSize="11"
+                                            prompt="@Resource(key='slot.prompt', bundle='strings')"
+                                            selectedIndex="{_thingBinding.clothSlot}"
+                                            change="{_thingBinding.clothSlot = equipSlotDropDownList.selectedIndex;}">
+                                <s:dataProvider>
+                                    <s:ArrayList>
+                                        <fx:String>{resourceManager.getString('strings', 'slot.twoHandWeapon')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'slot.helmet')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'slot.amulet')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'slot.backpack')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'slot.armor')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'slot.shield')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'slot.oneHandWeapon')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'slot.legs')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'slot.boots')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'slot.ring')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'slot.arrow')}</fx:String>
+                                    </s:ArrayList>
+                                </s:dataProvider>
+                            </s:DropDownList>
+                        </s:Group>
+                    </mg:GroupCheckBox>
+
+                    <!-- market group -->
+                    <mg:GroupCheckBox id="marketGroupCheckBox"
+                                      label="@Resource(key='market', bundle='strings')"
+                                      width="100%"
+                                      selected="{_thingBinding.isMarketItem}"
+                                      change="{_thingBinding.isMarketItem = marketGroupCheckBox.selected;}">
+                        <s:Group width="100%"
+                                 height="100%"
+                                 enabled="{marketGroupCheckBox.selected}">
+                            <s:layout>
+                                <s:VerticalLayout paddingLeft="10"
+                                                  paddingRight="45"
+                                                  paddingTop="20"
+                                                  paddingBottom="10" />
+                            </s:layout>
+                            <s:HGroup width="100%"
+                                      verticalAlign="middle"
+                                      horizontalAlign="right">
+                                <s:Label text="{resourceManager.getString('strings', 'name') + ':'}"/>
+                                <s:TextInput id="marketNameTextInput" width="100%"
+                                             text="{_thingBinding.marketName}"
+                                             change="{_thingBinding.marketName = marketNameTextInput.text;}"/>
+                            </s:HGroup>
+
+                            <s:HGroup width="100%"
+                                      verticalAlign="middle"
+                                      horizontalAlign="right">
+                                <s:Label text="{resourceManager.getString('strings', 'category') + ':'}"
+                                         minWidth="60"
+                                         textAlign="right"/>
+                                <s:DropDownList id="marketCategoryDropDownList"
+                                                width="170"
+                                                height="20"
+                                                fontSize="11"
+                                                selectedIndex="{_thingBinding.marketCategory == 0 ? 8 : _thingBinding.marketCategory - 1}"
+                                                change="{_thingBinding.marketCategory = marketCategoryDropDownList.selectedIndex + 1;}">
+                                    <s:ArrayList>
+                                        <fx:String>{resourceManager.getString('strings', 'market.armors')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.amulets')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.boots')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.containers')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.decoration')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.foods')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.helmetsAndHats')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.legs')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.others')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.potions')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.rings')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.runes')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.shields')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.tools')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.valuables')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.ammunition')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.axes')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.clubs')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.distance')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.swords')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.wandsAndRods')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.premiumScrolls')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'market.metaWeapons')}</fx:String>
+                                    </s:ArrayList>
+                                </s:DropDownList>
+                            </s:HGroup>
+                            <s:HGroup width="100%"
+                                      verticalAlign="middle"
+                                      horizontalAlign="right">
+                                <s:Label text="{resourceManager.getString('strings', 'tradeAs') + ':'}"
+                                         minWidth="60"
+                                         textAlign="right"/>
+                                <s:NumericStepper id="tradeAsNumericStepper"
+                                                  width="80"
+                                                  minimum="0"
+                                                  maximum="0xFFFFFF"
+                                                  value="{_thingBinding.marketTradeAs}"
+                                                  change="{_thingBinding.marketTradeAs = tradeAsNumericStepper.value;}"/>
+                            </s:HGroup>
+                            <s:HGroup width="100%"
+                                      verticalAlign="middle"
+                                      horizontalAlign="right">
+                                <s:Label text="{resourceManager.getString('strings', 'showAs') + ':'}"
+                                         minWidth="60"
+                                         textAlign="right"/>
+                                <s:NumericStepper id="showAsNumericStepper"
+                                                  width="80"
+                                                  minimum="0"
+                                                  maximum="0xFFFFFF"
+                                                  value="{_thingBinding.marketShowAs}"
+                                                  change="{_thingBinding.marketShowAs = showAsNumericStepper.value;}"/>
+                            </s:HGroup>
+                            <s:HGroup width="100%"
+                                      verticalAlign="middle"
+                                      horizontalAlign="right">
+                                <s:Label text="{resourceManager.getString('strings', 'vocation') + ':'}"
+                                         minWidth="60"
+                                         textAlign="right"/>
+                                <s:NumericStepper id="vocationNumericStepper"
+                                                  width="80"
+                                                  minimum="0"
+                                                  maximum="0xFFFFFF"
+                                                  value="{_thingBinding.marketRestrictProfession}"
+                                                  change="{_thingBinding.marketRestrictProfession = vocationNumericStepper.value;}"/>
+                            </s:HGroup>
+                            <s:HGroup width="100%"
+                                      verticalAlign="middle"
+                                      horizontalAlign="right">
+                                <s:Label text="{resourceManager.getString('strings', 'level') + ':'}"
+                                         minWidth="60"
+                                         textAlign="right"/>
+                                <s:NumericStepper id="marketRestrictLevelNumericStepper"
+                                                  width="80"
+                                                  minimum="0"
+                                                  maximum="0xFFFFFF"
+                                                  value="{_thingBinding.marketRestrictLevel}"
+                                                  change="{_thingBinding.marketRestrictLevel = marketRestrictLevelNumericStepper.value;}"/>
+                            </s:HGroup>
+                        </s:Group>
+                    </mg:GroupCheckBox>
+
+                    <!-- write / read group -->
+                    <mg:GroupBox id="writeReadGroupCheckBox"
+                                 label="@Resource(key='writeRead', bundle='strings')"
+                                 width="100%">
+                        <s:Group width="100%"
+                                 height="100%">
+                            <s:layout>
+                                <s:VerticalLayout paddingLeft="10"
+                                                  paddingRight="45"
+                                                  paddingTop="10"
+                                                  paddingBottom="10"
+                                                  horizontalAlign="right"/>
+                            </s:layout>
+                            <s:CheckBox id="writableCheckBox"
+                                        label="@Resource(key='writable', bundle='strings')"
+                                        minWidth="100"
+                                        selected="{_thingBinding.writable}"
+                                        change="{_thingBinding.writable = writableCheckBox.selected;}"/>
+                            <s:CheckBox id="writableOnceCheckBox"
+                                        label="@Resource(key='writableOnce', bundle='strings')"
+                                        minWidth="100"
+                                        selected="{_thingBinding.writableOnce}"
+                                        change="{_thingBinding.writableOnce = writableOnceCheckBox.selected;}"/>
+                            <s:HGroup width="100%"
+                                      verticalAlign="middle"
+                                      horizontalAlign="right"
+                                      enabled="{writableCheckBox.selected || writableOnceCheckBox.selected}">
+                                <s:Label text="@Resource(key='maxLength', bundle='strings')"
+                                         minWidth="80"
+                                         textAlign="right"/>
+                                <s:NumericStepper id="maxTextLengthNumericStepper" width="80"
+                                                  value="{_thingBinding.maxTextLength}"
+                                                  change="{_thingBinding.maxTextLength = maxTextLengthNumericStepper.value;}"/>
+                            </s:HGroup>
+                        </s:Group>
+                    </mg:GroupBox>
+
+                    <mg:GroupCheckBox id="actionGroupCheckBox"
+                                      label="@Resource(key='hasAction', bundle='strings')"
+                                      width="100%"
+                                      selected="{_thingBinding.hasDefaultAction}"
+                                      change="{_thingBinding.hasDefaultAction = actionGroupCheckBox.selected;}">
+                        <s:Group width="100%"
+                                 height="100%"
+                                 enabled="{actionGroupCheckBox.selected}">
+                            <s:layout>
+                                <s:HorizontalLayout paddingLeft="10"
+                                                    paddingRight="45"
+                                                    paddingTop="10"
+                                                    paddingBottom="10"
+                                                    verticalAlign="middle"
+                                                    horizontalAlign="right"/>
+                            </s:layout>
+                            <s:Label text="@Resource(key='actionType', bundle='strings')"
+                                     textAlign="right"
+                                     minWidth="60"/>
+                            <s:DropDownList id="actionDropDownList"
+                                            width="170"
+                                            height="20"
+                                            fontSize="11"
+                                            selectedIndex="{_thingBinding.defaultAction}"
+                                            change="{_thingBinding.defaultAction = actionDropDownList.selectedIndex;}">
+                                <s:dataProvider>
+                                    <s:ArrayList>
+                                        <fx:String>{resourceManager.getString('strings', 'action.none')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'action.look')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'action.use')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'action.open')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'action.autowalkHighlight')}</fx:String>
+                                    </s:ArrayList>
+                                </s:dataProvider>
+                            </s:DropDownList>
+                        </s:Group>
+                    </mg:GroupCheckBox>
+
+                    <!-- Lens Help-->
+                    <mg:GroupCheckBox id="isLensHelpGroupCheckBox"
+                                      label="@Resource(key='lensHelp', bundle='strings')"
+                                      width="100%"
+                                      selected="{_thingBinding.isLensHelp}"
+                                      change="{_thingBinding.isLensHelp = isLensHelpGroupCheckBox.selected;}">
+                        <s:HGroup width="100%"
+                                  paddingLeft="10"
+                                  paddingRight="45"
+                                  paddingTop="10"
+                                  paddingBottom="10"
+                                  verticalAlign="middle"
+                                  horizontalAlign="right"
+                                  enabled="{isLensHelpGroupCheckBox.selected}">
+                            <s:Label text="{resourceManager.getString('strings', 'type') + ':'}"
+                                     minWidth="60"
+                                     textAlign="right"/>
+                            <s:DropDownList id="lensHelpDropDownList"
+                                            width="170"
+                                            height="20"
+                                            fontSize="11"
+                                            selectedIndex="{Math.max(0, _thingBinding.lensHelp - 1100)}"
+                                            change="{_thingBinding.lensHelp = lensHelpDropDownList.selectedIndex + 1100;}">
+                                <s:dataProvider>
+                                    <s:ArrayList>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.ladders')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.sewerGrates')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.dungeonFloor')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.levers')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.doors')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.specialDoors')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.stairs')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.mailboxes')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.depotBoxes')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.dustbins')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.stonePiles')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.signs')}</fx:String>
+                                        <fx:String>{resourceManager.getString('strings', 'lensHelp.booksAndScrolls')}</fx:String>
+                                    </s:ArrayList>
+                                </s:dataProvider>
+                            </s:DropDownList>
+                        </s:HGroup>
+                    </mg:GroupCheckBox>
+
+                    <!-- flags -->
+                    <mg:GroupBox id="flagsGroupBox"
+                                 label="@Resource(key='flags', bundle='strings')"
+                                 width="100%">
+                        <mg:layout>
+                            <s:HorizontalLayout padding="10"/>
+                        </mg:layout>
+
+                        <s:VGroup id="flagsLeftColumn" width="100%" height="100%">
+                            <s:RadioButton id="commonRadioButton"
+                                           label="@Resource(key='isCommon', bundle='strings')"
+                                           group="{renderOrder}"/>
+                            <s:RadioButton id="groundBorderRadioButton"
+                                           label="@Resource(key='isGroundBorder', bundle='strings')"
+                                           group="{renderOrder}"/>
+                            <s:RadioButton id="onBottomRadioButton"
+                                           label="@Resource(key='isOnBottom', bundle='strings')"
+                                           group="{renderOrder}"/>
+                            <s:RadioButton id="onTopRadioButton"
+                                           label="@Resource(key='isOnTop', bundle='strings')"
+                                           group="{renderOrder}"/>
+                            <s:CheckBox id="containerCheckBox"
+                                        label="@Resource(key='container', bundle='strings')"
+                                        selected="{_thingBinding.isContainer}"
+                                        change="{_thingBinding.isContainer = containerCheckBox.selected;}"/>
+                            <s:CheckBox id="stackableCheckBox"
+                                        label="@Resource(key='stackable', bundle='strings')"
+                                        selected="{_thingBinding.stackable}"
+                                        change="{_thingBinding.stackable = stackableCheckBox.selected;}"/>
+                            <s:CheckBox id="forceUseCheckBox"
+                                        label="@Resource(key='forceUse', bundle='strings')"
+                                        selected="{_thingBinding.forceUse}"
+                                        change="{_thingBinding.forceUse = forceUseCheckBox.selected;}"/>
+                            <s:CheckBox id="multiUseCheckBox"
+                                        label="@Resource(key='multiUse', bundle='strings')"
+                                        selected="{_thingBinding.multiUse}"
+                                        change="{_thingBinding.multiUse = multiUseCheckBox.selected;}"/>
+                            <s:CheckBox id="liquidContainerCheckBox"
+                                        label="@Resource(key='fluidContainer', bundle='strings')"
+                                        selected="{_thingBinding.isFluidContainer}"
+                                        change="{_thingBinding.isFluidContainer = liquidContainerCheckBox.selected;}"/>
+                            <s:CheckBox id="liquidPoolCheckBox"
+                                        label="@Resource(key='fluid', bundle='strings')"
+                                        selected="{_thingBinding.isFluid}"
+                                        change="{_thingBinding.isFluid = liquidPoolCheckBox.selected;}"/>
+                            <s:CheckBox id="unpassableCheckBox"
+                                        label="@Resource(key='unpassable', bundle='strings')"
+                                        selected="{_thingBinding.isUnpassable}"
+                                        change="{_thingBinding.isUnpassable = unpassableCheckBox.selected;}"/>
+                            <s:CheckBox id="unmovableCheckBox"
+                                        label="@Resource(key='unmovable', bundle='strings')"
+                                        selected="{_thingBinding.isUnmoveable}"
+                                        change="{_thingBinding.isUnmoveable = unmovableCheckBox.selected;}"/>
+                            <s:CheckBox id="blockMissileCheckBox"
+                                        label="@Resource(key='blockMissile', bundle='strings')"
+                                        selected="{_thingBinding.blockMissile}"
+                                        change="{_thingBinding.blockMissile = blockMissileCheckBox.selected;}"/>
+                            <s:CheckBox id="blockPathfindCheckBox"
+                                        label="@Resource(key='blockPathfinder', bundle='strings')"
+                                        selected="{_thingBinding.blockPathfind}"
+                                        change="{_thingBinding.blockPathfind = blockPathfindCheckBox.selected;}"/>
+                        </s:VGroup>
+
+                        <s:VGroup id="flagsRightColumn" width="100%" height="100%">
+                            <s:CheckBox id="noMoveAnimationCheckBox"
+                                        label="@Resource(key='noMoveAnimation', bundle='strings')"
+                                        selected="{_thingBinding.noMoveAnimation}"
+                                        change="{_thingBinding.noMoveAnimation = noMoveAnimationCheckBox.selected;}"/>
+                            <s:CheckBox id="pickupableCheckBox"
+                                        label="@Resource(key='pickupable', bundle='strings')"
+                                        selected="{_thingBinding.pickupable}"
+                                        change="{_thingBinding.pickupable = pickupableCheckBox.selected;}"/>
+                            <s:CheckBox id="hangableCheckBox"
+                                        label="@Resource(key='hangable', bundle='strings')"
+                                        selected="{_thingBinding.hangable}"
+                                        change="{_thingBinding.hangable = hangableCheckBox.selected;}"/>
+                            <s:CheckBox id="horizontalCheckBox"
+                                        label="@Resource(key='horizontalWall', bundle='strings')"
+                                        selected="{_thingBinding.isHorizontal}"
+                                        change="{_thingBinding.isHorizontal = horizontalCheckBox.selected;}"/>
+                            <s:CheckBox id="verticalCheckBox"
+                                        label="@Resource(key='verticalWall', bundle='strings')"
+                                        selected="{_thingBinding.isVertical}"
+                                        change="{_thingBinding.isVertical = verticalCheckBox.selected;}"/>
+                            <s:CheckBox id="rotatableCheckBox"
+                                        label="@Resource(key='rotatable', bundle='strings')"
+                                        selected="{_thingBinding.rotatable}"
+                                        change="{_thingBinding.rotatable = rotatableCheckBox.selected;}"/>
+                            <s:CheckBox id="dontHideCheckBox"
+                                        label="@Resource(key='dontHide', bundle='strings')"
+                                        selected="{_thingBinding.dontHide}"
+                                        change="{_thingBinding.dontHide = dontHideCheckBox.selected;}"/>
+                            <s:CheckBox id="translucentCheckBox"
+                                        label="@Resource(key='translucent', bundle='strings')"
+                                        selected="{_thingBinding.isTranslucent}"
+                                        change="{_thingBinding.isTranslucent = translucentCheckBox.selected;}"/>
+                            <s:CheckBox id="isLyingObjectCheckBox"
+                                        label="@Resource(key='lyingObject', bundle='strings')"
+                                        selected="{_thingBinding.isLyingObject}"
+                                        change="{_thingBinding.isLyingObject = isLyingObjectCheckBox.selected;}"/>
+                            <s:CheckBox id="animateAlwaysCheckBox"
+                                        label="@Resource(key='animateAlways', bundle='strings')"
+                                        selected="{_thingBinding.animateAlways}"
+                                        change="{_thingBinding.animateAlways = animateAlwaysCheckBox.selected; updateAnimationControls();}"/>
+                            <s:CheckBox id="fullGroundCheckBox"
+                                        label="@Resource(key='fullGround', bundle='strings')"
+                                        selected="{_thingBinding.isFullGround}"
+                                        change="{_thingBinding.isFullGround = fullGroundCheckBox.selected;}"/>
+                            <s:CheckBox id="ignoreLookCheckBox"
+                                        label="@Resource(key='ignoreLook', bundle='strings')"
+                                        selected="{_thingBinding.ignoreLook}"
+                                        change="{_thingBinding.ignoreLook = ignoreLookCheckBox.selected;}"/>
+                            <s:CheckBox id="usableCheckBox"
+                                        label="@Resource(key='usable', bundle='strings')"
+                                        selected="{_thingBinding.usable}"
+                                        change="{_thingBinding.usable = usableCheckBox.selected;}"/>
+                            <s:CheckBox id="chargesCheckBox"
+                                        label="@Resource(key='hasCharges', bundle='strings')"
+                                        selected="{_thingBinding.hasCharges}"
+                                        change="{_thingBinding.hasCharges = chargesCheckBox.selected;}"/>
+                            <s:CheckBox id="floorChangeCheckBox"
+                                        label="@Resource(key='floorChange', bundle='strings')"
+                                        selected="{_thingBinding.floorChange}"
+                                        change="{_thingBinding.floorChange = floorChangeCheckBox.selected;}"/>
+                        </s:VGroup>
+                    </mg:GroupBox>
+                </s:Group>
+            </s:Scroller>
+        </s:NavigatorContent>
+    </nail:TabNavigator>
+</s:Group>

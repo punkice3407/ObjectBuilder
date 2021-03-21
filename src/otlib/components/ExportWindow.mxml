@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<mg:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+                xmlns:s="library://ns.adobe.com/flex/spark"
+                xmlns:mx="library://ns.adobe.com/flex/mx"
+                xmlns:mg="library://ns.mignari.com/mg"
+                xmlns:otlib="otlib.components.*"
+                width="400"
+                height="270"
+                fontSize="11"
+                title="@Resource(key='export', bundle='strings')"
+                preinitialize="preinitializeHandler(event)">
+
+    <fx:Metadata>
+        [ResourceBundle("strings")]
+    </fx:Metadata>
+
+    <fx:Declarations>
+        <s:RadioButtonGroup id="formatRadioButtonGroup"
+                            change="formatRadioButtonGroupChangeHandler(event)"/>
+    </fx:Declarations>
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.skins.PixeledBorderContainerSkin;
+            import com.mignari.utils.DialogDetail;
+            
+            import mx.collections.ArrayCollection;
+            import mx.events.FlexEvent;
+            
+            import spark.events.IndexChangeEvent;
+            import spark.events.TextOperationEvent;
+            
+            import nail.image.ImageFormat;
+            import nail.utils.isNullOrEmpty;
+            
+            import otlib.core.Version;
+            import otlib.core.VersionStorage;
+            import otlib.events.FileTextInputEvent;
+            import otlib.obd.OBDVersions;
+            import otlib.utils.OTFormat;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            [Bindable]
+            public var transparentBackground:Boolean = false;
+
+            [Bindable]
+            public var jpegQuality:Number = 100;
+
+            [Bindable]
+            private var _versionCollection:ArrayCollection;
+            private var _fileName:String;
+            private var _fileNameChanged:Boolean;
+            private var _directory:File;
+            private var _directoryChanged:Boolean;
+            private var _format:String;
+            private var _formatChanged:Boolean;
+            private var _enableObdFormat:Boolean;
+            private var _enableObdFormatChanged:Boolean;
+            private var _version:Version;
+            private var _versionChanged:Boolean;
+            private var _obdVersion:uint = OBDVersions.OBD_VERSION_2;
+            private var _obdVersionChanged:Boolean;
+            private var _detail:uint;
+
+            //--------------------------------------
+            // Getters / Setters
+            //--------------------------------------
+
+            public function get fileName():String { return _fileName; }
+            public function set fileName(value:String):void
+            {
+                if (_fileName != value) {
+                    _fileName = value;
+                    _fileNameChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get directory():File { return _directory; }
+            public function set directory(value:File):void
+            {
+                if (_directory != value) {
+                    _directory = value;
+                    _directoryChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get format():String { return _format; }
+            public function set format(value:String):void
+            {
+                if (isNullOrEmpty(value) || !_enableObdFormat && value == OTFormat.OBD)
+                    value = ImageFormat.PNG;
+                else
+                    value = value.toLowerCase();
+
+                if (_format != value) {
+                    _format = value;
+                    _formatChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get enableObdFormat():Boolean { return _enableObdFormat; }
+            public function set enableObdFormat(value:Boolean):void
+            {
+                if (_enableObdFormat != value) {
+                    _enableObdFormat = value;
+                    _enableObdFormatChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get version():Version { return _version; }
+            public function set version(value:Version):void
+            {
+                if (_version != value) {
+                    _version = value;
+                    _versionChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get obdVersion():uint { return _obdVersion; }
+            public function set obdVersion(value:uint):void
+            {
+                if (_obdVersion != value) {
+                    _obdVersion = value;
+                    _obdVersionChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get detail():uint { return _detail; }
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Override Protected
+            //--------------------------------------
+
+            override protected function commitProperties():void
+            {
+                super.commitProperties();
+
+                if (_fileNameChanged) {
+                    nameTextInput.text = _fileName;
+                    _fileNameChanged = false;
+                    check();
+                }
+
+                if (_directoryChanged) {
+                    directoryTextInput.file = _directory;
+                    _directoryChanged = false;
+                    check();
+                }
+
+                if (_formatChanged) {
+                    setFormat(_format);
+                    _formatChanged = false;
+                    check();
+                }
+
+                if (_enableObdFormatChanged) {
+                    obdFormatRadioButton.visible = _enableObdFormat;
+                    _enableObdFormatChanged = false;
+                    check();
+                }
+
+                if (_versionChanged) {
+                    versionDropDownList.selectedIndex = _versionCollection.getItemIndex(_version);
+                    _versionChanged = false;
+                    check();
+                }
+
+                if (_obdVersionChanged) {
+                    if (_obdVersion == OBDVersions.OBD_VERSION_2)
+                        obdVersionDropDownList.selectedIndex = 0;
+                    else if (_obdVersion == OBDVersions.OBD_VERSION_1)
+                        obdVersionDropDownList.selectedIndex = 1;
+
+                    _obdVersionChanged = false;
+                }
+            }
+
+            //--------------------------------------
+            // Public
+            //--------------------------------------
+
+            private function setFormat(format:String):void
+            {
+                switch(format.toLowerCase()) {
+                    case ImageFormat.PNG:
+                        pngFormatRadioButton.selected = true;
+                        stackView.selectedIndex = 0;
+                        break;
+                    case ImageFormat.BMP:
+                        bmpFormatRadioButton.selected = true;
+                        stackView.selectedIndex = 1;
+                        break;
+                    case ImageFormat.JPG:
+                        jpgFormatRadioButton.selected = true;
+                        stackView.selectedIndex = 2;
+                        break;
+                    case OTFormat.OBD:
+                        obdFormatRadioButton.selected = true;
+                        stackView.selectedIndex = 3;
+                        break;
+                }
+            }
+
+            private function check():void
+            {
+                confirmButton.enabled = (_fileName != null && _fileName.length != 0 && _directory && _format);
+
+                if (_enableObdFormat && _format == OTFormat.OBD)
+                    confirmButton.enabled = (confirmButton.enabled && _version);
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function preinitializeHandler(event:FlexEvent):void
+            {
+                _versionCollection = new ArrayCollection( VersionStorage.getInstance().getList() );
+            }
+
+            protected function nameTextInputChangeHandler(event:TextOperationEvent):void
+            {
+                fileName = nameTextInput.text;
+            }
+
+            protected function directoryChangeHandler(event:FileTextInputEvent):void
+            {
+                directory = event.file;
+            }
+
+            protected function browseButtonClickHandler(event:MouseEvent):void
+            {
+                var path:String = _directory ? _directory.nativePath : File.documentsDirectory.nativePath;
+                var dir:File = new File(path);
+                dir.addEventListener(Event.SELECT, fileSelectHandler);
+                dir.browseForDirectory(resourceManager.getString("strings", "selectFolder"));
+
+                function fileSelectHandler(event:Event):void
+                {
+                    directory = dir;
+                }
+            }
+
+            protected function formatRadioButtonGroupChangeHandler(event:Event):void
+            {
+                format = formatRadioButtonGroup.selectedValue as String;
+            }
+
+            protected function versionDropDownListChangeHandler(event:IndexChangeEvent):void
+            {
+                version = versionDropDownList.selectedItem as Version;
+            }
+
+            protected function obdVersionDropDownListChangeHandler(event:IndexChangeEvent):void
+            {
+                if (obdVersionDropDownList.selectedIndex == 0)
+                    obdVersion = OBDVersions.OBD_VERSION_2;
+                else if (obdVersionDropDownList.selectedIndex == 1)
+                    obdVersion = OBDVersions.OBD_VERSION_1;
+            }
+
+            protected function confirmButtonClickHandler(event:MouseEvent):void
+            {
+                _detail = DialogDetail.OK;
+                close();
+            }
+
+            protected function cancelButtonClickHandler(event:MouseEvent):void
+            {
+                _detail = DialogDetail.CANCEL;
+                close();
+            }
+
+        ]]>
+    </fx:Script>
+
+    <mg:layout>
+        <s:VerticalLayout />
+    </mg:layout>
+
+    <s:VGroup width="100%" height="100%" gap="10" padding="10">
+        <s:Group width="100%">
+            <s:Label text="{resourceManager.getString('strings', 'name') + ':'}"
+                     fontSize="11"
+                     color="0xDFDFDF"/>
+
+            <s:TextInput id="nameTextInput"
+                         left="0" right="0" top="15"
+                         change="nameTextInputChangeHandler(event)"/>
+        </s:Group>
+
+        <s:Group width="100%">
+            <s:Label text="{resourceManager.getString('strings', 'outputFolder') + ':'}"
+                     fontSize="11"
+                     color="0xDFDFDF"/>
+
+            <otlib:FileTextInput id="directoryTextInput"
+                                 left="0" right="65" top="15"
+                                 fileChange="directoryChangeHandler(event)"/>
+
+            <s:Button id="browseButton"
+                      label="@Resource(key='browse', bundle='strings')"
+                      height="22" top="15" right="0"
+                      click="browseButtonClickHandler(event)"/>
+        </s:Group>
+
+        <mg:GroupBox label="@Resource(key='format', bundle='strings')" width="100%">
+            <mg:layout>
+                <s:HorizontalLayout gap="20" padding="10" verticalAlign="middle"/>
+            </mg:layout>
+
+            <s:RadioButton id="pngFormatRadioButton"
+                           label="PNG"
+                           groupName="formatRadioButtonGroup"/>
+            <s:RadioButton id="bmpFormatRadioButton"
+                           label="BMP"
+                           groupName="formatRadioButtonGroup"/>
+            <s:RadioButton id="jpgFormatRadioButton"
+                           label="JPG"
+                           groupName="formatRadioButtonGroup"/>
+            <s:RadioButton id="obdFormatRadioButton"
+                           label="OBD"
+                           visible="false"
+                           groupName="formatRadioButtonGroup"/>
+        </mg:GroupBox>
+
+        <mg:GroupBox label="@Resource(key='options', bundle='strings')" width="100%">
+            <mx:ViewStack id="stackView" width="100%" creationPolicy="all" selectedIndex="0">
+                <!-- PNG options -->
+                <s:NavigatorContent>
+                    <s:layout>
+                        <s:HorizontalLayout gap="20" padding="10" verticalAlign="middle"/>
+                    </s:layout>
+
+                    <s:CheckBox id="transparentBackgroundCheckBox"
+                                label="@Resource(key='transparentBackground', bundle='strings')"
+                                selected="{transparentBackground}"
+                                change="{transparentBackground = transparentBackgroundCheckBox.selected}"/>
+                </s:NavigatorContent>
+
+                <!-- BMP options -->
+                <s:NavigatorContent/>
+
+                <!-- JPG options -->
+                <s:NavigatorContent>
+                    <s:layout>
+                        <s:HorizontalLayout gap="20" padding="10" verticalAlign="middle"/>
+                    </s:layout>
+
+                    <s:Label text="{resourceManager.getString('strings', 'quality') + ':'}"/>
+
+                    <s:HSlider id="qualityHSlider"
+                               width="120"
+                               minimum="10"
+                               maximum="100"
+                               stepSize="5"
+                               value="{jpegQuality}"
+                               change="{jpegQuality = qualityHSlider.value}"/>
+
+                    <s:Label text="{qualityHSlider.value + ' %'}"/>
+
+                </s:NavigatorContent>
+
+                <!-- OBD options -->
+                <s:NavigatorContent>
+                    <s:layout>
+                        <s:HorizontalLayout gap="20" padding="10" verticalAlign="middle"/>
+                    </s:layout>
+
+                    <s:Label text="{resourceManager.getString('strings', 'version') + ':'}"/>
+                    <s:DropDownList id="versionDropDownList"
+                                    minWidth="100"
+                                    enabled="{obdFormatRadioButton.selected}"
+                                    dataProvider="{_versionCollection}"
+                                    change="versionDropDownListChangeHandler(event)"/>
+
+                    <s:Label text="OBD:"/>
+                    <s:DropDownList id="obdVersionDropDownList"
+                                    minWidth="80"
+                                    requireSelection="true"
+                                    enabled="{obdFormatRadioButton.selected}"
+                                    change="obdVersionDropDownListChangeHandler(event)">
+                        <s:dataProvider>
+                            <s:ArrayList>
+                                <fx:String>2</fx:String>
+                                <fx:String>1</fx:String>
+                            </s:ArrayList>
+                        </s:dataProvider>
+                    </s:DropDownList>
+                </s:NavigatorContent>
+            </mx:ViewStack>
+        </mg:GroupBox>
+    </s:VGroup>
+
+    <s:BorderContainer width="100%" skinClass="com.mignari.skins.PixeledBorderContainerSkin">
+        <s:layout>
+            <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle" horizontalAlign="right" />
+        </s:layout>
+
+        <s:Button id="confirmButton"
+                  label="@Resource(key='confirm', bundle='strings')"
+                  minWidth="70"
+                  enabled="false"
+                  click="confirmButtonClickHandler(event)" />
+
+        <s:Button id="cancelButton"
+                  label="@Resource(key='cancel', bundle='strings')"
+                  minWidth="70"
+                  click="cancelButtonClickHandler(event)" />
+    </s:BorderContainer>
+</mg:TitleWindow>

@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          xmlns:ns="library://ns.nail.com/naillib"
+          width="400"
+          height="370"
+          backgroundColor="0x494949"
+          showStatusBar="false"
+          systemChrome="standard"
+          resizable="false"
+          minimizable="false"
+          maximizable="false"
+          type="utility"
+          creationComplete="creationCompleteHandler(event)">
+
+    <fx:Script>
+        <![CDATA[
+            import mx.events.FlexEvent;
+            
+            import flashx.textLayout.conversion.TextConverter;
+            import flashx.textLayout.elements.LinkElement;
+            import flashx.textLayout.formats.TextDecoration;
+            
+            import nail.utils.Descriptor;
+            import nail.utils.StringUtil;
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                focusManager.setFocus(closeButton);
+                focusManager.showFocus();
+
+                var bounds:Rectangle = Screen.mainScreen.bounds;
+                var px:Number = ((bounds.width - this.width) * 0.5) + bounds.x;
+                var py:Number = ((bounds.height - this.height) * 0.5) + bounds.y;
+                this.nativeWindow.x = px;
+                this.nativeWindow.y = py;
+
+                this.versionDisplay.text = Descriptor.getVersionLabel();
+                this.title = resourceManager.getString("strings", "about") + " " + Descriptor.getName();
+                this.appNameLabel.text = Descriptor.getName();
+                this.licenceDisplay.text = resourceManager.getString("strings", "licence");
+
+                var file:File = File.applicationDirectory.resolvePath("icon/splash/" + StringUtil.removeWhitespaces(Descriptor.getName()) + ".png");
+                if (!file.exists) return;
+
+                this.image.source = file.url;
+                this.appNameLabel.text = "";
+
+                var linkNormal:LinkElement = new LinkElement();
+                linkNormal.color = 0xDFDFDF;
+                linkNormal.textDecoration = TextDecoration.UNDERLINE;
+                var linkHover:LinkElement = new LinkElement();
+                linkHover.color = 0xFFFFFF
+                linkHover.textDecoration = TextDecoration.UNDERLINE;
+                copyrightDisplay.textFlow = TextConverter.importToFlow(Descriptor.getCopyright(), TextConverter.TEXT_FIELD_HTML_FORMAT);
+                copyrightDisplay.textFlow.linkNormalFormat = linkNormal;
+                copyrightDisplay.textFlow.linkHoverFormat = linkHover;
+            }
+
+            protected function closeButtonClickHandler(event:MouseEvent):void
+            {
+                this.close();
+            }
+
+            protected function otpButtonClickHandler(event:MouseEvent):void
+            {
+                // Please, dont remove or change it.
+                navigateToURL(new URLRequest("https://otpokemon.com/"));
+            }
+            
+        ]]>
+    </fx:Script>
+
+    <s:Rect left="0" right="0" top="0" bottom="0">
+        <s:stroke>
+            <s:SolidColorStroke color="0x272727" />
+        </s:stroke>
+    </s:Rect>
+
+    <s:Label id="appNameLabel"
+             horizontalCenter="0"
+             top="40"
+             fontSize="30"
+             fontWeight="bold"
+             color="0xDFDFDF">
+        <s:filters>
+            <s:DropShadowFilter color="0x272727" />
+        </s:filters>
+    </s:Label>
+
+    <s:Image id="image" />
+
+    <s:RichEditableText id="versionDisplay"
+                        right="30"
+                        top="90"
+                        bottom="20"
+                        fontSize="12"
+                        color="0xDFDFDF"
+                        editable="false"
+                        focusEnabled="false"
+                        selectable="false" />
+
+    <s:RichEditableText id="copyrightDisplay"
+                        left="30"
+                        top="120"
+                        bottom="20"
+                        fontSize="11"
+                        color="0xDFDFDF"
+                        editable="false"
+                        focusEnabled="false"
+                        selectable="true" />
+
+    <s:RichEditableText id="licenceDisplay"
+                        left="20"
+                        right="20"
+                        top="155"
+                        bottom="35"
+                        fontSize="8"
+                        color="0xDFDFDF"
+                        editable="false"
+                        focusEnabled="false"
+                        selectable="true"
+                        textAlign="justify" />
+
+    <ns:ShadowLine width="100%"/>
+    
+    <s:VGroup width="100%" height="100%" top="249" padding="10">
+        
+        <s:Label text="Supported By:" />
+        
+        <mx:LinkButton id="otpButton"
+                  label="otpokemon.com"
+                  fontWeight="bold"
+                  fontSize="18"
+                  color="0xe3d10a"
+                  click="otpButtonClickHandler(event)" />
+    </s:VGroup>
+    
+    <s:Group width="100%" height="50" bottom="0">
+        <s:Rect left="0" right="0" top="0" bottom="0">
+            <s:stroke>
+                <s:SolidColorStroke color="0x272727" />
+            </s:stroke>
+        </s:Rect>
+
+        <ns:ShadowLine width="100%"/>
+
+        <s:Button id="closeButton"
+                  label="@Resource(key='close', bundle='strings')"
+                  minWidth="60"
+                  right="20"
+                  verticalCenter="0"
+                  click="closeButtonClickHandler(event)" />
+    </s:Group>
+</s:Window>

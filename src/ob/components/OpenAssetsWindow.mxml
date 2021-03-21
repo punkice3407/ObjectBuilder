@@ -1,0 +1,531 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<mg:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+                xmlns:s="library://ns.adobe.com/flex/spark"
+                xmlns:mx="library://ns.adobe.com/flex/mx"
+                xmlns:mg="library://ns.mignari.com/mg"
+                xmlns:otlib="otlib.components.*"
+                width="550"
+                height="500"
+                fontSize="11"
+                title="@Resource(key='openAssetFiles', bundle='strings')"
+                creationComplete="windowCreationCompleteHandler(event)">
+
+    <fx:Metadata>
+        [ResourceBundle("strings")]
+    </fx:Metadata>
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.utils.DialogDetail;
+
+            import mx.events.FlexEvent;
+
+            import nail.utils.FileUtil;
+            import nail.utils.isNullOrEmpty;
+
+            import otlib.assets.Assets;
+            import otlib.core.Version;
+            import otlib.core.VersionStorage;
+            import otlib.events.FileTextInputEvent;
+            import otlib.utils.ClientInfo;
+            import otlib.utils.ClientInfoLoader;
+            import otlib.utils.OTFormat;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            private var m_clientDirectory:File;
+            private var m_clientDirectoryChanged:Boolean;
+            private var m_sprFile:File;
+            private var m_datFile:File;
+            private var m_version:Version;
+            private var m_extended:Boolean;
+            private var m_extendedChanged:Boolean;
+            private var m_transparency:Boolean;
+            private var m_transparencyChanged:Boolean;
+            private var m_improvedAnimations:Boolean;
+            private var m_improvedAnimationsChanged:Boolean;
+            private var m_detail:uint;
+
+            //--------------------------------------
+            // Getters / Setters
+            //--------------------------------------
+
+            public function get sprFile():File { return m_sprFile; }
+            public function get datFile():File { return m_datFile; }
+            public function get version():Version { return m_version; }
+
+            public function get clientDirectory():File { return m_clientDirectory; }
+            public function set clientDirectory(value:File):void
+            {
+                if (!FileUtil.equals(m_clientDirectory, value))
+                {
+                    m_clientDirectory = value;
+                    m_clientDirectoryChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get extended():Boolean { return m_extended; }
+            public function set extended(value:Boolean):void
+            {
+                if (value != m_extended)
+                {
+                    m_extended = value;
+                    m_extendedChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get transparency():Boolean { return m_transparency; }
+            public function set transparency(value:Boolean):void
+            {
+                if (value != m_transparency)
+                {
+                    m_transparency = value;
+                    m_transparencyChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get improvedAnimations():Boolean { return m_improvedAnimations; }
+            public function set improvedAnimations(value:Boolean):void
+            {
+                if (value != m_improvedAnimations)
+                {
+                    m_improvedAnimations = value;
+                    m_improvedAnimationsChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get detail():uint { return m_detail; }
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Protected
+            //--------------------------------------
+
+            override protected function commitProperties():void
+            {
+                super.commitProperties();
+
+                if (m_clientDirectoryChanged) {
+                    setClientDirectory(m_clientDirectory);
+                    m_clientDirectoryChanged = false;
+                }
+
+                if (m_extendedChanged) {
+                    setClientDirectory(m_clientDirectory);
+                    m_extendedChanged = false;
+                }
+
+                if (m_transparencyChanged) {
+                    updateProperties();
+                    m_transparencyChanged = false;
+                }
+
+                if (m_improvedAnimationsChanged) {
+                    updateProperties();
+                    m_improvedAnimationsChanged = false;
+                }
+            }
+
+            //--------------------------------------
+            // Private
+            //--------------------------------------
+
+            private function setClientDirectory(directory:File):void
+            {
+                resetInfo();
+
+                if (!directory)
+                {
+                    setErrorText(resourceManager.getString("strings", "selectAClientFolder"));
+                    updateProperties();
+                    return;
+                }
+
+                if (!directory.exists)
+                {
+                    setErrorText(resourceManager.getString("strings", "folderNotExistOrCannotBeRead"));
+                    updateProperties();
+                    return;
+                }
+
+                clientDirectoryTextInput.file = directory;
+
+                var dat:File;
+                var spr:File;
+
+                var file:File = directory.resolvePath("Tibia.dat");
+                if (file.exists)
+                    dat = file;
+
+                file = directory.resolvePath("Tibia.spr");
+                if (file.exists)
+                    spr = file;
+
+                // Searchs renamed spr/dat files on directory.
+                if (!spr || !dat)
+                {
+                    var list:Array = directory.getDirectoryListing();
+                    var length:uint = list.length;
+
+                    for (var i:uint = 0; i < length; i++)
+                    {
+                        file = list[i];
+                        if (!spr && file.extension == OTFormat.SPR)
+                            spr = file;
+
+                        if (!dat && file.extension == OTFormat.DAT)
+                            dat = file;
+
+                        if (spr && dat)
+                            break;
+                    }
+                }
+
+                if (dat && spr)
+                {
+                    loadFiles(dat, spr);
+                }
+                else
+                {
+                    setErrorText(resourceManager.getString("strings", "clientFilesNotFound"));
+                    updateProperties();
+                }
+            }
+
+            private function loadFiles(dat:File, spr:File):void
+            {
+                var loader:ClientInfoLoader = new ClientInfoLoader();
+                loader.addEventListener(Event.COMPLETE, completeHandler);
+                loader.addEventListener(ErrorEvent.ERROR, errorHandler);
+                loader.load(dat, spr, this.extended);
+
+                function completeHandler(event:Event):void
+                {
+                    var info:ClientInfo = loader.clientInfo;
+                    extended = info.extended;
+                    transparency = info.transparency;
+                    improvedAnimations = info.improvedAnimations;
+                    clientVersionLabel.text = info.clientVersionStr;
+                    datSignatureLabel.text = info.datSignature.toString(16).toUpperCase();
+                    itemsCountLabel.text = info.maxItemId.toString();
+                    outfitsCountLabel.text = info.maxOutfitId.toString();
+                    effectsCountLabel.text = info.maxEffectId.toString();
+                    missilesCountLabel.text = info.maxMissileId.toString();
+                    sprSignatureLabel.text = info.sprSignature.toString(16).toUpperCase();
+                    spritesCountLabel.text = info.maxSpriteId.toString();
+
+                    m_datFile = dat;
+                    m_sprFile = spr;
+                    m_version = VersionStorage.getInstance().getFromClientInfo(info);
+                    updateProperties();
+                }
+
+                function errorHandler(event:ErrorEvent):void
+                {
+                    m_datFile = null;
+                    m_sprFile = null;
+                    m_version = null;
+                    setErrorText(event.text);
+                    updateProperties();
+                }
+            }
+
+            private function resetInfo():void
+            {
+                var empty:String = "";
+                clientVersionLabel.text = empty;
+                sprSignatureLabel.text = empty;
+                spritesCountLabel.text = empty;
+                datSignatureLabel.text = empty;
+                itemsCountLabel.text = empty;
+                outfitsCountLabel.text = empty;
+                effectsCountLabel.text = empty;
+                missilesCountLabel.text = empty;
+                loadButton.enabled = false;
+                extendedCheckBox.enabled = false;
+                m_sprFile = null;
+                m_datFile = null;
+                m_version = null;
+
+                setErrorText(null);
+            }
+
+            private function setErrorText(text:String):void
+            {
+                var hasError:Boolean = !isNullOrEmpty(text);
+                errorIcon.visible = hasError;
+                errorLabel.visible = hasError;
+                errorLabel.text = text;
+
+                if (hasError && focusManager.getFocus() === loadButton)
+                {
+                    focusManager.setFocus(cancelButton);
+                    focusManager.showFocus();
+                }
+            }
+
+            private function updateProperties():void
+            {
+                var done:Boolean = (m_datFile && m_sprFile && m_version);
+
+                if (done)
+                {
+                    m_extended = (m_extended || m_version.value >= 960);
+                    m_improvedAnimations = (m_improvedAnimations || m_version.value >= 1050);
+
+                    extendedCheckBox.enabled = (m_version.value < 960);
+                    transparencyCheckBox.enabled = true;
+                    improvedAnimationsCheckBox.enabled = (m_version.value < 1050);
+                }
+                else
+                {
+                    extendedCheckBox.enabled = false;
+                    transparencyCheckBox.enabled = false;
+                    improvedAnimationsCheckBox.enabled = false;
+                }
+
+                extendedCheckBox.selected = m_extended;
+                transparencyCheckBox.selected = m_transparency;
+                improvedAnimationsCheckBox.selected = m_improvedAnimations;
+                loadButton.enabled = done;
+            }
+
+
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            private function windowCreationCompleteHandler(event:FlexEvent):void
+            {
+                updateProperties();
+            }
+
+            private function clientBrowseButtonClickHandler(event:MouseEvent):void
+            {
+                var path:String = m_clientDirectory ? m_clientDirectory.nativePath : File.documentsDirectory.nativePath;
+                var directory:File = new File(path);
+                directory.addEventListener(Event.SELECT, fileSelectHandler);
+                directory.browseForDirectory(resourceManager.getString("strings", "selectFolder"));
+
+                function fileSelectHandler(event:Event):void
+                {
+                    clientDirectory = directory;
+                }
+            }
+
+            private function clientDirectoryChangeHandler(event:FileTextInputEvent):void
+            {
+                clientDirectory = event.file;
+            }
+
+            private function extendedCheckBoxChangeHandler(event:Event):void
+            {
+                extended = extendedCheckBox.selected;
+            }
+
+            private function transparencyCheckBoxChangeHandler(event:Event):void
+            {
+                transparency = transparencyCheckBox.selected;
+            }
+
+            private function improvedAnimationsCheckBoxChangeHandler(event:Event):void
+            {
+                improvedAnimations = improvedAnimationsCheckBox.selected;
+            }
+
+            private function loadButtonClickHandler(event:MouseEvent):void
+            {
+                m_detail = DialogDetail.OK;
+                close();
+            }
+
+            private function cancelButtonClickHandler(event:MouseEvent):void
+            {
+                m_detail = DialogDetail.CANCEL;
+                close();
+            }
+
+        ]]>
+    </fx:Script>
+
+    <mg:layout>
+        <s:VerticalLayout />
+    </mg:layout>
+
+    <s:Group width="100%" height="100%">
+        <s:layout>
+            <s:VerticalLayout gap="10" padding="10"/>
+        </s:layout>
+
+        <!-- client files directory -->
+        <s:Group width="100%">
+
+            <s:layout>
+                <s:VerticalLayout gap="2"/>
+            </s:layout>
+
+            <s:Label text="{resourceManager.getString('strings', 'clientFolder') + ':'}"
+                     fontSize="11"
+                     color="0xDFDFDF"/>
+
+            <s:HGroup width="100%"
+                      height="100%">
+
+                <otlib:FileTextInput id="clientDirectoryTextInput"
+                                     width="100%"
+                                     fileChange="clientDirectoryChangeHandler(event)"/>
+
+                <s:Button id="clientBrowseButton"
+                          label="@Resource(key='browse', bundle='strings')"
+                          minWidth="70"
+                          height="21"
+                          click="clientBrowseButtonClickHandler(event)"/>
+            </s:HGroup>
+        </s:Group>
+
+        <!-- client version -->
+        <mg:GroupBox width="100%"
+                       label="@Resource(key='version', bundle='strings')">
+
+            <mg:layout>
+                <s:HorizontalLayout gap="5" verticalAlign="middle" padding="10"/>
+            </mg:layout>
+
+            <s:Label id="clientVersionLabel"/>
+
+        </mg:GroupBox>
+
+        <!-- client options -->
+        <mg:GroupBox width="100%"
+                       label="@Resource(key='options', bundle='strings')">
+
+            <mg:layout>
+                <s:VerticalLayout gap="5" verticalAlign="middle" horizontalAlign="left" padding="10"/>
+            </mg:layout>
+
+            <s:CheckBox id="extendedCheckBox"
+                        label="@Resource(key='extended', bundle='strings')"
+                        enabled="false"
+                        change="extendedCheckBoxChangeHandler(event)"/>
+
+            <s:CheckBox id="transparencyCheckBox"
+                        label="@Resource(key='transparency', bundle='strings')"
+                        change="transparencyCheckBoxChangeHandler(event)"/>
+
+            <s:CheckBox id="improvedAnimationsCheckBox"
+                        label="@Resource(key='improvedAnimations', bundle='strings')"
+                        change="improvedAnimationsCheckBoxChangeHandler(event)"/>
+        </mg:GroupBox>
+
+        <!-- dat -->
+        <mg:GroupBox width="100%" label="DAT">
+
+            <mg:layout>
+                <s:TileLayout requestedColumnCount="2" padding="10" horizontalGap="10"/>
+            </mg:layout>
+
+            <s:Label text="{resourceManager.getString('strings', 'signature') + ':'}"
+                     textAlign="right"/>
+
+            <s:RichEditableText id="datSignatureLabel"
+                                height="12"
+                                editable="false"
+                                focusEnabled="false"
+                                color="0x9AC9F8"/>
+
+            <s:Label text="{resourceManager.getString('strings', 'items') + ':'}"
+                     textAlign="right"/>
+            <s:Label id="itemsCountLabel"
+                     color="0x9AC9F8"/>
+
+            <s:Label text="{resourceManager.getString('strings', 'outfits') + ':'}"
+                     textAlign="right"/>
+            <s:Label id="outfitsCountLabel"
+                     color="0x9AC9F8"/>
+
+            <s:Label text="{resourceManager.getString('strings', 'effects') + ':'}"
+                     textAlign="right"/>
+            <s:Label id="effectsCountLabel"
+                     color="0x9AC9F8"/>
+
+            <s:Label text="{resourceManager.getString('strings', 'missiles') + ':'}"
+                     textAlign="right"/>
+            <s:Label id="missilesCountLabel"
+                     color="0x9AC9F8"/>
+        </mg:GroupBox>
+
+        <!-- spr -->
+        <mg:GroupBox width="100%" label="SPR">
+            <mg:layout>
+                <s:TileLayout requestedColumnCount="2" padding="10" horizontalGap="10" />
+            </mg:layout>
+
+            <s:Label text="{resourceManager.getString('strings', 'signature') + ':'}"
+                     textAlign="right"/>
+            <s:RichEditableText id="sprSignatureLabel"
+                                height="12"
+                                editable="false"
+                                focusEnabled="false"
+                                color="0x9AC9F8"/>
+
+            <s:Label text="{resourceManager.getString('strings', 'sprites') + ':'}"
+                     textAlign="right"/>
+            <s:Label id="spritesCountLabel"
+                     color="0x9AC9F8"/>
+        </mg:GroupBox>
+    </s:Group>
+
+    <s:BorderContainer width="100%" skinClass="com.mignari.skins.PixeledBorderContainerSkin">
+        <s:layout>
+            <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle" />
+        </s:layout>
+
+        <s:Image id="errorIcon" visible="false" source="{Assets.ERROR}"/>
+        <s:Label id="errorLabel" visible="false" color="0xffffff" />
+
+        <s:Spacer width="100%" />
+
+        <s:Button id="loadButton"
+                  label="@Resource(key='load', bundle='strings')"
+                  minWidth="70"
+                  enabled="false"
+                  click="loadButtonClickHandler(event)"/>
+
+        <s:Button id="cancelButton"
+                  label="@Resource(key='cancel', bundle='strings')"
+                  minWidth="70"
+                  click="cancelButtonClickHandler(event)"/>
+    </s:BorderContainer>
+</mg:TitleWindow>

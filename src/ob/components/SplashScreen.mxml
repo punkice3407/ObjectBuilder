@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          xmlns:nail="library://ns.nail.com/naillib"
+          width="400"
+          height="250"
+          showStatusBar="false"
+          systemChrome="none"
+          transparent="true"
+          resizable="false"
+          minimizable="false"
+          maximizable="false"
+          type="utility"
+          backgroundColor="0x494949"
+          fontSize="11"
+          alwaysInFront="true"
+          creationComplete="creationCompleteHandler(event)">
+
+    <fx:Declarations>
+        <s:Animate id="animation" target="{gradient}" duration="6000" repeatCount="0">
+            <s:SimpleMotionPath property="rotation" valueFrom="0" valueTo="360"/>
+        </s:Animate>
+    </fx:Declarations>
+
+    <fx:Script>
+        <![CDATA[
+            import mx.events.FlexEvent;
+
+            import nail.utils.Descriptor;
+            import nail.utils.WindowUtil;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            [Embed(source="../assets/icons/object_builder.png", mimeType="image/png")]
+            private const OBJECT_BUILDER_ICON:Class;
+
+            private var _timer:Timer;
+            private var _complete:Boolean;
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Public
+            //--------------------------------------
+
+            public function setProgress(loaded:uint, total:uint):void
+            {
+                if (progressBar)
+                    progressBar.setProgress(loaded, total);
+
+                if (loaded != 0 && total != 0 && loaded == total)
+                    _complete = true;
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                WindowUtil.centralizeWindowOnScreen(this);
+
+                versionDisplay.text = Descriptor.getVersionLabel();
+                licenceDisplay.text = resourceManager.getString("strings", "splashMessage");
+
+                animation.play();
+
+                _timer = new Timer(3000);
+                _timer.addEventListener(TimerEvent.TIMER, timerHandler);
+                _timer.start();
+            }
+
+            protected function timerHandler(event:TimerEvent):void
+            {
+                if (_complete) {
+                    _timer.stop();
+                    _timer.removeEventListener(TimerEvent.TIMER, timerHandler);
+                    _timer = null;
+
+                    this.close();
+                }
+            }
+
+        ]]>
+    </fx:Script>
+
+    <!-- effect fill -->
+    <s:Rect left="0" right="0" top="0" bottom="0">
+        <s:fill>
+            <s:LinearGradient id="gradient"
+                              rotation="0">
+                <s:GradientEntry color="0xFFFFFF"/>
+                <s:GradientEntry color="0x272727"/>
+            </s:LinearGradient>
+        </s:fill>
+        <s:stroke>
+            <s:SolidColorStroke color="0x272727"/>
+        </s:stroke>
+    </s:Rect>
+
+    <!-- fill -->
+    <s:Rect left="1" right="1" top="1" bottom="1" alpha="0.7">
+        <s:fill>
+            <s:LinearGradient rotation="90">
+                <s:GradientEntry color="0x626262"/>
+                <s:GradientEntry color="0x4B4B4B"/>
+            </s:LinearGradient>
+        </s:fill>
+    </s:Rect>
+
+    <s:Image id="image"
+             source="{OBJECT_BUILDER_ICON}"
+             horizontalCenter="0"
+             top="55">
+
+        <s:filters>
+            <s:DropShadowFilter color="0x636363"
+                                distance="2"
+                                blurX="2"
+                                blurY="2"/>
+        </s:filters>
+    </s:Image>
+
+    <nail:ShadowLabel id="versionDisplay"
+                      right="55"
+                      top="115"
+                      color="0xCCCCCC"
+                      shadowColor="0x535353"
+                      fontSize="12"
+                      fontWeight="bold"/>
+
+    <nail:ShadowLabel id="statusDisplay"
+                      left="10"
+                      top="170"
+                      shadowColor="0x272727"
+                      text="{status}"/>
+
+    <mx:ProgressBar id="progressBar"
+                    left="-1"
+                    right="-1"
+                    top="160"
+                    label=""
+                    labelPlacement="top"
+                    mode="manual"
+                    fontWeight="normal"/>
+
+    <s:RichText id="licenceDisplay"
+                left="1"
+                right="1"
+                bottom="1"
+                top="190"
+                paddingLeft="30"
+                paddingRight="30"
+                focusEnabled="false"
+                backgroundColor="0x353535"
+                textAlign="justify"
+                verticalAlign="middle"/>
+
+    <!-- border -->
+    <s:Rect left="0" right="0" top="0" bottom="0">
+        <s:stroke>
+            <s:SolidColorStroke color="0x272727"/>
+        </s:stroke>
+    </s:Rect>
+</s:Window>

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+                xmlns:s="library://ns.adobe.com/flex/spark"
+                xmlns:mx="library://ns.adobe.com/flex/mx"
+                xmlns:nail="library://ns.nail.com/naillib"
+                height="41"
+                fontSize="11"
+                creationComplete="creationCompleteHandler(event)"
+                dataChange="dataChangeHandler(event)">
+
+    <fx:Script>
+        <![CDATA[
+            import mx.events.FlexEvent;
+            import mx.resources.IResourceManager;
+            import mx.resources.ResourceManager;
+
+            import nail.logging.Log;
+            import otlib.components.ListBase;
+            import otlib.components.ThingList;
+            import otlib.core.otlib_internal;
+            import otlib.events.ThingListEvent;
+            import otlib.things.ThingType;
+            import otlib.utils.ThingListItem;
+            import nail.utils.isNullOrEmpty;
+
+            use namespace otlib_internal;
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                if (owner is ListBase && ListBase(owner).contextMenuEnabled) {
+                    var cm:ContextMenu = createContextMenu();
+                    cm.addEventListener(Event.SELECT, contextMenuSelectHandler);
+                    cm.addEventListener(Event.DISPLAYING, contextMenuDisplayingHandler);
+                    this.contextMenu = cm;
+                }
+            }
+
+            protected function contextMenuDisplayingHandler(event:Event):void
+            {
+                if (owner is ThingList) {
+                    ThingList(owner).onContextMenuDisplaying(this.itemIndex, ContextMenu(event.target));
+                }
+            }
+
+            protected function contextMenuSelectHandler(event:Event):void
+            {
+                if (owner is ThingList) {
+                    var type:String = NativeMenuItem(event.target).data as String;
+                    ThingList(owner).onContextMenuSelect(this.itemIndex, type);
+                }
+            }
+
+            protected function dataChangeHandler(event:FlexEvent):void
+            {
+                var item:ThingListItem = this.data as ThingListItem;
+                if (item) {
+                    var thing:ThingType = item.thing;
+                    if (!isNullOrEmpty(thing.marketName))
+                        labelDisplay.text = thing.id + " - " + thing.marketName;
+                    else
+                        labelDisplay.text = thing.id.toString();
+
+                    try
+                    {
+                        imageDisplay.source = item.getBitmap();
+                    } catch(error:Error) {
+                        Log.error(error.message, error.getStackTrace(), error.errorID);
+                    }
+                }
+            }
+
+            //--------------------------------------------------------------------------
+            // STATIC
+            //--------------------------------------------------------------------------
+
+            private static function createContextMenu():ContextMenu
+            {
+                var resource:IResourceManager = ResourceManager.getInstance();
+                var replaceMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "replace"));
+                replaceMenu.data = ThingListEvent.REPLACE;
+                var exportMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "export"));
+                exportMenu.data = ThingListEvent.EXPORT;
+                var editMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "edit"));
+                editMenu.data = ThingListEvent.EDIT;
+                var duplicateMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "duplicate"));
+                duplicateMenu.data = ThingListEvent.DUPLICATE;
+                var removeMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "remove"));
+                removeMenu.data = ThingListEvent.REMOVE;
+                var menu:ContextMenu = new ContextMenu();
+                menu.customItems = [replaceMenu, exportMenu, editMenu, duplicateMenu, removeMenu];
+                return menu;
+            }
+
+        ]]>
+    </fx:Script>
+
+    <!-- states -->
+    <s:states>
+        <s:State name="normal" />
+        <s:State name="hovered" />
+        <s:State name="selected" />
+    </s:states>
+
+    <!-- fill -->
+    <s:Rect left="1" right="1" top="1" bottom="1">
+        <s:fill>
+            <s:SolidColor color="0x535353" color.hovered="0x3385B2" color.selected="0x156692" />
+        </s:fill>
+    </s:Rect>
+
+    <!-- border -->
+    <s:Rect left="0" right="1" top="0" bottom="0">
+        <s:stroke>
+            <s:SolidColorStroke color="0x272727" weight="0.1" />
+        </s:stroke>
+    </s:Rect>
+
+    <!-- image background -->
+    <s:Rect left="5" verticalCenter="0" width="33" height="33">
+        <s:fill>
+            <s:SolidColor color="0x636363" />
+        </s:fill>
+        <s:stroke>
+            <s:SolidColorStroke color="0x272727" />
+        </s:stroke>
+    </s:Rect>
+
+    <!-- image -->
+    <s:BitmapImage id="imageDisplay" left="6" width="32" height="32" verticalCenter="0" />
+
+    <!-- text -->
+    <s:Label id="labelDisplay" left="42" right="5" mouseChildren="false" mouseEnabled="false" verticalCenter="0" />
+</s:ItemRenderer>

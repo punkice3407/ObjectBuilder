@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<mg:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+                xmlns:s="library://ns.adobe.com/flex/spark"
+                xmlns:mx="library://ns.adobe.com/flex/mx"
+                xmlns:mg="library://ns.mignari.com/mg"
+                width="400"
+                height="320"
+                fontSize="11"
+                title="@Resource(key='menu.preferences', bundle='strings')"
+                creationComplete="creationCompleteHandler(event)">
+
+    <fx:Declarations>
+        <s:RadioButtonGroup id="savePropertiesRadioButtonGroup"
+                            selectedIndex="0"/>
+    </fx:Declarations>
+
+    <fx:Metadata>
+        [ResourceBundle("strings")]
+    </fx:Metadata>
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.skins.PixeledBorderContainerSkin;
+            import com.mignari.utils.DialogDetail;
+            
+            import mx.collections.ArrayCollection;
+            import mx.events.FlexEvent;
+            
+            import nail.errors.NullArgumentError;
+            
+            import ob.settings.ObjectBuilderSettings;
+            
+            import otlib.assets.Assets;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            private var _settings:ObjectBuilderSettings;
+            private var _settingsChanged:Boolean;
+            private var _detail:uint = DialogDetail.CANCEL;
+            private var _languages:ArrayCollection;
+
+            //--------------------------------------
+            // Getters / Setters
+            //--------------------------------------
+
+            public function get settings():ObjectBuilderSettings { return _settings; }
+            public function set settings(value:ObjectBuilderSettings):void
+            {
+                if (!value)
+                    throw new NullArgumentError("settings");
+
+                if (_settings != value) {
+                    _settings = value;
+                    _settingsChanged = true;
+                    invalidateProperties();
+                }
+            }
+
+            public function get detail():uint { return _detail; }
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Protected
+            //--------------------------------------
+
+            override protected function commitProperties():void
+            {
+                super.commitProperties();
+
+                if (_settingsChanged)
+                {
+                    if (initialized)
+                        setSettings(_settings);
+
+                    _settingsChanged = false;
+                }
+            }
+
+            //--------------------------------------
+            // Private
+            //--------------------------------------
+
+            private function setSettings(settings:ObjectBuilderSettings):void
+            {
+                setLanguage(settings.language);
+                confirmButton.enabled = (settings != null);
+                autosaveChangesCheckBox.selected = settings.autosaveThingChanges;
+                extendedCheckBox.selected = settings.extended;
+                transparencyCheckBox.selected = settings.transparency;
+                setSavePropertiesValue(settings.savingSpriteSheet);
+                objectsAmountSlider.value = settings.objectsListAmount;
+                spritesAmountSlider.value = settings.spritesListAmount;
+            }
+
+            private function setLanguage(language:String):void
+            {
+                switch(language)
+                {
+                    case _languages.getItemAt(1).locale:
+                        languageDropDownList.selectedIndex = 1;
+                        break;
+
+                    case _languages.getItemAt(2).locale:
+                        languageDropDownList.selectedIndex = 2;
+                        break;
+
+                    default:
+                        languageDropDownList.selectedIndex = 0;
+                        break;
+                }
+            }
+
+            private function getLanguage():String
+            {
+                return _languages.getItemAt(languageDropDownList.selectedIndex).locale;
+            }
+
+            private function getSavePropertiesValue():Number
+            {
+                if (savePropertiesGroupCheckBox.selected)
+                {
+                    if (onlyPatternsRadioButton.selected)
+                        return 1;
+                    else if (allPropertiesRadioButton.selected)
+                        return 2;
+                }
+                return 0;
+            }
+
+            private function setSavePropertiesValue(value:Number):void
+            {
+                savePropertiesGroupCheckBox.selected = (value != 0);
+                if (value == 2)
+                    allPropertiesRadioButton.selected = true;
+                else
+                    onlyPatternsRadioButton.selected = true;
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                _languages = new ArrayCollection([{locale:"en_US", label:"English"},
+                                                  {locale:"es_ES", label:"Español"},
+                                                  {locale:"pt_BR", label:"Português"}]);
+
+                languageDropDownList.dataProvider = _languages;
+
+                focusManager.setFocus(cancelButton);
+                focusManager.showFocus();
+
+                setSettings(_settings);
+            }
+
+            protected function confirmButtonClickHandler(event:MouseEvent):void
+            {
+                _detail = DialogDetail.OK;
+                _settings.language = getLanguage();
+                _settings.autosaveThingChanges = autosaveChangesCheckBox.selected;
+                _settings.extended = extendedCheckBox.selected;
+                _settings.transparency = transparencyCheckBox.selected;
+                _settings.savingSpriteSheet = getSavePropertiesValue();
+                _settings.objectsListAmount = objectsAmountSlider.value;
+                _settings.spritesListAmount = spritesAmountSlider.value;
+                close();
+            }
+
+        ]]>
+    </fx:Script>
+
+    <mg:layout>
+        <s:VerticalLayout />
+    </mg:layout>
+
+    <s:TabBar width="100%" dataProvider="{viewStack}"
+              skinClass="com.mignari.skins.TabBarSkin" />
+
+    <mx:ViewStack id="viewStack" width="100%" height="100%" focusEnabled="false" creationPolicy="all">
+        <s:NavigatorContent label="@Resource(key='general', bundle='strings')"
+                            width="100%" height="100%">
+            <s:layout>
+                <s:VerticalLayout padding="10" paddingTop="20" />
+            </s:layout>
+            <mg:GroupBox width="100%" label="@Resource(key='language', bundle='strings')">
+                <mg:layout>
+                    <s:VerticalLayout gap="10" padding="10"/>
+                </mg:layout>
+
+                <s:DropDownList id="languageDropDownList"
+                                width="100%"
+                                requireSelection="true"/>
+            </mg:GroupBox>
+
+            <mg:GroupBox width="100%"
+                           label="@Resource(key='edition', bundle='strings')">
+                <mg:layout>
+                    <s:VerticalLayout gap="10" padding="10"/>
+                </mg:layout>
+                <s:CheckBox id="autosaveChangesCheckBox"
+                            label="@Resource(key='autosaveChanges', bundle='strings')"/>
+            </mg:GroupBox>
+            <mg:GroupBox width="100%" label="@Resource(key='listAmount', bundle='strings')">
+                <mg:layout>
+                    <s:TileLayout requestedColumnCount="3" padding="10"/>
+                </mg:layout>
+
+                <s:HSlider id="objectsAmountSlider"
+                           minimum="100"
+                           maximum="500"
+                           stepSize="50"/>
+
+                <s:Label text="{objectsAmountSlider.value}"
+                         textAlign="center"/>
+
+                <s:Label text="@Resource(key='objects', bundle='strings')"
+                         textAlign="left"/>
+
+                <s:HSlider id="spritesAmountSlider"
+                           minimum="100"
+                           maximum="500"
+                           stepSize="50"/>
+
+                <s:Label text="{spritesAmountSlider.value}"
+                         textAlign="center"/>
+
+                <s:Label text="@Resource(key='sprites', bundle='strings')"
+                         textAlign="left"/>
+            </mg:GroupBox>
+        </s:NavigatorContent>
+
+        <s:NavigatorContent label="@Resource(key='customClient', bundle='strings')"
+                            width="100%"
+                            height="100%">
+            <s:layout>
+                <s:VerticalLayout padding="10" paddingTop="20" />
+            </s:layout>
+            <mg:GroupBox width="100%" label="@Resource(key='openNew', bundle='strings')">
+                <mg:layout>
+                    <s:VerticalLayout gap="8" padding="10"/>
+                </mg:layout>
+
+                <s:CheckBox id="extendedCheckBox"
+                            label="@Resource(key='extendedAlwaysSelected', bundle='strings')"/>
+
+                <s:CheckBox id="transparencyCheckBox"
+                            label="@Resource(key='transparencyAlwaysSelected', bundle='strings')"/>
+            </mg:GroupBox>
+        </s:NavigatorContent>
+
+        <s:NavigatorContent label="@Resource(key='spriteSheet', bundle='strings')"
+                            width="100%" height="100%">
+            <s:layout>
+                <s:VerticalLayout padding="10" paddingTop="20" />
+            </s:layout>
+            <mg:GroupCheckBox id="savePropertiesGroupCheckBox"
+                              width="100%"
+                              label="@Resource(key='saveObjectProperties', bundle='strings')">
+                <mg:layout>
+                    <s:VerticalLayout gap="8" padding="10"/>
+                </mg:layout>
+
+                <s:RadioButton id="onlyPatternsRadioButton"
+                               label="@Resource(key='onlyPatterns', bundle='strings')"
+                               groupName="savePropertiesRadioButtonGroup"
+                               enabled="{savePropertiesGroupCheckBox.selected}"/>
+
+                <s:RadioButton id="allPropertiesRadioButton"
+                               groupName="savePropertiesRadioButtonGroup"
+                               label="@Resource(key='allProperties', bundle='strings')"
+                               enabled="{savePropertiesGroupCheckBox.selected}"/>
+            </mg:GroupCheckBox>
+        </s:NavigatorContent>
+    </mx:ViewStack>
+
+    <s:BorderContainer width="100%" skinClass="com.mignari.skins.PixeledBorderContainerSkin">
+        <s:layout>
+            <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle" horizontalAlign="right" />
+        </s:layout>
+
+        <s:Button id="infoButton"
+                  width="25"
+                  height="25"
+                  icon="{Assets.INFO}"
+                  focusEnabled="false"
+                  toolTip="@Resource(key='needToRestart', bundle='strings')"
+                  skinClass="nail.components.skins.IconButtonSkin"/>
+
+        <s:Spacer width="100%"/>
+
+        <s:Button id="confirmButton"
+                  label="@Resource(key='confirm', bundle='strings')"
+                  minWidth="70"
+                  click="confirmButtonClickHandler(event)"/>
+
+        <s:Button id="cancelButton"
+                  label="@Resource(key='cancel', bundle='strings')"
+                  minWidth="70"
+                  click="close()"/>
+    </s:BorderContainer>
+</mg:TitleWindow>

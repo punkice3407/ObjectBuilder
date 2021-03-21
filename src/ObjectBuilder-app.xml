@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<application xmlns="http://ns.adobe.com/air/application/30.0">
+
+	<id>com.mignari.ObjectBuilder</id>
+	<filename>ObjectBuilder</filename>
+	<name>Object Builder</name>
+	<versionNumber>0.4.8</versionNumber>
+	<versionLabel>0.4.8</versionLabel>
+	<copyright>
+		<![CDATA[Copyright (c) 2014-2019 <a href="https://github.com/Mignari/ObjectBuilder/graphs/contributors">Contributors</a>]]>
+	</copyright>
+
+	<initialWindow>
+		<content>[This value will be overwritten by Flash Builder in the output app.xml]</content>
+		<autoOrients>false</autoOrients>
+		<fullScreen>false</fullScreen>
+		<visible>false</visible>
+		<requestedDisplayResolution>high</requestedDisplayResolution>
+	</initialWindow>
+
+	<supportedLanguages>en es pt</supportedLanguages>
+
+	<icon>
+		<image16x16>icon/app/icon16.png</image16x16>
+		<image32x32>icon/app/icon32.png</image32x32>
+		<image36x36>icon/app/icon36.png</image36x36>
+		<image48x48>icon/app/icon48.png</image48x48>
+		<image72x72>icon/app/icon72.png</image72x72>
+		<image96x96>icon/app/icon96.png</image96x96>
+		<image114x114>icon/app/icon114.png</image114x114>
+		<image128x128>icon/app/icon128.png</image128x128>
+		<image144x144>icon/app/icon144.png</image144x144>
+		<image152x152>icon/app/icon152.png</image152x152>
+		<image512x512>icon/app/icon512.png</image512x512>
+	</icon>
+
+	<fileTypes>
+		<fileType>
+			<name>Metadata</name>
+			<extension>dat</extension>
+			<description>Metadata File</description>
+			<contentType>binary</contentType>
+			<icon>
+				<image16x16>icon/system/file_icon_dat16.png</image16x16>
+				<image32x32>icon/system/file_icon_dat32.png</image32x32>
+				<image48x48>icon/system/file_icon_dat48.png</image48x48>
+				<image128x128>icon/system/file_icon_dat128.png</image128x128>
+			</icon>
+		</fileType>
+		<fileType>
+			<name>Sprites</name>
+			<extension>spr</extension>
+			<description>Sprites File</description>
+			<contentType>binary</contentType>
+			<icon>
+				<image16x16>icon/system/file_icon_spr16.png</image16x16>
+				<image32x32>icon/system/file_icon_spr32.png</image32x32>
+				<image48x48>icon/system/file_icon_spr48.png</image48x48>
+				<image128x128>icon/system/file_icon_spr128.png</image128x128>
+			</icon>
+		</fileType>
+		<fileType>
+			<name>OBD</name>
+			<extension>obd</extension>
+			<description>Object Builder File</description>
+			<contentType>binary</contentType>
+			<icon>
+				<image16x16>icon/system/file_icon_obd16.png</image16x16>
+				<image32x32>icon/system/file_icon_obd32.png</image32x32>
+				<image48x48>icon/system/file_icon_obd48.png</image48x48>
+				<image128x128>icon/system/file_icon_obd128.png</image128x128>
+			</icon>
+		</fileType>
+	</fileTypes>
+</application>

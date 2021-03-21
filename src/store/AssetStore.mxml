@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+          xmlns:s="library://ns.adobe.com/flex/spark"
+          xmlns:mx="library://ns.adobe.com/flex/mx"
+          xmlns:mg="library://ns.mignari.com/mg"
+          xmlns:otlib="otlib.components.*"
+          xmlns:store="store.*"
+          minWidth="800"
+          minHeight="600"
+          showStatusBar="false"
+          backgroundColor="0x333333"
+          title="Asset Store"
+          creationComplete="creationCompleteHandler(event)">
+
+    <fx:Metadata>
+        [Event(name="importAsset", type="store.events.AssetStoreEvent")]
+    </fx:Metadata>
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.components.Alert;
+            
+            import mx.collections.ArrayCollection;
+            import mx.events.FlexEvent;
+            
+            import spark.events.IndexChangeEvent;
+            
+            import store.events.AssetStoreEvent;
+
+            private var m_catalog:XML;
+            private var m_subcategoryCollection:ArrayCollection;
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Private
+            //--------------------------------------
+
+            private function getCategory():String
+            {
+                switch(categoryDropDownList.selectedIndex) {
+                    case 0: return "items";
+                    case 1: return "outfits";
+                    case 2: return "effects";
+                    case 3: return "missiles";
+                }
+
+                return null;
+            }
+
+            private function getSubcategory():String
+            {
+                var selectedItem:Object = subcategoryDropDownList.selectedItem;
+                if (selectedItem)
+                    return selectedItem.folder;
+
+                return null;
+            }
+
+            private function getCurrentUrl():String
+            {
+                return REPOSITORY_URL + getCategory() + "/" + getSubcategory() + "/";
+            }
+
+            private function loadCatalog():void
+            {
+                var request:URLRequest = new URLRequest(REPOSITORY_URL + "catalog.xml");
+                var loader:URLLoader = new URLLoader();
+                loader.addEventListener(Event.COMPLETE, completeHandler);
+                loader.addEventListener(IOErrorEvent.IO_ERROR, errorHandler);
+                loader.load(request);
+
+                function completeHandler(event:Event):void
+                {
+                    try
+                    {
+                        m_catalog = XML(URLLoader(event.target).data);
+                        parseMainCatalog();
+                    } 
+                    catch(error:Error)
+                    {
+                        showError(error.getStackTrace());
+                    }
+                }
+
+                function errorHandler(event:IOErrorEvent):void
+                {
+                    showError(event.text);
+                }
+            }
+
+            private function load():void
+            {
+                list.clear();
+                indicator.visible = true;
+
+                var request:URLRequest = new URLRequest(getCurrentUrl() + "catalog.xml");
+                var loader:URLLoader = new URLLoader();
+                loader.addEventListener(Event.COMPLETE, loadCompleteHandler);
+                loader.addEventListener(IOErrorEvent.IO_ERROR, errorHandler);
+                loader.load(request);
+
+                function loadCompleteHandler(event:Event):void
+                {
+                    try
+                    {
+                        var xml:XML = XML(URLLoader(event.target).data);
+                        parseCatalog(xml);
+                    } 
+                    catch(error:Error)
+                    {
+                        showError(error.getStackTrace());
+                    }
+                }
+
+                function errorHandler(event:IOErrorEvent):void
+                {
+                    showError(event.text);
+                }
+            }
+
+            private function parseMainCatalog():void
+            {
+                if (!m_catalog)
+                    return;
+
+                list.clear();
+                m_subcategoryCollection.removeAll();
+                subcategoryDropDownList.enabled = false;
+                indicator.visible = true;
+
+                if (m_catalog.localName() != "catalog") {
+                    trace("invalid local name");
+                    return;
+                }
+
+                var category:String = getCategory();
+                if (!m_catalog.hasOwnProperty(category)) {
+                    trace("categoty " + category + "not found");
+                    return;
+                }
+
+                for each(var categoryXML:XML in m_catalog[category].category) {
+                    if (!categoryXML.hasOwnProperty("@name")) {
+                        trace("missing attribute name");
+                        continue;
+                    }
+                        
+
+                    if (!categoryXML.hasOwnProperty("@folder")) {
+                        trace("missing attribute folder");
+                        continue;
+                    }
+
+                    var name:String = categoryXML.@name;
+                    var folder:String = categoryXML.@folder;
+                    m_subcategoryCollection.addItem({label: name, folder: folder});
+                }
+
+                subcategoryDropDownList.enabled = m_subcategoryCollection.length != 0;
+                indicator.visible = false;
+            }
+
+            private function parseCatalog(xml:XML):void
+            {
+                if (xml.localName() != "catalog") {
+                    trace("invalid local name");
+                    return;
+                }
+
+                var url:String = getCurrentUrl();
+
+                for each (var assetXML:XML in xml.asset) {
+                    if (!assetXML.hasOwnProperty("name")) {
+                        trace("missing name tag");
+                        continue;
+                    }
+
+                    if (!assetXML.hasOwnProperty("author")) {
+                        trace("missing author tag");
+                        continue;
+                    }
+
+                    if (!assetXML.hasOwnProperty("file")) {
+                        trace("missing file tag");
+                        continue;
+                    }
+
+                    if (!assetXML.hasOwnProperty("category")) {
+                        trace("missing category tag");
+                        continue;
+                    }
+
+                    if (!assetXML.hasOwnProperty("transparent")) {
+                        trace("missing transparent tag");
+                        continue;
+                    }
+
+                    var asset:StoreAsset = new StoreAsset();
+                    asset.name = String(assetXML.name);
+                    asset.author = String(assetXML.author);
+                    asset.url = url + String(assetXML.file);
+                    list.addAsset(asset);
+                }
+
+                list.load();
+                indicator.visible = false;
+            }
+
+            private function showError(text:String):void
+            {
+                Alert.show(text, "Error", Alert.OK, this);
+            }
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            private function creationCompleteHandler(event:FlexEvent):void
+            {
+                m_subcategoryCollection = new ArrayCollection();
+                subcategoryDropDownList.dataProvider = m_subcategoryCollection;
+
+                loadCatalog();
+            }
+
+            private function categoryChangeHandler(event:IndexChangeEvent):void
+            {
+                parseMainCatalog();
+            }
+
+            private function subcategoryChangeHandler(event:IndexChangeEvent):void
+            {
+                load();
+            }
+
+            private function importAssetHandler(event:AssetStoreEvent):void
+            {
+                event.stopImmediatePropagation();
+                dispatchEvent(event.clone());
+            }
+
+            //--------------------------------------------------------------------------
+            // STATIC
+            //--------------------------------------------------------------------------
+
+            public static const REPOSITORY_URL:String = "https://raw.githubusercontent.com/ottools/open-assets/master/";
+
+        ]]>
+    </fx:Script>
+
+    <s:layout>
+        <s:VerticalLayout padding="10" />
+    </s:layout>
+
+    <!--
+    <mg:GroupBox label="@Resource(key='preview', bundle='strings')"
+                 width="100%" height="100%">
+        <otlib:ThingDataView id="thingView"
+                             horizontalCenter="0" verticalCenter="0"/>
+    </mg:GroupBox>
+    -->
+
+    <s:HGroup width="100%">
+        <s:DropDownList id="categoryDropDownList"
+                        requireSelection="true"
+                        width="100%" height="20"
+                        change="categoryChangeHandler(event)">
+            <s:dataProvider>
+                <s:ArrayList>
+                    <fx:String>{resourceManager.getString('strings', 'item')}</fx:String>
+                    <fx:String>{resourceManager.getString('strings', 'outfit')}</fx:String>
+                    <fx:String>{resourceManager.getString('strings', 'effect')}</fx:String>
+                    <fx:String>{resourceManager.getString('strings', 'missile')}</fx:String>
+                </s:ArrayList>
+            </s:dataProvider>
+        </s:DropDownList>
+
+        <s:DropDownList id="subcategoryDropDownList"
+                        width="100%" height="20"
+                        labelField="label"
+                        prompt="Select a subcategory"
+                        enabled="false"
+                        change="subcategoryChangeHandler(event)" />
+    </s:HGroup>
+
+    <s:Group width="100%" height="100%">
+        <store:StoreList id="list" width="100%" height="100%"
+                         contentBackgroundColor="0x333333"
+                         borderAlpha="0"
+                         itemRenderer="store.renders.StoreListItemRenderer"
+                         importAsset="importAssetHandler(event)">
+            <store:layout>
+                <s:TileLayout />
+            </store:layout>
+        </store:StoreList>
+
+        <s:BusyIndicator id="indicator" width="30" height="30"
+                         verticalCenter="0" horizontalCenter="0"
+                         symbolColor="0x272727" rotationInterval="50" />
+    </s:Group>
+</s:Window>

@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+         xmlns:s="library://ns.adobe.com/flex/spark"
+         xmlns:mx="library://ns.adobe.com/flex/mx"
+         xmlns:mg="library://ns.mignari.com/mg">
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.animator.IAnimationEditor;
+
+            import nail.utils.BitmapUtil;
+
+            import otlib.assets.Assets;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            public var editor:IAnimationEditor;
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            protected function openButtonClickHandler(event:MouseEvent):void
+            {
+                this.editor.openFile();
+            }
+
+            protected function saveButtonClickHandler(event:MouseEvent):void
+            {
+                this.editor.saveAnimation();
+            }
+
+            protected function pasteButtonClickHandler(event:MouseEvent):void
+            {
+                this.editor.pasteImageFromClipboard();
+            }
+
+            protected function rotateRight90ButtonClickHandler(event:MouseEvent):void
+            {
+                this.editor.rotateImageRight90();
+            }
+
+            protected function rotateLeft90ButtonClickHandler(event:MouseEvent):void
+            {
+                this.editor.rotateImageLeft90();
+            }
+
+            protected function flipVerticalButtonClickHandler(event:MouseEvent):void
+            {
+                this.editor.flipImageVertical();
+            }
+
+            protected function flipHorizontalButtonClickHandler(event:MouseEvent):void
+            {
+                this.editor.flipImageHorizontal();
+            }
+
+        ]]>
+    </fx:Script>
+
+    <!-- highlight -->
+    <s:Rect left="-1" right="-1" top="1" bottom="0">
+        <s:stroke>
+            <s:SolidColorStroke color="0x636363" />
+        </s:stroke>
+    </s:Rect>
+
+    <!-- border -->
+    <s:Rect left="-1" right="-1" top="0" bottom="0">
+        <s:stroke>
+            <s:SolidColorStroke color="0x272727" />
+        </s:stroke>
+    </s:Rect>
+
+    <s:HGroup width="100%" height="100%" verticalAlign="middle" paddingLeft="10" paddingRight="10">
+
+        <s:Button id="openButton"
+                  toolTip="@Resource(key='menu.open', bundle='strings')"
+                  width="25"
+                  height="25"
+                  icon="{Assets.OPEN}"
+                  skinClass="com.mignari.skins.IconButtonSkin"
+                  click="openButtonClickHandler(event)" />
+
+        <s:Button id="saveButton"
+                  toolTip="@Resource(key='menu.save', bundle='strings')"
+                  width="25"
+                  height="25"
+                  icon="{Assets.SAVE}"
+                  enabled="false"
+                  skinClass="com.mignari.skins.IconButtonSkin"
+                  click="saveButtonClickHandler(event)" />
+
+        <mg:ShadowLine height="20" />
+
+        <s:Button id="pasteButton"
+                  toolTip="@Resource(key='paste', bundle='strings')"
+                  width="25"
+                  height="25"
+                  icon="{Assets.PASTE}"
+                  skinClass="com.mignari.skins.IconButtonSkin"
+                  click="pasteButtonClickHandler(event)" />
+
+        <mg:ShadowLine height="20" />
+
+        <s:Button id="rotateRight90Button"
+                  toolTip="@Resource(key='rotateRight90', bundle='strings')"
+                  width="25"
+                  height="25"
+                  icon="{Assets.ROTATE_RIGHT_90}"
+                  enabled="false"
+                  skinClass="com.mignari.skins.IconButtonSkin"
+                  click="rotateRight90ButtonClickHandler(event)" />
+
+        <s:Button id="rotateLeft90Button"
+                  label="@Resource(key='rotateLeft90', bundle='strings')"
+                  width="25"
+                  height="25"
+                  icon="{Assets.ROTATE_LEFT_90}"
+                  enabled="false"
+                  skinClass="com.mignari.skins.IconButtonSkin"
+                  click="rotateLeft90ButtonClickHandler(event)" />
+
+        <s:Button id="flipVerticalButton"
+                  toolTip="@Resource(key='flipVertical', bundle='strings')"
+                  width="25"
+                  height="25"
+                  icon="{Assets.FLIP_VERTICAL}"
+                  enabled="false"
+                  skinClass="com.mignari.skins.IconButtonSkin"
+                  click="flipVerticalButtonClickHandler(event)" />
+
+        <s:Button id="flipHorizontalButton"
+                  toolTip="@Resource(key='flipHorizontal', bundle='strings')"
+                  width="25"
+                  height="25"
+                  icon="{Assets.FLIP_HORIZONTAL}"
+                  enabled="false"
+                  skinClass="com.mignari.skins.IconButtonSkin"
+                  click="flipHorizontalButtonClickHandler(event)" />
+    </s:HGroup>
+</s:Group>
