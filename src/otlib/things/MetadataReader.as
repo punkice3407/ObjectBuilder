@@ -28,6 +28,7 @@ package otlib.things
     import flash.utils.Endian;
 
     import otlib.animation.FrameDuration;
+	import otlib.animation.FrameGroup;
     import otlib.sprites.Sprite;
 
     public class MetadataReader extends FileStream implements IMetadataReader
@@ -84,56 +85,70 @@ package otlib.things
             throw new NotImplementedMethodError();
         }
 
-        public function readTexturePatterns(type:ThingType, extended:Boolean, frameDurations:Boolean):Boolean
+        public function readTexturePatterns(type:ThingType, extended:Boolean, frameDurations:Boolean, frameGroups:Boolean):Boolean
         {
+            var groupCount:uint = 1;
+			if(frameGroups && type.category == ThingCategory.OUTFIT) {
+				groupCount = readUnsignedByte();
+			}
+
             var i:uint;
+            var groupType:uint;
+			var frameGroup:FrameGroup;
+            for(groupType = 0; groupType < groupCount; groupType++) 
+            {
+			    if(frameGroups && type.category == ThingCategory.OUTFIT)
+					readUnsignedByte();
 
-            type.width = readUnsignedByte();
-            type.height = readUnsignedByte();
+                frameGroup = new FrameGroup();
+                frameGroup.width = readUnsignedByte();
+                frameGroup.height = readUnsignedByte();
 
-            if (type.width > 1 || type.height > 1)
-                type.exactSize = readUnsignedByte();
-            else
-                type.exactSize = Sprite.DEFAULT_SIZE;
-
-            type.layers = readUnsignedByte();
-            type.patternX = readUnsignedByte();
-            type.patternY = readUnsignedByte();
-            type.patternZ = readUnsignedByte();
-            type.frames = readUnsignedByte();
-            if (type.frames > 1) {
-                type.isAnimation = true;
-                type.frameDurations = new Vector.<FrameDuration>(type.frames, true);
-
-                if (frameDurations) {
-                    type.animationMode = readUnsignedByte();
-                    type.loopCount = readInt();
-                    type.startFrame = readByte();
-
-                    for (i = 0; i < type.frames; i++)
-                    {
-                        var minimum:uint = readUnsignedInt();
-                        var maximum:uint = readUnsignedInt();
-                        type.frameDurations[i] = new FrameDuration(minimum, maximum);
-                    }
-                } else {
-
-                    var duration:uint = FrameDuration.getDefaultDuration(type.category);
-                    for (i = 0; i < type.frames; i++)
-                        type.frameDurations[i] = new FrameDuration(duration, duration);
-                }
-            }
-
-            var totalSprites:uint = type.getTotalSprites();
-            if (totalSprites > 4096)
-                throw new Error("A thing type has more than 4096 sprites.");
-
-            type.spriteIndex = new Vector.<uint>(totalSprites);
-            for (i = 0; i < totalSprites; i++) {
-                if (extended)
-                    type.spriteIndex[i] = readUnsignedInt();
+                if (frameGroup.width > 1 || frameGroup.height > 1)
+                    frameGroup.exactSize = readUnsignedByte();
                 else
-                    type.spriteIndex[i] = readUnsignedShort();
+                    frameGroup.exactSize = Sprite.DEFAULT_SIZE;
+
+                frameGroup.layers = readUnsignedByte();
+                frameGroup.patternX = readUnsignedByte();
+                frameGroup.patternY = readUnsignedByte();
+                frameGroup.patternZ = readUnsignedByte();
+                frameGroup.frames = readUnsignedByte();
+                if (frameGroup.frames > 1) {
+                    frameGroup.isAnimation = true;
+                    frameGroup.frameDurations = new Vector.<FrameDuration>(frameGroup.frames, true);
+
+                    if (frameDurations) {
+                        frameGroup.animationMode = readUnsignedByte();
+                        frameGroup.loopCount = readInt();
+                        frameGroup.startFrame = readByte();
+
+                        for (i = 0; i < frameGroup.frames; i++)
+                        {
+                            var minimum:uint = readUnsignedInt();
+                            var maximum:uint = readUnsignedInt();
+                            frameGroup.frameDurations[i] = new FrameDuration(minimum, maximum);
+                        }
+                    } else {
+                        var duration:uint = FrameDuration.getDefaultDuration(type.category);
+                        for (i = 0; i < frameGroup.frames; i++)
+                            frameGroup.frameDurations[i] = new FrameDuration(duration, duration);
+                    }
+                }
+
+                var totalSprites:uint = frameGroup.getTotalSprites();
+                if (totalSprites > 4096)
+                    throw new Error("A thing type has more than 4096 sprites.");
+
+                frameGroup.spriteIndex = new Vector.<uint>(totalSprites);
+                for (i = 0; i < totalSprites; i++) {
+                    if (extended)
+                        frameGroup.spriteIndex[i] = readUnsignedInt();
+                    else
+                        frameGroup.spriteIndex[i] = readUnsignedShort();
+                }
+
+                type.setFrameGroup(groupType, frameGroup);
             }
 
             return true;

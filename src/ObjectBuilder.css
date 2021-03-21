@@ -32,7 +32,7 @@
     fontFamily: ubuntu;
     advancedAntiAliasing: true;
     fontStyle: normal;
-    embedAsCFF:true;
+    embedAsCFF:false;
 }
 
 @font-face
@@ -42,7 +42,7 @@
     advancedAntiAliasing: true;
     fontStyle: normal;
     fontWeight: bold;
-    embedAsCFF:true;
+    embedAsCFF:false;
 }
 
 @font-face
@@ -52,7 +52,7 @@
     advancedAntiAliasing: true;
     fontStyle: italic;
     fontWeight: normal;
-    embedAsCFF:true;
+    embedAsCFF:false;
 }
 
 global

@@ -72,6 +72,9 @@ package otlib.things
         public static const HORIZONTAL:uint = 0x1B;
         public static const ANIMATE_ALWAYS:uint = 0x1C;
         public static const LENS_HELP:uint = 0x1D;
+        public static const WRAPPABLE:uint = 0x24;
+        public static const UNWRAPPABLE:uint = 0x25;
+        public static const TOP_EFFECT:uint = 0x26;
         public static const LAST_FLAG:uint = 0xFF;
     }
 }

@@ -32,6 +32,6 @@ package otlib.things
         function readEffectsCount():uint;
         function readMissilesCount():uint;
         function readProperties(type:ThingType):Boolean;
-        function readTexturePatterns(type:ThingType, extended:Boolean, frameDurations:Boolean):Boolean;
+        function readTexturePatterns(type:ThingType, extended:Boolean, frameDurations:Boolean, frameGroups:Boolean):Boolean;
     }
 }

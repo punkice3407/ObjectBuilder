@@ -1,3 +1,12 @@
+### 0.5.0
+
+Features:
+
+* Support for versions 10.57+
+* Support frame groups for old versions, converting old outfits to frame groups
+* OBD version 3.0
+* Fixes
+
 ### 0.4.0
 
 Features:
@@ -12,7 +21,7 @@ Features:
 * Support for improved animations for old versions.
 * OBD version 2.0
 * Lots of UI tweaks.
-	
+
 ### 0.3.4
 
 Features:

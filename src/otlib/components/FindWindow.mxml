@@ -70,6 +70,7 @@ THE SOFTWARE.
             import otlib.sprites.SpriteData;
             import otlib.things.BindableThingType;
             import otlib.things.ThingCategory;
+            import otlib.things.FrameGroupType;
             import otlib.things.ThingProperty;
             import otlib.utils.ThingListItem;
 
@@ -439,6 +440,15 @@ THE SOFTWARE.
                         <s:CheckBox id="ignoreLookCheckBox"
                                     label="@Resource(key='ignoreLook', bundle='strings')"
                                     change="{m_bindableThingType.ignoreLook = ignoreLookCheckBox.selected;}"/>
+                        <s:CheckBox id="wrappableCheckBox"
+                                    label="@Resource(key='wrappable', bundle='strings')"
+                                    change="{m_bindableThingType.wrappable = wrappableCheckBox.selected;}"/>
+                        <s:CheckBox id="unwrappableCheckBox"
+                                    label="@Resource(key='unwrappable', bundle='strings')"
+                                    change="{m_bindableThingType.unwrappable = unwrappableCheckBox.selected;}"/>
+                        <s:CheckBox id="topEffectCheckBox"
+                                    label="@Resource(key='topEffect', bundle='strings')"
+                                    change="{m_bindableThingType.topEffect = topEffectCheckBox.selected;}"/>
                         <s:CheckBox id="usableCheckBox"
                                     label="@Resource(key='usable', bundle='strings')"
                                     change="{m_bindableThingType.usable = usableCheckBox.selected;}"/>
@@ -453,7 +463,7 @@ THE SOFTWARE.
                                     change="{m_bindableThingType.isLensHelp = lensHelpChangeCheckBox.selected;}"/>
                         <s:CheckBox id="isAnimationCheckBox"
                                     label="@Resource(key='isAnimation', bundle='strings')"
-                                    change="{m_bindableThingType.isAnimation = isAnimationCheckBox.selected;}"/>
+                                    change="{m_bindableThingType.getFrameGroup(FrameGroupType.DEFAULT).isAnimation = isAnimationCheckBox.selected;}"/>
                         <s:HGroup verticalAlign="middle"
                                   width="100%"
                                   paddingTop="5">

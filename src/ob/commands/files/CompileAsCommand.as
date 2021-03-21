@@ -39,14 +39,16 @@ package ob.commands.files
                                          version:Version,
                                          extended:Boolean,
                                          transparency:Boolean,
-                                         improvedAniamtions:Boolean)
+                                         improvedAniamtions:Boolean,
+                                         frameGroups:Boolean)
         {
             super(datFile.nativePath,
                   sprFile.nativePath,
                   version,
                   extended,
                   transparency,
-                  improvedAniamtions);
+                  improvedAniamtions,
+                  frameGroups);
         }
     }
 }

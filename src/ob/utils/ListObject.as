@@ -22,10 +22,11 @@
 
 package ob.utils
 {
+    import otlib.animation.FrameGroup;
     import flash.display.BitmapData;
     import flash.utils.ByteArray;
 
-    import otlib.things.ThingType;
+    import otlib.animation.FrameGroup;
 
     public class ListObject
     {
@@ -33,7 +34,7 @@ package ob.utils
         // PROPERTIES
         //--------------------------------------------------------------------------
 
-        public var thing:ThingType;
+        public var frameGroup:FrameGroup;
         public var pixels:ByteArray;
 
         private var _bitmap:BitmapData;
@@ -57,8 +58,8 @@ package ob.utils
 
         public function getBitmap():BitmapData
         {
-            if (pixels && thing && !_bitmap) {
-                _bitmap = new BitmapData(thing.width * 32, thing.height * 32, true, 0xFFFF00FF);
+            if (pixels && frameGroup && !_bitmap) {
+                _bitmap = new BitmapData(frameGroup.width * 32, frameGroup.height * 32, true, 0xFFFF00FF);
                 _bitmap.setPixels(_bitmap.rect, pixels);
             }
             return _bitmap;

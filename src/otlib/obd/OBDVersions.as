@@ -41,5 +41,6 @@ package otlib.obd
 
         public static const OBD_VERSION_1:uint = 100;
         public static const OBD_VERSION_2:uint = 200;
+        public static const OBD_VERSION_3:uint = 300;
     }
 }

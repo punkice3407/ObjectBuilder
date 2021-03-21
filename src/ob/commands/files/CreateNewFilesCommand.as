@@ -34,13 +34,15 @@ package ob.commands.files
                                               sprSignature:uint,
                                               extended:Boolean,
                                               transparency:Boolean,
-                                              improvedAnimations:Boolean)
+                                              improvedAnimations:Boolean,
+                                              frameGroups:Boolean)
         {
             super(datSignature,
                   sprSignature,
                   extended,
                   transparency,
-                  improvedAnimations);
+                  improvedAnimations,
+                  frameGroups);
         }
     }
 }

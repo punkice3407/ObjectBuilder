@@ -41,6 +41,8 @@ package otlib.utils
     import otlib.storages.StorageQueueLoader;
     import otlib.things.ThingType;
     import otlib.things.ThingTypeStorage;
+	import otlib.animation.FrameGroup;
+	import otlib.things.FrameGroupType;
 
     use namespace otlib_internal;
 
@@ -100,6 +102,7 @@ package otlib.utils
                               version:Version,
                               extended:Boolean,
                               improvedAnimations:Boolean,
+                              frameGroups:Boolean,
                               transparency:Boolean,
                               optimizeSprites:Boolean = true):void
         {
@@ -126,7 +129,7 @@ package otlib.utils
 
             var loader:StorageQueueLoader = new StorageQueueLoader();
             loader.addEventListener(Event.COMPLETE, completeHandler);
-            loader.add(m_objects, m_objects.load, datFile, version, extended, improvedAnimations);
+            loader.add(m_objects, m_objects.load, datFile, version, extended, improvedAnimations, frameGroups);
             loader.add(m_sprites, m_sprites.load, sprFile, version, extended, transparency);
             loader.start();
 
@@ -225,15 +228,22 @@ package otlib.utils
                 if (ThingUtils.isEmpty(type))
                     continue;
 
-                var spriteIds:Vector.<uint> = type.spriteIndex;
+                for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+                {
+                    var frameGroup:FrameGroup = type.getFrameGroup(groupType);
+                    if(!frameGroup)
+                        continue;
 
-                for (var k:int = spriteIds.length - 1; k >= 0; k--) {
-                    var sid:uint = spriteIds[k];
-                    if (sid != 0) {
-                        if (m_spriteIds[sid] !== undefined)
-                            spriteIds[k] = m_spriteIds[sid];
-                        else
-                            spriteIds[k] = 0;
+                    var spriteIds:Vector.<uint> = frameGroup.spriteIndex;
+
+                    for (var k:int = spriteIds.length - 1; k >= 0; k--) {
+                        var sid:uint = spriteIds[k];
+                        if (sid != 0) {
+                            if (m_spriteIds[sid] !== undefined)
+                                spriteIds[k] = m_spriteIds[sid];
+                            else
+                                spriteIds[k] = 0;
+                        }
                     }
                 }
 

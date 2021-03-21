@@ -56,7 +56,7 @@ THE SOFTWARE.
             // PROPERTIES
             //--------------------------------------------------------------------------
 
-            [Embed(source="../assets/icons/object_builder.png", mimeType="image/png")]
+            [Embed(source="/../assets/icons/object_builder.png", mimeType="image/png")]
             private const OBJECT_BUILDER_ICON:Class;
 
             private var _timer:Timer;

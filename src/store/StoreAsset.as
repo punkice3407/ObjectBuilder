@@ -13,6 +13,7 @@ package store
     import otlib.obd.OBDEncoder;
     import otlib.things.ThingCategory;
     import otlib.things.ThingData;
+	import otlib.things.FrameGroupType;
 
     [Event(name="complete", type="flash.events.Event")]
 
@@ -84,7 +85,7 @@ package store
                     m_data = encoder.decode(bytes);
                     if (data.category == ThingCategory.OUTFIT)
                         patternX = 2;
-                    m_bitmap = m_data.getBitmap(0, patternX);
+                    m_bitmap = m_data.getBitmap(m_data.getFrameGroup(FrameGroupType.DEFAULT), 0, patternX);
                     m_error = null;
                     m_loaded = true;
                 }

@@ -24,8 +24,10 @@ package otlib.utils
 {
     import flash.display.BitmapData;
     import flash.utils.ByteArray;
-
+    
+    import otlib.animation.FrameGroup;
     import otlib.components.IListObject;
+    import otlib.things.FrameGroupType;
     import otlib.things.ThingType;
 
     public class ThingListItem implements IListObject
@@ -35,6 +37,7 @@ package otlib.utils
         //--------------------------------------------------------------------------
 
         public var thing:ThingType;
+        public var frameGroup:FrameGroup;
         public var pixels:ByteArray;
 
         private var _bitmap:BitmapData;
@@ -63,11 +66,11 @@ package otlib.utils
 
         public function getBitmap(backgroundColor:uint = 0x00000000):BitmapData
         {
-            if (pixels && thing && !_bitmap) {
+            if (pixels && thing && frameGroup && !_bitmap) {
                 pixels.position = 0;
-                _bitmap = new BitmapData(Math.max(32, thing.width * 32), Math.max(32, thing.height * 32), true, backgroundColor);
-                if (thing.width != 0 &&
-                    thing.height != 0 &&
+                _bitmap = new BitmapData(Math.max(32, frameGroup.width * 32), Math.max(32, frameGroup.height * 32), true, backgroundColor);
+                if (frameGroup.width != 0 &&
+                    frameGroup.height != 0 &&
                     pixels.length == (_bitmap.width * _bitmap.height * 4)) {
                     _bitmap.setPixels(_bitmap.rect, pixels);
                 }

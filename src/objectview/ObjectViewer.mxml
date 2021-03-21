@@ -66,6 +66,7 @@ THE SOFTWARE.
             import otlib.settings.SettingsManager;
             import otlib.things.ThingCategory;
             import otlib.things.ThingData;
+            import otlib.things.FrameGroupType;
             import otlib.utils.ClientInfo;
             import otlib.utils.OTFormat;
 
@@ -330,6 +331,11 @@ THE SOFTWARE.
                             thingView.drawBlendLayer = true;
                         }
 
+                        var frameGroupType:uint = FrameGroupType.DEFAULT
+                        if(thingData && thingData.thing.getFrameGroup(FrameGroupType.WALKING))
+                            frameGroupType = FrameGroupType.WALKING;
+
+                        thingView.frameGroupType = frameGroupType;
                         thingView.play();
                     }
                 }

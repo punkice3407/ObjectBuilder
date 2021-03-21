@@ -222,6 +222,18 @@ package otlib.things
                         type.defaultAction = readUnsignedShort();
                         break;
 
+                    case MetadataFlags6.WRAPPABLE:
+                        type.wrappable = true;
+                        break;
+
+                    case MetadataFlags6.UNWRAPPABLE:
+                        type.unwrappable = true;
+                        break;
+
+                    case MetadataFlags6.TOP_EFFECT:
+                        type.topEffect = true;
+                        break;
+
                     case MetadataFlags6.USABLE:
                         type.usable = true;
                         break;

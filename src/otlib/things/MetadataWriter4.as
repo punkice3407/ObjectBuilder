@@ -22,6 +22,9 @@
 
 package otlib.things
 {
+    import otlib.animation.FrameGroup;
+    import otlib.things.FrameGroupType;
+
     /**
      * Writer for versions 7.80 - 8.54
      */

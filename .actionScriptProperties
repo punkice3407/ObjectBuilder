@@ -13,6 +13,7 @@
     </libraryPath>
     <sourceAttachmentPath/>
   </compiler>
+  <theme themeIsDefault="false" themeIsSDK="true" themeLocation="${SDK_THEMES_DIR}/samples/themes/spark_graphite"/>
   <applications>
     <application path="ObjectBuilder.mxml">
       <airExcludes/>
@@ -26,7 +27,7 @@
   <flashCatalyst validateFlashCatalystCompatibility="false"/>
   <buildTargets>
     <buildTarget buildTargetName="default" platformId="default">
-      <airSettings airCertificatePath="C:/AS3Projects/certificate.p12" airTimestamp="true" anePathSet="true" version="1">
+      <airSettings airCertificatePath="C:/Users/whiteblXK/object_builder.p12" airTimestamp="true" anePathSet="true" version="1">
         <airExcludes/>
         <anePaths/>
         <newLaunchParams/>

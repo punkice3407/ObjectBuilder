@@ -13,9 +13,12 @@
             import com.mignari.utils.FileUtil;
             
             import mx.events.FlexEvent;
+			
+			import otlib.animation.FrameGroup;
             
             import otlib.things.ThingCategory;
             import otlib.things.ThingData;
+			import otlib.things.FrameGroupType;
 
             //--------------------------------------------------------------------------
             // METHODS
@@ -39,7 +42,8 @@
                     if (data.category == ThingCategory.OUTFIT)
                         patternX = 2;
 
-                    image.source = data.getBitmap(0, patternX);
+					var frameGroup:FrameGroup = data.getFrameGroup(FrameGroupType.DEFAULT);
+                    image.source = data.getBitmap(frameGroup, 0, patternX);
                     nameLabel.text = FileUtil.getName(file);
                 }
                 catch(error:Error)

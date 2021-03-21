@@ -55,9 +55,10 @@ THE SOFTWARE.
             import com.mignari.workers.IWorkerCommunicator;
             import com.mignari.workers.WorkerCommand;
             import com.mignari.workers.WorkerCommunicator;
-            
+
             import flash.net.registerClassAlias;
-            
+            import flash.utils.Dictionary;
+
             import mx.core.UIComponent;
             import mx.events.CloseEvent;
             import mx.events.FlexEvent;
@@ -65,12 +66,12 @@ THE SOFTWARE.
             import mx.logging.LogEventLevel;
             import mx.managers.DragManager;
             import mx.resources.ResourceManager;
-            
+
             import spark.events.IndexChangeEvent;
-            
+
             import air.update.ApplicationUpdaterUI;
             import air.update.events.UpdateEvent;
-            
+
             import nail.commands.LogCommand;
             import nail.components.controls.Alert;
             import nail.core.nail_internal;
@@ -87,7 +88,7 @@ THE SOFTWARE.
             import nail.utils.StringUtil;
             import nail.utils.WindowUtil;
             import nail.utils.isNullOrEmpty;
-            
+
             import ob.commands.HideProgressBarCommand;
             import ob.commands.LoadVersionsCommand;
             import ob.commands.NeedToReloadCommand;
@@ -134,10 +135,11 @@ THE SOFTWARE.
             import ob.components.SpritesOptimizerWindow;
             import ob.settings.ObjectBuilderSettings;
             import ob.utils.ObUtils;
-            
+
             import objectview.ObjectViewer;
-            
+
             import otlib.animation.FrameDuration;
+            import otlib.animation.FrameGroup;
             import otlib.assets.Assets;
             import otlib.components.ClientVersionsWindow;
             import otlib.components.ExportWindow;
@@ -156,6 +158,7 @@ THE SOFTWARE.
             import otlib.settings.ISettingsManager;
             import otlib.settings.SettingsManager;
             import otlib.sprites.SpriteData;
+            import otlib.things.FrameGroupType;
             import otlib.things.ThingCategory;
             import otlib.things.ThingData;
             import otlib.things.ThingProperty;
@@ -164,9 +167,9 @@ THE SOFTWARE.
             import otlib.utils.OTFormat;
             import otlib.utils.SpriteUtils;
             import otlib.utils.ThingListItem;
-            
+
             import slicer.Slicer;
-            
+
             import store.AssetStore;
             import store.events.AssetStoreEvent;
 
@@ -316,6 +319,7 @@ THE SOFTWARE.
                 window.extended = _settings.extended;
                 window.transparency = _settings.transparency;
                 window.improvedAnimations = _settings.improvedAnimations;
+                window.frameGroups = _settings.frameGroups;
                 window.addEventListener(Event.CLOSE, windowCloseHandler);
                 window.open(this);
 
@@ -331,7 +335,8 @@ THE SOFTWARE.
                                                               window.version.sprSignature,
                                                               window.extended,
                                                               window.transparency,
-                                                              window.improvedAnimations));
+                                                              window.improvedAnimations,
+                                                              window.frameGroups));
                     }
                 }
             }
@@ -347,6 +352,7 @@ THE SOFTWARE.
                 window.extended = _settings.extended;
                 window.transparency = _settings.transparency;
                 window.improvedAnimations = _settings.improvedAnimations;
+                window.frameGroups = _settings.frameGroups;
                 window.addEventListener(Event.CLOSE, windowCloseHandler);
                 window.open(this);
 
@@ -364,7 +370,8 @@ THE SOFTWARE.
                                                          window.version,
                                                          window.extended,
                                                          window.transparency,
-                                                         window.improvedAnimations));
+                                                         window.improvedAnimations,
+                                                         window.frameGroups));
                     }
                 }
             }
@@ -396,6 +403,7 @@ THE SOFTWARE.
                 window.extended = _clientInfo.extended;
                 window.transparency = _clientInfo.transparency;
                 window.improvedAnimations = _clientInfo.improvedAnimations;
+                window.frameGroups = _clientInfo.frameGroups;
                 window.filesName = isNullOrEmpty(_filesName) ? "Tibia" : _filesName;
                 window.addEventListener(Event.CLOSE, windowCloseHandler);
                 window.open(this);
@@ -415,7 +423,8 @@ THE SOFTWARE.
                                                          window.version,
                                                          window.extended,
                                                          window.transparency,
-                                                         window.improvedAnimations));
+                                                         window.improvedAnimations,
+                                                         window.frameGroups));
                     }
                 }
             }
@@ -471,7 +480,8 @@ THE SOFTWARE.
                                                           window.version,
                                                           window.extended,
                                                           window.transparency,
-                                                          window.improvedAnimations));
+                                                          window.improvedAnimations,
+                                                          window.frameGroups));
                     }
                 }
             }
@@ -863,6 +873,7 @@ THE SOFTWARE.
 
                 editThing(null);
                 thingView.thingData = null;
+                thingView.frameGroupType = 0;
                 infoPanel.clear();
                 categoryDropDownList.selectedIndex = 0;
                 thingStepper.value = 0;
@@ -879,6 +890,7 @@ THE SOFTWARE.
                 _communicator.registerClass(ByteArray);
                 _communicator.registerClass(ClientInfo);
                 _communicator.registerClass(FrameDuration);
+                _communicator.registerClass(FrameGroup);
                 _communicator.registerClass(ObjectBuilderSettings);
                 _communicator.registerClass(PathHelper);
                 _communicator.registerClass(SpriteData);
@@ -1039,7 +1051,7 @@ THE SOFTWARE.
 
             private function loadVersions():void
             {
-                var file:File = File.applicationStorageDirectory.resolvePath("versions.xml");
+                var file:File = File.applicationDirectory.resolvePath("versions.xml");
 
                 _versionStorage.load(file);
 
@@ -1048,7 +1060,7 @@ THE SOFTWARE.
 
             private function saveVersions():void
             {
-                var file:File = File.applicationStorageDirectory.resolvePath("versions.xml");
+                var file:File = File.applicationDirectory.resolvePath("versions.xml");
 
                 _versionStorage.save(file);
             }
@@ -1138,7 +1150,7 @@ THE SOFTWARE.
                 spritesList.selectedIds = selectedIds;
             }
 
-            private function needToReloadCallback(extended:Boolean, transparency:Boolean, improvedAnimations:Boolean):void
+            private function needToReloadCallback(extended:Boolean, transparency:Boolean, improvedAnimations:Boolean, frameGroups:Boolean):void
             {
                 Alert.show(
                     resourceManager.getString("strings", "needToReload"),
@@ -1150,7 +1162,7 @@ THE SOFTWARE.
                 function alertCloseHandler(event:CloseEvent):void
                 {
                     if (event.detail == Alert.YES) {
-                        sendCommand(new NeedToReloadCommand(extended, transparency, improvedAnimations));
+                        sendCommand(new NeedToReloadCommand(extended, transparency, improvedAnimations, frameGroups));
                     }
                 }
             }
@@ -1171,10 +1183,14 @@ THE SOFTWARE.
                 queue.addEventListener(Event.COMPLETE, completeHandler);
                 var changeName:Boolean = (fileName.indexOf("_") == -1);
 
+                var versionName:String = "";
+                if(format == OTFormat.OBD)
+                    versionName = "-v" + obdVersion.toString().substring(0, 1);
+
                 var length:uint = things.length;
                 for (var i:uint = 0; i < length; i++) {
                     var id:uint = things[i].id;
-                    var name:String = !changeName ? fileName : (name = fileName + "_" + id);
+                    var name:String = !changeName ? fileName : (name = fileName + "_" + id) + versionName;
                     queue.addFile(id, name, format, directory);
                 }
                 queue.start();
@@ -1381,7 +1397,6 @@ THE SOFTWARE.
                 thingView.thingData = thingData;
 
                 if (thingData) {
-
                     if (thingData.category == ThingCategory.OUTFIT) {
                         thingView.patternX = 2;
                         thingView.drawBlendLayer = false;
@@ -1390,6 +1405,11 @@ THE SOFTWARE.
                         thingView.drawBlendLayer = true;
                     }
 
+					var frameGroupType:uint = FrameGroupType.WALKING;
+					if(!thingData.thing.getFrameGroup(frameGroupType))
+						frameGroupType = FrameGroupType.DEFAULT;
+
+					thingView.frameGroupType = frameGroupType;
                     thingView.play();
                     currentCategory = thingData.category;
 
@@ -1624,7 +1644,7 @@ THE SOFTWARE.
                 if (thingTypeEditor.changed) {
                     if (thingTypeEditor.saveChanges()) {
                         var thingData:ThingData = thingTypeEditor.thingData;
-                        if (thingData.sprites[0].id == uint.MAX_VALUE) {
+                        if (thingData.sprites[0][0].id == uint.MAX_VALUE) {
                             Alert.show(
                                 resourceManager.getString("strings", "wantToReplaceSprites"),
                                 "",
@@ -1977,27 +1997,34 @@ THE SOFTWARE.
                 {
                     var bitmap:BitmapData = event.target.bitmap;
                     var thing:ThingType = thingTypeEditor.getThingTypeResult();
-                    var size:Size = thing.getSpriteSheetSize();
 
-                    if (bitmap.width == size.width && size.height == bitmap.height)
+                    var sprites:Dictionary = new Dictionary();
+                    for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
                     {
-                        var length:uint = thing.spriteIndex.length;
-                        var sprites:Vector.<SpriteData> = new Vector.<SpriteData>(length, true);
+                        var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
+                        if(!frameGroup)
+                            continue;
+
+                        var size:Size = frameGroup.getSpriteSheetSize();
+                        if(bitmap.width != size.width && size.height != bitmap.height)
+                        {
+                            var message:String = resourceManager.getString("strings", "invalidSpriteSheetSize");
+                            Alert.show(StringUtil.format(message, size.width, size.height),
+                                resourceManager.getString("strings", "invalidSpriteSheetSizeTitle"));
+                            break;
+                        }
+
+                        var length:uint = frameGroup.spriteIndex.length;
+                        sprites[groupType] = new Vector.<SpriteData>(length, true);
                         for (var i:uint = 0; i < length; i++)
-                            sprites[i] = SpriteData.createSpriteData(thing.spriteIndex[i]);
+                            sprites[groupType][i] = SpriteData.createSpriteData(frameGroup.spriteIndex[i]);
+                    }
 
-                        var data:ThingData = ThingData.create(OBDVersions.OBD_VERSION_2, _version.value, thing, sprites);
-                        data.setSpriteSheet(bitmap);
-                        thingTypeEditor.thingData = data;
-                        confirmButton.enabled = true;
-                        thingTypeEditor.invalidateThingData();
-                    }
-                    else
-                    {
-                        var message:String = resourceManager.getString("strings", "invalidSpriteSheetSize");
-                        Alert.show(StringUtil.format(message, size.width, size.height),
-                            resourceManager.getString("strings", "invalidSpriteSheetSizeTitle"));
-                    }
+                    var data:ThingData = ThingData.create(OBDVersions.OBD_VERSION_3, _version.value, thing, sprites);
+                    data.setSpriteSheet(data.getFrameGroup(FrameGroupType.DEFAULT), bitmap);
+                    thingTypeEditor.thingData = data;
+                    confirmButton.enabled = true;
+                    thingTypeEditor.invalidateThingData();
                 }
             }
 

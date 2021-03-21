@@ -37,6 +37,7 @@ package ob.utils
     import otlib.things.BindableThingType;
     import otlib.things.ThingCategory;
     import otlib.things.ThingType;
+	import otlib.things.FrameGroupType;
 
     [ResourceBundle("strings")]
 
@@ -117,14 +118,14 @@ package ob.utils
                 resource.getString("strings", "animations") + " = {7}" + File.lineEnding;
 
             return StringUtil.format(text,
-                                     thing.width,
-                                     thing.height,
-                                     thing.exactSize,
-                                     thing.layers,
-                                     thing.patternX,
-                                     thing.patternY,
-                                     thing.patternZ,
-                                     thing.frames);
+                                     thing.frameGroups[FrameGroupType.DEFAULT].width,
+                                     thing.frameGroups[FrameGroupType.DEFAULT].height,
+                                     thing.frameGroups[FrameGroupType.DEFAULT].exactSize,
+                                     thing.frameGroups[FrameGroupType.DEFAULT].layers,
+                                     thing.frameGroups[FrameGroupType.DEFAULT].patternX,
+                                     thing.frameGroups[FrameGroupType.DEFAULT].patternY,
+                                     thing.frameGroups[FrameGroupType.DEFAULT].patternZ,
+                                     thing.frameGroups[FrameGroupType.DEFAULT].frames);
         }
 
         public static function sortFiles(list:*, flags:uint):*
