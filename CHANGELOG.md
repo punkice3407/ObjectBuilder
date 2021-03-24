@@ -1,3 +1,13 @@
+### 0.5.1
+
+Features:
+
+* Better extra name for exporting OBD
+
+Bug Fixes:
+
+* Client without frame groups will not be able to use new OBD v3
+
 ### 0.5.0
 
 Features:

@@ -569,29 +569,16 @@ package otlib.things
             this.m_sprites = spritesGroup;
         }
 
-        public function convertFrameGroups(improvedAnimations:Boolean, frameGroups:Boolean):void
+        public function convertFrameGroups(improvedAnimations:Boolean):void
         {
             if(this.m_thing.animateAlways || this.category != ThingCategory.OUTFIT)
                 return;
 
-            if(frameGroups)
-            {
-                if(this.m_thing.frameGroups.length > 1)
-                    return;
+            if(this.m_thing.frameGroups.length > 1)
+                return;
 
-                this.m_thing.addFrameGroupState(improvedAnimations);
-                this.addFrameGroupSprites();
-            }
-            else
-            {
-                if(this.m_thing.frameGroups.length < 2)
-                    return;
-
-                //TODO remove frame groups
-                //this.m_thing.removeFrameGroupState(improvedAnimations);
-                //this.removeFrameGroupSprites();
-            }
-
+            this.m_thing.addFrameGroupState(improvedAnimations);
+            this.addFrameGroupSprites();
             return;
         }
 

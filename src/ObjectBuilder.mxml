@@ -1181,16 +1181,16 @@ THE SOFTWARE.
                 var queue:FileQueueHelper = new FileQueueHelper();
                 queue.parent = this;
                 queue.addEventListener(Event.COMPLETE, completeHandler);
-                var changeName:Boolean = (fileName.indexOf("_") == -1);
 
-                var versionName:String = "";
+                var extra:String = "";
                 if(format == OTFormat.OBD)
-                    versionName = "-v" + obdVersion.toString().substring(0, 1);
+                    extra = "-" + clientVersion.toString() + "-v" + obdVersion.toString().substring(0, 1);
 
                 var length:uint = things.length;
                 for (var i:uint = 0; i < length; i++) {
                     var id:uint = things[i].id;
-                    var name:String = !changeName ? fileName : (name = fileName + "_" + id) + versionName;
+                    var name:String = fileName + "_" + id.toString() + extra.replace(" ", "").replace(".", "");
+
                     queue.addFile(id, name, format, directory);
                 }
                 queue.start();
@@ -1830,6 +1830,7 @@ THE SOFTWARE.
                 window.version = version;
                 window.transparentBackground = _settings.exportWithTransparentBackground;
                 window.jpegQuality = _settings.jpegQuality;
+                window.obdV3 = thingData.category == ThingCategory.OUTFIT && _clientInfo.frameGroups;
                 window.addEventListener(Event.CLOSE, windowCloseHandler);
                 window.open(this);
 
