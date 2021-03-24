@@ -734,6 +734,9 @@ package otlib.things
 
             for (var i:uint = 0; i < length; i++) {
                 var thing:ThingType = things[i];
+                if(!thing)
+                    continue;
+
                 var added:ChangeResult = internalAddThing(thing, thing.category, CHANGE_RESULT_HELPER);
                 if (!added.done) {
                     var message:String = Resources.getString(
@@ -798,6 +801,9 @@ package otlib.things
 
             for (var i:uint = 0; i < length; i++) {
                 var thing:ThingType = things[i];
+                if(!thing)
+                    continue;
+
                 var replaced:ChangeResult = internalReplaceThing(thing,
                     thing.category,
                     thing.id,

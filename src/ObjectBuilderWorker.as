@@ -508,7 +508,9 @@ package
                     if(thingData)
                     {
                         _things.dispatchEvent(new ProgressEvent(ProgressEvent.CONVERT, ProgressBarID.CONVERT, thingType.id, _things.outfitsCount));
-                        thingData.convertFrameGroups(improvedAnimations, frameGroups);
+
+                        if(frameGroups)
+                            thingData.convertFrameGroups(improvedAnimations);
                     }
                 }
             }
@@ -777,6 +779,7 @@ package
                 throw new NullArgumentError("list");
             }
 
+            var denyIds:Dictionary = new Dictionary();
             var length:uint = list.length;
             if (length == 0) return;
 
@@ -787,7 +790,16 @@ package
             var spritesIds:Vector.<uint> = new Vector.<uint>();
             for (var i:uint = 0; i < length; i++) {
                 var thingData:ThingData = list[i];
-                thingData.convertFrameGroups(_improvedAnimations, _frameGroups);
+
+                if(!_frameGroups && thingData.obdVersion == OBDVersions.OBD_VERSION_3)
+                {
+                    denyIds[i] = true;
+                    Log.error(Resources.getString("cannotReplaceThingFrameGroup"));
+                    continue;
+                }
+
+                if(_frameGroups)
+                    thingData.convertFrameGroups(_improvedAnimations);
 
                 var thing:ThingType = thingData.thing;
 				for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
@@ -821,12 +833,19 @@ package
             //============================================================================
             // Replace things
 
-            var thingsToReplace:Vector.<ThingType> = new Vector.<ThingType>(length, true);
-            var thingsIds:Vector.<uint> = new Vector.<uint>(length, true);
+            var thingsToReplace:Vector.<ThingType> = new Vector.<ThingType>();
+            var thingsIds:Vector.<uint> = new Vector.<uint>();
             for (i = 0; i < length; i++) {
-                thingsToReplace[i] = list[i].thing;
-                thingsIds[i] = list[i].id;
+                if(!denyIds[i])
+                {
+                    thingsToReplace[thingsToReplace.length] = list[i].thing;
+                    thingsIds[thingsIds.length] = list[i].id;
+                }
             }
+
+            if(thingsToReplace.length == 0)
+                return;
+
             result = _things.replaceThings(thingsToReplace);
             if (!result.done) {
                 Log.error(result.message);
@@ -906,6 +925,7 @@ package
                 throw new NullArgumentError("list");
             }
 
+            var denyIds:Dictionary = new Dictionary();
             var length:uint = list.length;
             if (length == 0) return;
 
@@ -916,7 +936,15 @@ package
             var spritesIds:Vector.<uint> = new Vector.<uint>();
             for (var i:uint = 0; i < length; i++) {
                 var thingData:ThingData = list[i];
-                thingData.convertFrameGroups(_improvedAnimations, _frameGroups);
+                if(!_frameGroups && thingData.obdVersion == OBDVersions.OBD_VERSION_3)
+                {
+                    denyIds[i] = true;
+                    Log.error(Resources.getString("cannotImportThingFrameGroup"));
+                    continue;
+                }
+
+                if(_frameGroups)
+                    thingData.convertFrameGroups(_improvedAnimations);
 
                 var thing:ThingType = thingData.thing;
 				for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
@@ -950,10 +978,15 @@ package
             //============================================================================
             // Add things
 
-            var thingsToAdd:Vector.<ThingType> = new Vector.<ThingType>(length, true);
+            var thingsToAdd:Vector.<ThingType> = new Vector.<ThingType>();
             for (i = 0; i < length; i++) {
-                thingsToAdd[i] = list[i].thing;
+                if(!denyIds[i])
+                    thingsToAdd[thingsToAdd.length] = list[i].thing;
             }
+
+            if(thingsToAdd.length == 0)
+                return;
+
             result = _things.addThings(thingsToAdd);
             if (!result.done) {
                 Log.error(result.message);

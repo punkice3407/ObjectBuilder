@@ -30,7 +30,8 @@ THE SOFTWARE.
                 height="270"
                 fontSize="11"
                 title="@Resource(key='export', bundle='strings')"
-                preinitialize="preinitializeHandler(event)">
+                preinitialize="preinitializeHandler(event)"
+                creationComplete="creationCompleteHandler(event)">
 
     <fx:Metadata>
         [ResourceBundle("strings")]
@@ -45,16 +46,16 @@ THE SOFTWARE.
         <![CDATA[
             import com.mignari.skins.PixeledBorderContainerSkin;
             import com.mignari.utils.DialogDetail;
-            
+
             import mx.collections.ArrayCollection;
             import mx.events.FlexEvent;
-            
+
             import spark.events.IndexChangeEvent;
             import spark.events.TextOperationEvent;
-            
+
             import nail.image.ImageFormat;
             import nail.utils.isNullOrEmpty;
-            
+
             import otlib.core.Version;
             import otlib.core.VersionStorage;
             import otlib.events.FileTextInputEvent;
@@ -72,7 +73,11 @@ THE SOFTWARE.
             public var jpegQuality:Number = 100;
 
             [Bindable]
+            public var obdV3:Boolean = false;
+
+            [Bindable]
             private var _versionCollection:ArrayCollection;
+            private var _obdVersionCollection:ArrayCollection;
             private var _fileName:String;
             private var _fileNameChanged:Boolean;
             private var _directory:File;
@@ -83,7 +88,7 @@ THE SOFTWARE.
             private var _enableObdFormatChanged:Boolean;
             private var _version:Version;
             private var _versionChanged:Boolean;
-            private var _obdVersion:uint = OBDVersions.OBD_VERSION_3;
+            private var _obdVersion:uint;
             private var _obdVersionChanged:Boolean;
             private var _detail:uint;
 
@@ -151,7 +156,6 @@ THE SOFTWARE.
             {
                 if (_obdVersion != value) {
                     _obdVersion = value;
-                    _obdVersionChanged = true;
                     invalidateProperties();
                 }
             }
@@ -199,17 +203,6 @@ THE SOFTWARE.
                     _versionChanged = false;
                     check();
                 }
-
-                if (_obdVersionChanged) {
-                    if (_obdVersion == OBDVersions.OBD_VERSION_3)
-                        obdVersionDropDownList.selectedIndex = 0;
-                    else if (_obdVersion == OBDVersions.OBD_VERSION_2)
-                        obdVersionDropDownList.selectedIndex = 1;
-                    else if (_obdVersion == OBDVersions.OBD_VERSION_1)
-                        obdVersionDropDownList.selectedIndex = 2;
-
-                    _obdVersionChanged = false;
-                }
             }
 
             //--------------------------------------
@@ -255,6 +248,19 @@ THE SOFTWARE.
                 _versionCollection = new ArrayCollection( VersionStorage.getInstance().getList() );
             }
 
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                _obdVersionCollection = new ArrayCollection();
+                if(obdV3)
+                    _obdVersionCollection.addItem({label: "v3", version: OBDVersions.OBD_VERSION_3});
+
+                _obdVersionCollection.addItem({label: "v2", version: OBDVersions.OBD_VERSION_2});
+                _obdVersionCollection.addItem({label: "v1", version: OBDVersions.OBD_VERSION_1});
+
+                obdVersionDropDownList.dataProvider = _obdVersionCollection;
+                obdVersion = obdV3 ? OBDVersions.OBD_VERSION_3 : OBDVersions.OBD_VERSION_2;
+            }
+
             protected function nameTextInputChangeHandler(event:TextOperationEvent):void
             {
                 fileName = nameTextInput.text;
@@ -290,12 +296,9 @@ THE SOFTWARE.
 
             protected function obdVersionDropDownListChangeHandler(event:IndexChangeEvent):void
             {
-                if (obdVersionDropDownList.selectedIndex == 0)
-                    obdVersion = OBDVersions.OBD_VERSION_3;
-                else if (obdVersionDropDownList.selectedIndex == 1)
-                    obdVersion = OBDVersions.OBD_VERSION_2;
-                else if (obdVersionDropDownList.selectedIndex == 2)
-                    obdVersion = OBDVersions.OBD_VERSION_1;
+                obdVersion = obdVersionDropDownList.selectedItem.version;
+
+                trace(obdVersion);
             }
 
             protected function confirmButtonClickHandler(event:MouseEvent):void
@@ -419,13 +422,6 @@ THE SOFTWARE.
                                     requireSelection="true"
                                     enabled="{obdFormatRadioButton.selected}"
                                     change="obdVersionDropDownListChangeHandler(event)">
-                        <s:dataProvider>
-                            <s:ArrayList>
-                                <fx:String>3</fx:String>
-                                <fx:String>2</fx:String>
-                                <fx:String>1</fx:String>
-                            </s:ArrayList>
-                        </s:dataProvider>
                     </s:DropDownList>
                 </s:NavigatorContent>
             </mx:ViewStack>
