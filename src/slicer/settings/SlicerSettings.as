@@ -38,6 +38,7 @@ package slicer.settings
         public var maximized:Boolean;
         public var lastDirectory:String;
         public var subdivisions:Boolean;
+        public var emptySprites:Boolean;
 
         //--------------------------------------------------------------------------
         // CONSTRUCTOR
