@@ -251,7 +251,11 @@ THE SOFTWARE.
                         spritePart.copyPixels(this.bitmap, rect, point);
                         spritePart = SpriteUtils.removeMagenta(spritePart);
 
-                        if (!SpriteUtils.isEmpty(spritePart))
+                        var save:Boolean = !SpriteUtils.isEmpty(spritePart);
+                        if(emptySpritesCheckBox.selected && SpriteUtils.isEmpty(spritePart))
+                            save = true;
+
+                        if (save)
                             _sprites.addItem(spritePart);
                     }
                 }
@@ -342,12 +346,14 @@ THE SOFTWARE.
                     WindowUtil.centralizeWindowOnScreen(this);
 
                 subdivisionsCheckBox.selected = _settings.subdivisions;
+                emptySpritesCheckBox.selected = _settings.emptySprites;
             }
 
             private function saveSettings():void
             {
                 _settings.maximized = (nativeWindow.displayState == NativeWindowDisplayState.MAXIMIZED);
                 _settings.subdivisions = subdivisionsCheckBox.selected;
+                _settings.emptySprites = emptySpritesCheckBox.selected;
                 _settingsManager.saveSettings(_settings);
             }
 
@@ -732,6 +738,8 @@ THE SOFTWARE.
 
                 <s:CheckBox id="subdivisionsCheckBox" label="Subdivisions"
                             change="subdivisionsCheckBoxChangeHandler(event)"/>
+
+                <s:CheckBox id="emptySpritesCheckBox" label="Empty Sprites"/>
 
                 <s:Spacer height="10" />
 
