@@ -101,6 +101,8 @@ THE SOFTWARE.
                 copyMenu.data = Event.COPY;
                 var pasteMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "paste"));
                 pasteMenu.data = Event.PASTE;
+                var fillMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "fill"), true);
+                fillMenu.data = SpriteListEvent.FILL;
                 var replaceMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "replace"), true);
                 replaceMenu.data = SpriteListEvent.REPLACE;
                 var exportMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "export"));
@@ -108,7 +110,7 @@ THE SOFTWARE.
                 var removeMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "remove"));
                 removeMenu.data = SpriteListEvent.REMOVE;
                 var menu:ContextMenu = new ContextMenu();
-                menu.customItems = [copyMenu, pasteMenu, replaceMenu, exportMenu, removeMenu];
+                menu.customItems = [copyMenu, pasteMenu, fillMenu, replaceMenu, exportMenu, removeMenu];
                 return menu;
             }
 
