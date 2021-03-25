@@ -52,6 +52,7 @@ package otlib.events
         // STATIC
         //--------------------------------------------------------------------------
 
+        public static const FILL:String = "fill";
         public static const REPLACE:String = "replace";
         public static const EXPORT:String = "export";
         public static const REMOVE:String = "remove";

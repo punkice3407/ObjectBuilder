@@ -36,6 +36,7 @@ package otlib.components
 
     [Event(name="copy", type="flash.events.Event")]
     [Event(name="paste", type="flash.events.Event")]
+    [Event(name="fill", type="otlib.events.SpriteListEvent")]
     [Event(name="replace", type="otlib.events.SpriteListEvent")]
     [Event(name="export", type="otlib.events.SpriteListEvent")]
     [Event(name="remove", type="otlib.events.SpriteListEvent")]
@@ -117,6 +118,9 @@ package otlib.components
                         case Event.PASTE:
                             event = new Event(Event.PASTE);
                             break;
+                        case SpriteListEvent.FILL:
+                            event = new SpriteListEvent(SpriteListEvent.FILL);
+                            break;
                         case SpriteListEvent.REPLACE:
                             event = new SpriteListEvent(SpriteListEvent.REPLACE);
                             break;
@@ -157,6 +161,9 @@ package otlib.components
             super.keyDownHandler(event);
 
             switch(event.keyCode) {
+                case Keyboard.INSERT:
+                    dispatchEvent(new SpriteListEvent(SpriteListEvent.FILL));
+                    break;
                 case Keyboard.C:
                     if (event.ctrlKey) dispatchEvent(new Event(Event.COPY));
                     break;

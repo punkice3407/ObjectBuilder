@@ -172,6 +172,7 @@ THE SOFTWARE.
 
             import store.AssetStore;
             import store.events.AssetStoreEvent;
+            import otlib.sprites.SpriteData;
 
             use namespace nail_internal;
 
@@ -2070,6 +2071,39 @@ THE SOFTWARE.
                 }
             }
 
+            protected function fillThingHandler(event:Event):void
+            {
+                if (!clientLoaded || !thingTypeEditor.visible || !thingTypeEditor.bindableThingType || spritesList.selectedSprites.length == 0)
+                    return;
+
+                fillSpritesInThing(spritesList.selectedSprites);
+            }
+
+            public function fillSpritesInThing(sprites:Vector.<SpriteData>):void
+            {
+                var length:uint = thingTypeEditor.buttonsContainer.numElements;
+                if(sprites.length != length)
+                {
+                    openErrorWindow(resourceManager.getString("strings", "spritesLengthDifferent"));
+                    return;
+                }
+
+                for (var id:uint = 0; id < length; id++)
+                {
+                    var button:Button = thingTypeEditor.buttonsContainer.getElementAt(id) as Button;
+                    var index:int = int(button.label);
+                    var spriteData:SpriteData = sprites[id];
+                    if (spriteData) {
+                        thingTypeEditor.bindableThingType.setSprite(thingTypeEditor.frameGroupSlider.value, index, spriteData);
+                    }
+                }
+
+                thingTypeEditor.updatePreview();
+                if (_settings.autosaveThingChanges) {
+                    saveThingChanges();
+                }
+            }
+
             protected function importSpriteHandler(event:MouseEvent):void
             {
                 if (!clientLoaded) return;
@@ -2555,6 +2589,7 @@ THE SOFTWARE.
                                        change="spritesListChangeHandler(event)"
                                        copy="onCopySprite()"
                                        paste="onPasteSprite()"
+                                       fill="fillThingHandler(event)"
                                        replace="replaceSpriteHandler(event)"
                                        export="exportSpriteHandler(event)"
                                        remove="removeSpriteHandler(event)"
