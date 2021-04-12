@@ -1,0 +1,42 @@
+{
+	"compilerOptions": {
+		"output": "bin-debug/ObjectBuilder.swf",
+		"source-path": [
+			"src"
+		],
+		"library-path": [
+			"libs"
+		]
+	},
+	"files": [
+		"src/ObjectBuilder.mxml"
+	],
+	"application": "src/ObjectBuilder-app.xml",
+	"additionalOptions": "-locale=en_US,es_ES,pt_BR\r\n-source-path=locale/{locale}\r\n-allow-source-path-overlap=true\r\n-swf-version=40\r\n",
+	"airOptions": {
+		"output": "bin",
+
+		"files": [
+            {
+                "file": "assets/icon",
+                "path": "icon"
+            },
+            {
+                "file": "src/firstRun/versions.xml",
+                "path": "versions.xml"
+            }
+		],
+
+		"signingOptions": {
+			"keystore": "object_builder.p12",
+			"storetype": "pkcs12"
+		}
+	},
+	"config": "air",
+	"workers": [
+		{
+			"file": "src/ObjectBuilderWorker.as",
+			"output": "workerswfs/ObjectBuilderWorker.swf"
+		}
+	]
+}
