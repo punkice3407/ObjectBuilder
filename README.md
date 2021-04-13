@@ -26,8 +26,9 @@ Downloads
 Download the .zip file in [releases](https://github.com/whiteblXK/ObjectBuilder/releases).
 
 
-## Compiling in Windows
+Compiling in Windows
 ----
+
 Follow tutorials in [wiki](https://github.com/whiteblXK/ObjectBuilder/wiki)
 
 
