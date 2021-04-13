@@ -26,6 +26,11 @@ Downloads
 Download the .zip file in [releases](https://github.com/whiteblXK/ObjectBuilder/releases).
 
 
+## Compiling in Windows
+----
+Follow tutorials in [wiki](https://github.com/whiteblXK/ObjectBuilder/wiki)
+
+
 Donate
 ----
 [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=QFNUYQ24ULK7S)
