@@ -153,8 +153,8 @@ package otlib.things
         {
             // Measures and creates bitmap
             var size:uint = Sprite.DEFAULT_SIZE;
-            var totalX:int = frameGroup.patternZ * frameGroup.patternX * frameGroup.layers;
-            var totalY:int = frameGroup.frames * frameGroup.patternY;
+            var totalX:int = frameGroup.getTotalX();
+            var totalY:int = frameGroup.getTotalY();
             var bitmapWidth:Number = (totalX * frameGroup.width) * size;
             var bitmapHeight:Number = (totalY * frameGroup.height) * size;
             var pixelsWidth:int = frameGroup.width * size;
@@ -205,10 +205,10 @@ package otlib.things
             var size:uint = Sprite.DEFAULT_SIZE;
             var totalX:int = 0;
             var totalY:int = 0;
+            var totalGroupY:Array = [];
             var width:uint = 0;
             var height:uint = 0;
             var _totalX:int;
-            var _totalY:int;
             var groupType:uint;
             var frameGroup:FrameGroup;
 
@@ -218,13 +218,12 @@ package otlib.things
                 if(!frameGroup)
                     continue;
 
-                _totalX = frameGroup.patternZ * frameGroup.patternX * frameGroup.layers;
+                _totalX = frameGroup.getTotalX();
                 if(totalX < _totalX)
                     totalX = _totalX;
 
-                _totalY = frameGroup.frames * frameGroup.patternY;
-                if(totalY < _totalY)
-                    totalY = _totalY;
+                totalGroupY[groupType] = frameGroup.getTotalY();
+                totalY += totalGroupY[groupType];
 
                 if(width < frameGroup.width)
                     width = frameGroup.width;
@@ -235,9 +234,11 @@ package otlib.things
 
             var bitmapWidth:Number = (totalX * width) * size;
             var bitmapHeight:Number = (totalY * height) * size;
-            var pixelsHeight:int = width * size;
-            var pixelsWidth:int = height * size;
+            var pixelsHeight:int = height * size;
+            var pixelsWidth:int = width * size;
             var bitmap:BitmapData = new BitmapData(bitmapWidth, bitmapHeight, true, backgroundColor);
+
+            var defaultY:uint = 0;
             for (groupType = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
             {
                 frameGroup = getFrameGroup(groupType);
@@ -260,6 +261,9 @@ package otlib.things
                                     var index:uint = frameGroup.getTextureIndex(l, x, y, z, f);
                                     var fx:int = (index % totalX) * pixelsWidth;
                                     var fy:int = Math.floor(index / totalX) * pixelsHeight;
+
+                                    if(frameGroup.type == FrameGroupType.WALKING)
+                                        fy += totalGroupY[FrameGroupType.DEFAULT] * pixelsHeight;
 
                                     if (textureIndex)
                                         textureIndex[index] = new Rect(fx, fy, pixelsWidth, pixelsHeight);
@@ -297,7 +301,7 @@ package otlib.things
                 return spriteSheet;
 
             var size:uint = Sprite.DEFAULT_SIZE;
-            var totalX:int = frameGroup.patternZ * frameGroup.patternX * frameGroup.layers;
+            var totalX:int = frameGroup.getTotalX();
             var totalY:int = frameGroup.height;
             var pixelsWidth:int  = frameGroup.width * size;
             var pixelsHeight:int = frameGroup.height * size;
@@ -377,7 +381,7 @@ package otlib.things
             bitmap = SpriteUtils.removeMagenta(bitmap);
 
             var size:uint = Sprite.DEFAULT_SIZE;
-            var totalX:int = frameGroup.patternZ * frameGroup.patternX * frameGroup.layers;
+            var totalX:int = frameGroup.getTotalX();
             var pixelsWidth:int  = frameGroup.width * size;
             var pixelsHeight:int = frameGroup.height * size;
 

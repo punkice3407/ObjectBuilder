@@ -23,7 +23,7 @@
 package otlib.animation
 {
     import flash.utils.describeType;
-    
+
     import otlib.geom.Size;
     import otlib.sprites.Sprite;
     import otlib.things.ThingCategory;
@@ -33,8 +33,8 @@ package otlib.animation
     {
         //--------------------------------------------------------------------------
         // PROPERTIES
-        //--------------------------------------------------------------------------	
-		
+        //--------------------------------------------------------------------------
+
 		public var type:uint;
         public var width:uint;
         public var height:uint;
@@ -81,8 +81,20 @@ package otlib.animation
         {
 			if(this.frameDurations)
             	return this.frameDurations[index];
-			
+
 			return null;
+        }
+
+        public function getTotalX():uint
+        {
+
+            return this.patternZ * this.patternX * this.layers;
+        }
+
+        public function getTotalY():uint
+        {
+
+            return this.frames * this.patternY;
         }
 
         public function getTotalSprites():uint
@@ -98,7 +110,7 @@ package otlib.animation
 
         public function getTotalTextures():uint
         {
-            return this.patternX * 
+            return this.patternX *
                     this.patternY *
                     this.patternZ *
                     this.frames *
@@ -154,7 +166,7 @@ package otlib.animation
             for (var i:uint = 0; i < this.frames; i++)
                 this.frameDurations[i] = new FrameDuration(duration, duration);
 
-            this.spriteIndex = new Vector.<uint>(this.getTotalSprites(), true); 
+            this.spriteIndex = new Vector.<uint>(this.getTotalSprites(), true);
         }
 
         public function clone():FrameGroup
@@ -169,10 +181,10 @@ package otlib.animation
 			group.patternY = this.patternY;
 			group.patternZ = this.patternZ;
 			group.exactSize = this.exactSize;
-			
+
 			if(this.spriteIndex)
             	group.spriteIndex = this.spriteIndex.concat();
-           
+
 			group.animationMode = this.animationMode;
 			group.loopCount = this.loopCount;
 			group.startFrame = this.startFrame;
