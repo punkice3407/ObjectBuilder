@@ -2084,7 +2084,7 @@ THE SOFTWARE.
                 var length:uint = thingTypeEditor.buttonsContainer.numElements;
                 if(sprites.length != length)
                 {
-                    openErrorWindow(resourceManager.getString("strings", "spritesLengthDifferent"));
+                    openErrorWindow(resourceManager.getString("strings", "spritesLengthDifferent", [length, sprites.length]));
                     return;
                 }
 
