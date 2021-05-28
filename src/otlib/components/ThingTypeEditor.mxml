@@ -985,60 +985,60 @@ THE SOFTWARE.
                             <s:VerticalLayout padding="10" gap="10"/>
                         </mg:layout>
 
+                        <s:HGroup id="directionGroup"
+                                    width="100%" height="100%"
+                                    horizontalAlign="center">
+                            <otlib:DirectionButton id="topLeftButton"
+                                            top="0" left="0"
+                                            direction="{Direction.NORTHWEST}"
+                                            toolTip="@Resource(key='northwest', bundle='strings')"
+                                            icon="@Embed('/../assets/icons/arrow_top_left.png')"
+                                            click="directionButtonClickHandler(event)"/>
+                            <otlib:DirectionButton id="topCenterButton"
+                                            top="0" horizontalCenter="0"
+                                            direction="{Direction.NORTH}"
+                                            toolTip="@Resource(key='north', bundle='strings')"
+                                            icon="@Embed('/../assets/icons/arrow_up.png')"
+                                            click="directionButtonClickHandler(event)"/>
+                            <otlib:DirectionButton id="topRightButton"
+                                            top="0" right="0"
+                                            direction="{Direction.NORTHEAST}"
+                                            toolTip="@Resource(key='northeast', bundle='strings')"
+                                            icon="@Embed('/../assets/icons/arrow_top_right.png')"
+                                            click="directionButtonClickHandler(event)"/>
+                            <otlib:DirectionButton id="middleRightButton"
+                                            verticalCenter="0" right="0"
+                                            direction="{Direction.EAST}"
+                                            toolTip="@Resource(key='east', bundle='strings')"
+                                            icon="@Embed('/../assets/icons/arrow_right.png')"
+                                            click="directionButtonClickHandler(event)"/>
+                            <otlib:DirectionButton id="bottomRightButton"
+                                            bottom="0" right="0"
+                                            direction="{Direction.SOUTHEAST}"
+                                            toolTip="@Resource(key='southeast', bundle='strings')"
+                                            icon="@Embed('/../assets/icons/arrow_bottom_right.png')"
+                                            click="directionButtonClickHandler(event)"/>
+                            <otlib:DirectionButton id="bottomCenterButton"
+                                            bottom="0" horizontalCenter="0"
+                                            direction="{Direction.SOUTH}"
+                                            toolTip="@Resource(key='south', bundle='strings')"
+                                            icon="@Embed('/../assets/icons/arrow_down.png')"
+                                            click="directionButtonClickHandler(event)"/>
+                            <otlib:DirectionButton id="bottomLeftButton"
+                                            bottom="0" left="0"
+                                            direction="{Direction.SOUTHWEST}"
+                                            toolTip="@Resource(key='southwest', bundle='strings')"
+                                            icon="@Embed('/../assets/icons/arrow_bottom_left.png')"
+                                            click="directionButtonClickHandler(event)"/>
+                            <otlib:DirectionButton id="middleLeftButton"
+                                            bottom="0" verticalCenter="0"
+                                            direction="{Direction.WEST}"
+                                            toolTip="@Resource(key='west', bundle='strings')"
+                                            icon="@Embed('/../assets/icons/arrow_left.png')"
+                                            click="directionButtonClickHandler(event)"/>
+                        </s:HGroup>
+
                         <s:Group width="100%" height="100%">
-
-                            <s:Group id="directionGroup"
-                                     width="100%" height="100%">
-                                <otlib:DirectionButton id="topLeftButton"
-                                                top="0" left="0"
-                                                direction="{Direction.NORTHWEST}"
-                                                toolTip="@Resource(key='northwest', bundle='strings')"
-                                                icon="@Embed('/../assets/icons/arrow_top_left.png')"
-                                                click="directionButtonClickHandler(event)"/>
-                                <otlib:DirectionButton id="topCenterButton"
-                                                top="0" horizontalCenter="0"
-                                                direction="{Direction.NORTH}"
-                                                toolTip="@Resource(key='north', bundle='strings')"
-                                                icon="@Embed('/../assets/icons/arrow_up.png')"
-                                                click="directionButtonClickHandler(event)"/>
-                                <otlib:DirectionButton id="topRightButton"
-                                                top="0" right="0"
-                                                direction="{Direction.NORTHEAST}"
-                                                toolTip="@Resource(key='northeast', bundle='strings')"
-                                                icon="@Embed('/../assets/icons/arrow_top_right.png')"
-                                                click="directionButtonClickHandler(event)"/>
-                                <otlib:DirectionButton id="middleRightButton"
-                                                verticalCenter="0" right="0"
-                                                direction="{Direction.EAST}"
-                                                toolTip="@Resource(key='east', bundle='strings')"
-                                                icon="@Embed('/../assets/icons/arrow_right.png')"
-                                                click="directionButtonClickHandler(event)"/>
-                                <otlib:DirectionButton id="bottomRightButton"
-                                                bottom="0" right="0"
-                                                direction="{Direction.SOUTHEAST}"
-                                                toolTip="@Resource(key='southeast', bundle='strings')"
-                                                icon="@Embed('/../assets/icons/arrow_bottom_right.png')"
-                                                click="directionButtonClickHandler(event)"/>
-                                <otlib:DirectionButton id="bottomCenterButton"
-                                                bottom="0" horizontalCenter="0"
-                                                direction="{Direction.SOUTH}"
-                                                toolTip="@Resource(key='south', bundle='strings')"
-                                                icon="@Embed('/../assets/icons/arrow_down.png')"
-                                                click="directionButtonClickHandler(event)"/>
-                                <otlib:DirectionButton id="bottomLeftButton"
-                                                bottom="0" left="0"
-                                                direction="{Direction.SOUTHWEST}"
-                                                toolTip="@Resource(key='southwest', bundle='strings')"
-                                                icon="@Embed('/../assets/icons/arrow_bottom_left.png')"
-                                                click="directionButtonClickHandler(event)"/>
-                                <otlib:DirectionButton id="middleLeftButton"
-                                                bottom="0" verticalCenter="0"
-                                                direction="{Direction.WEST}"
-                                                toolTip="@Resource(key='west', bundle='strings')"
-                                                icon="@Embed('/../assets/icons/arrow_left.png')"
-                                                click="directionButtonClickHandler(event)"/>
-                            </s:Group>
-
                             <s:Group verticalCenter="0" horizontalCenter="0">
                                 <s:Rect width="{bitmapView.width}"
                                         height="{bitmapView.height}"
