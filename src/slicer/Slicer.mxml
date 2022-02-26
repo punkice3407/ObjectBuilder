@@ -73,6 +73,8 @@ THE SOFTWARE.
             import otlib.utils.SpriteUtils;
 
             import slicer.settings.SlicerSettings;
+            import otlib.core.SpriteDimension;
+            import otlib.core.SpriteDimensionStorage;
 
             //--------------------------------------------------------------------------
             // PROPERTIES
@@ -94,6 +96,8 @@ THE SOFTWARE.
             private var _zoom:Number;
             private var _zoomChanged:Boolean;
             private var _lastValues:Rectangle = new Rectangle();
+            private var m_spriteDimension:SpriteDimension;
+            private var m_spriteDimensionChanged:Boolean;
 
             //--------------------------------------
             // Getters / Setters
@@ -158,6 +162,17 @@ THE SOFTWARE.
                 return null;
             }
 
+            public function get spriteDimension():SpriteDimension { return m_spriteDimension; }
+            public function set spriteDimension(value:SpriteDimension):void
+            {
+                if (value != m_spriteDimension) {
+                    m_spriteDimension = value;
+                    m_spriteDimensionChanged = true;
+                    ruler.spriteDimension = value;
+                    invalidateProperties();
+                }
+            }
+
             //--------------------------------------------------------------------------
             // METHODS
             //--------------------------------------------------------------------------
@@ -170,7 +185,7 @@ THE SOFTWARE.
             {
                 if (!this.hasImage) return;
 
-                var size:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
+                var size:uint = m_spriteDimension.size;
                 _surfaceCells.cellWidth = size;
                 _surfaceCells.cellHeight = size;
                 _surfaceCells.columns = columnsStepper.value;
@@ -221,8 +236,8 @@ THE SOFTWARE.
 
                 var x:int = offsetXStepper.value;
                 var y:int = offsetYStepper.value;
-                var width:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
-                var height:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
+                var width:uint = m_spriteDimension.size;
+                var height:uint = m_spriteDimension.size;
                 var columns:uint = columnsStepper.value;
                 var rows:uint = rowsStepper.value;
 
@@ -435,6 +450,15 @@ THE SOFTWARE.
                 spritePartList.dataProvider = _sprites;
                 loadSettings();
                 systemManager.stage.addEventListener(KeyboardEvent.KEY_DOWN, keyDownHandler);
+
+                spriteDimensionsDropDownList.dataProvider = new ArrayCollection(SpriteDimensionStorage.getInstance().getList());
+                if (!m_spriteDimension)
+                    m_spriteDimension = spriteDimensionsDropDownList.dataProvider[0]
+
+                spriteDimensionsDropDownList.selectedItem = m_spriteDimension;
+                ruler.spriteDimension = m_spriteDimension;
+
+                resetControls()
             }
 
             protected function slicerClosingHandler(event:Event):void
@@ -551,11 +575,11 @@ THE SOFTWARE.
             {
                 var length:uint = _sprites.length;
                 if (length > 0) {
-                    var rect:Rectangle = new Rectangle(0, 0, 32, 32);
+                    var rect:Rectangle = new Rectangle(0, 0, m_spriteDimension.size, m_spriteDimension.size);
                     var list:Vector.<ByteArray> = new Vector.<ByteArray>(length, true);
                     for (var i:uint = 0; i < length; i++) {
                         var bitmap:BitmapData = _sprites.getItemAt(i) as BitmapData;
-                        list[i] = bitmap.getPixels(rect);;
+                        list[i] = bitmap.getPixels(rect);
                     }
 
                     _communicator.sendCommand(new ImportSpritesCommand(list));
@@ -627,6 +651,12 @@ THE SOFTWARE.
                             break;
                     }
                 }
+            }
+
+            private function spriteDimensionsDropDownListChangeHandler(event:Event):void
+            {
+                spriteDimension = spriteDimensionsDropDownList.selectedItem as SpriteDimension;
+                update();
             }
 
         ]]>
@@ -725,6 +755,18 @@ THE SOFTWARE.
                                   verticalAlign="bottom"/>
             </s:layout>
 
+            <nail:GroupBox width="100%"
+                        label="@Resource(key='spriteDimension', bundle='strings')">
+
+                <nail:layout>
+                    <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle" />
+                </nail:layout>
+
+                <s:DropDownList id="spriteDimensionsDropDownList"
+                                width="100%" height="21"
+                                change="spriteDimensionsDropDownListChangeHandler(event)" />
+            </nail:GroupBox>
+
             <!-- cells controls -->
             <nail:GroupBox label="@Resource(key='cells', bundle='strings')"
                            width="100%">
@@ -794,7 +836,7 @@ THE SOFTWARE.
 
                 <s:HSlider id="zoomSlider"
                            width="100%"
-                           minimum="1.0"
+                           minimum="0.1"
                            maximum="5.0"
                            stepSize="0.1"
                            value="{zoom}"

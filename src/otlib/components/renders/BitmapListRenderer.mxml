@@ -78,7 +78,10 @@ THE SOFTWARE.
             </s:Rect>
             <s:Image id="imageDisplay"
                      horizontalCenter="0"
-                     verticalCenter="0"/>
+                     verticalCenter="0"
+                     width="32"
+                     height="32"
+                     />
         </s:Group>
         <s:Label id="labelDisplay"/>
     </s:HGroup>

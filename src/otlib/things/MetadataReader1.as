@@ -25,7 +25,8 @@ package otlib.things
     import otlib.animation.FrameDuration;
     import otlib.animation.FrameGroup;
     import otlib.resources.Resources;
-    import otlib.sprites.Sprite;
+    import com.mignari.utils.StringUtil;
+    import otlib.utils.SpriteExtent;
 
     /**
      * Reader for versions 7.10 - 7.30
@@ -222,7 +223,7 @@ package otlib.things
                 if (frameGroup.width > 1 || frameGroup.height > 1)
                     frameGroup.exactSize = readUnsignedByte();
                 else
-                    frameGroup.exactSize = Sprite.DEFAULT_SIZE;
+                    frameGroup.exactSize = SpriteExtent.DEFAULT_SIZE;
 
                 frameGroup.layers = readUnsignedByte();
                 frameGroup.patternX = readUnsignedByte();
@@ -252,8 +253,8 @@ package otlib.things
                 }
 
                 var totalSprites:uint = frameGroup.getTotalSprites();
-                if (totalSprites > 4096)
-                    throw new Error("A thing type has more than 4096 sprites.");
+                if (totalSprites > SpriteExtent.DEFAULT_DATA_SIZE)
+                    throw new Error(StringUtil.format("A thing type has more than {0} sprites.", SpriteExtent.DEFAULT_DATA_SIZE));
 
                 frameGroup.spriteIndex = new Vector.<uint>(totalSprites);
                 for (i = 0; i < totalSprites; i++) {

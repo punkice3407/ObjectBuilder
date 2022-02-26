@@ -41,6 +41,8 @@ package otlib.utils
         public var frameGroups:Boolean;
         public var metadataFile:String;
         public var spritesFile:String;
+        public var spriteSize:uint;
+        public var spriteDataSize:uint;
 
         //--------------------------------------------------------------------------
         // CONSTRUCTOR
@@ -51,7 +53,9 @@ package otlib.utils
                              improvedAnimations:Boolean = false,
                              frameGroups:Boolean = false,
                              metadataFile:String = null,
-                             spritesFile:String = null)
+                             spritesFile:String = null,
+                             spriteSize:uint = 0,
+                             spriteDataSize:uint = 0)
         {
             this.extended = extended;
             this.transparency = transparency;
@@ -59,6 +63,8 @@ package otlib.utils
             this.frameGroups = frameGroups;
             this.metadataFile = metadataFile;
             this.spritesFile = spritesFile;
+            this.spriteSize = spriteSize;
+            this.spriteDataSize = spriteDataSize;
         }
 
         //--------------------------------------------------------------------------
@@ -74,7 +80,9 @@ package otlib.utils
             return "[OTFI extended=" + extended +
                    ", transparency=" + transparency +
                    ", improvedAnimations=" + improvedAnimations +
-                   ", frameGroups=" + frameGroups + "]";
+                   ", frameGroups=" + frameGroups + "]" +
+                   ", spriteSize=" + spriteSize + "]" +
+                   ", spriteDataSize=" + spriteDataSize + "]";
         }
 
         public function load(file:File):Boolean
@@ -94,6 +102,13 @@ package otlib.utils
             frameGroups = node.booleanAt("frame-groups");
             metadataFile = node.valueAt("metadata-file");
             spritesFile = node.valueAt("sprites-file");
+
+            if (node.getChild("sprite-size"))
+                spriteSize = node.readAt("sprite-size", uint);
+
+            if (node.getChild("sprite-data-size"))
+                spriteDataSize = node.readAt("sprite-data-size", uint);
+
             return true;
         }
 
@@ -116,6 +131,12 @@ package otlib.utils
 
             if (spritesFile)
                 node.writeAt("sprites-file", spritesFile);
+
+            if (spriteSize)
+                node.writeAt("sprite-size", spriteSize);
+
+            if (spriteDataSize)
+                node.writeAt("sprite-data-size", spriteDataSize);
 
             var doc:OTMLDocument = OTMLDocument.create();
             doc.addChild(node);

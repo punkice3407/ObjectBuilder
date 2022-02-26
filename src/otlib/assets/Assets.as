@@ -132,8 +132,17 @@ package otlib.assets
         [Embed(source="/../assets/icons/error.png", mimeType="image/png")]
         public static const ERROR:Class;
 
-        [Embed(source="/../assets/icons/alert_sprite.png", mimeType="image/png")]
-        public static const ALERT_IMAGE:Class;
+        [Embed(source="/../assets/icons/alert_sprite32.png", mimeType="image/png")]
+        public static const ALERT_IMAGE32:Class;
+
+        [Embed(source="/../assets/icons/alert_sprite64.png", mimeType="image/png")]
+        public static const ALERT_IMAGE64:Class;
+
+        [Embed(source="/../assets/icons/alert_sprite128.png", mimeType="image/png")]
+        public static const ALERT_IMAGE128:Class;
+
+        [Embed(source="/../assets/icons/alert_sprite256.png", mimeType="image/png")]
+        public static const ALERT_IMAGE256:Class;
 
         [Embed(source="/../assets/icons/rotate_right_90.png", mimeType="image/png")]
         public static const ROTATE_RIGHT_90:Class;

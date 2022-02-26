@@ -324,27 +324,30 @@ package otlib.things
 			for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
 			{
 				var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
-				if(frameGroup)
-				{
-					this.frameGroups[groupType] = frameGroup.clone();
-					if (data.sprites[groupType])
-						this.sprites[groupType] = data.sprites[groupType].concat();
+				if(!frameGroup)
+                    continue;
 
-					groups = groupType + 1;
-				}
+                this.frameGroups[groupType] = frameGroup.clone();
+                if (data.sprites[groupType])
+                    this.sprites[groupType] = data.sprites[groupType].concat();
+
+                groups = groupType + 1;
 			}
 
             return true;
         }
 
-        public function copyToThingData(data:ThingData, groups:uint):Boolean
+        public function copyToThingData(data:ThingData):Boolean
         {
-            if (!copyToThingType(data.thing, groups)) return false;
+            if (!copyToThingType(data.thing)) return false;
 
             if (this.sprites) {
                 var sprites:Dictionary = new Dictionary();
                 for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
                 {
+                    if(!this.getFrameGroup(groupType))
+                        continue;
+
                     var _sprites:Vector.<SpriteData> = this.sprites[groupType];
                     if(_sprites && _sprites.length > 0)
                     {
@@ -360,7 +363,7 @@ package otlib.things
             return true;
         }
 
-        public function copyToThingType(thing:ThingType, groups:uint = 2):Boolean
+        public function copyToThingType(thing:ThingType):Boolean
         {
             if (!thing)
                 return false;
@@ -372,16 +375,14 @@ package otlib.things
                     thing[name] = this[name];
             }
 
-            var groupCount:uint = FrameGroupType.DEFAULT;
-            if(groups > 1)
-                groupCount = FrameGroupType.WALKING;
-
             thing.frameGroups = [];
-			for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= groupCount; groupType++)
+			for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
 			{
 				var frameGroup:FrameGroup = this.getFrameGroup(groupType);
-				if(frameGroup)
-					thing.frameGroups[groupType] = frameGroup.clone();
+				if(!frameGroup)
+                    continue;
+			
+                thing.frameGroups[groupType] = frameGroup.clone();
 			}
 
             return true;

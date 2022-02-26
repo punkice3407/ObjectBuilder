@@ -68,7 +68,7 @@ package otlib.utils
         {
             if (pixels && thing && frameGroup && !_bitmap) {
                 pixels.position = 0;
-                _bitmap = new BitmapData(Math.max(32, frameGroup.width * 32), Math.max(32, frameGroup.height * 32), true, backgroundColor);
+                _bitmap = new BitmapData(Math.max(SpriteExtent.DEFAULT_SIZE, frameGroup.width * SpriteExtent.DEFAULT_SIZE), Math.max(SpriteExtent.DEFAULT_SIZE, frameGroup.height * SpriteExtent.DEFAULT_SIZE), true, backgroundColor);
                 if (frameGroup.width != 0 &&
                     frameGroup.height != 0 &&
                     pixels.length == (_bitmap.width * _bitmap.height * 4)) {

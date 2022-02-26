@@ -297,8 +297,6 @@ THE SOFTWARE.
             protected function obdVersionDropDownListChangeHandler(event:IndexChangeEvent):void
             {
                 obdVersion = obdVersionDropDownList.selectedItem.version;
-
-                trace(obdVersion);
             }
 
             protected function confirmButtonClickHandler(event:MouseEvent):void

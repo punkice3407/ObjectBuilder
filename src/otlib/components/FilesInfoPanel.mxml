@@ -41,6 +41,7 @@ THE SOFTWARE.
             import otlib.core.IVersionStorage;
             import otlib.core.Version;
             import otlib.utils.ClientInfo;
+            import otlib.utils.SpriteExtent;
 
             //--------------------------------------------------------------------------
             // PROPERTIES
@@ -63,6 +64,7 @@ THE SOFTWARE.
 
                 var version:Version = m_versions.getBySignatures(info.datSignature, info.sprSignature);
 
+                spriteDimensionLabel.text = SpriteExtent.DEFAULT_VALUE;
                 if (version)
                 {
                     filesVersionLabel.text = version.toString();
@@ -85,6 +87,7 @@ THE SOFTWARE.
             public function clear():void
             {
                 filesVersionLabel.text = null;
+                spriteDimensionLabel.text = null;
                 datSignatureLabel.text = null;
                 itemsCountLabel.text = null;
                 outfitsCountLabel.text = null;
@@ -126,6 +129,11 @@ THE SOFTWARE.
         <s:Label text="{resourceManager.getString('strings', 'version') + ':'}"
                  textAlign="right"/>
         <s:Label id="filesVersionLabel"
+                 color="0x9AC9F8"/>
+
+        <s:Label text="{resourceManager.getString('strings', 'spriteDimension') + ':'}"
+                 textAlign="right"/>
+        <s:Label id="spriteDimensionLabel"
                  color="0x9AC9F8"/>
 
         <s:Label text="Dat:"

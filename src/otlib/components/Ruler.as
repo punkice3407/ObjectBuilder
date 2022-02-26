@@ -29,6 +29,8 @@ package otlib.components
 
     import mx.core.FlexShape;
     import mx.core.UIComponent;
+    import otlib.utils.SpriteExtent;
+    import otlib.core.SpriteDimension;
 
     [Style(name="lineColor", inherit="no", type="uint", format="Color")]
 
@@ -54,6 +56,13 @@ package otlib.components
                 m_zoom = value;
                 invalidateDisplayList();
             }
+        }
+
+        public function set spriteDimension(value:SpriteDimension):void
+        {
+            SpriteExtent.DEFAULT_VALUE = value.toString();
+            SpriteExtent.DEFAULT_SIZE = value.size;
+            SpriteExtent.DEFAULT_DATA_SIZE = value.dataSize; 
         }
 
         //--------------------------------------------------------------------------
@@ -105,7 +114,8 @@ package otlib.components
 
             graphics.lineStyle(1, lineColor);
 
-            var size:Number = (32 * m_zoom);
+            var size:Number = (SpriteExtent.DEFAULT_SIZE * m_zoom);
+
             var w:int = int(width / size) + 1;
             var h:int = int(height / size) + 1;
             var v:Number = NaN;

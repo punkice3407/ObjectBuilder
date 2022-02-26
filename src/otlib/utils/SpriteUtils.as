@@ -29,7 +29,7 @@ package otlib.utils
     import nail.errors.AbstractClassError;
     import nail.utils.BitmapUtil;
 
-    import otlib.sprites.Sprite;
+    import otlib.assets.Assets;
 
     public final class SpriteUtils
     {
@@ -45,14 +45,12 @@ package otlib.utils
         //--------------------------------------------------------------------------
         // STATIC
         //--------------------------------------------------------------------------
-
-        private static const RECTANGLE:Rectangle = new Rectangle(0, 0, Sprite.DEFAULT_SIZE, Sprite.DEFAULT_SIZE);
         private static const POINT:Point = new Point();
 
         public static function fillBackground(sprite:BitmapData):BitmapData
         {
-            var bitmap:BitmapData = new BitmapData(Sprite.DEFAULT_SIZE, Sprite.DEFAULT_SIZE, false, 0xFF00FF);
-            bitmap.copyPixels(sprite, RECTANGLE, POINT, null, null, true);
+            var bitmap:BitmapData = new BitmapData(SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE, false, 0xFF00FF);
+            bitmap.copyPixels(sprite, new Rectangle(0, 0, SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE), POINT, null, null, true);
             return bitmap;
         }
 
@@ -73,6 +71,34 @@ package otlib.utils
             var bounds:Rectangle = sprite.getColorBoundsRect(0xFF000000, 0x00000000, false);
             if (bounds.width == 0 && bounds.height == 0) return true;
             return false;
+        }
+
+        public static function createAlertBitmap():BitmapData
+        {
+            var data:BitmapData;
+            switch (SpriteExtent.DEFAULT_SIZE) {
+                case 32:
+                    data = (new Assets.ALERT_IMAGE32).bitmapData;
+                    break;
+            
+                case 64:
+                    data = (new Assets.ALERT_IMAGE64).bitmapData;
+                    break;
+            
+                case 128:
+                    data = (new Assets.ALERT_IMAGE128).bitmapData;
+                    break;
+                
+                case 256:
+                    data = (new Assets.ALERT_IMAGE256).bitmapData;
+                    break;
+
+                default:
+                    data = (new Assets.ALERT_IMAGE32).bitmapData;
+                    break;
+            }
+
+            return data
         }
     }
 }

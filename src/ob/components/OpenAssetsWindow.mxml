@@ -27,7 +27,7 @@ THE SOFTWARE.
                 xmlns:mg="library://ns.mignari.com/mg"
                 xmlns:otlib="otlib.components.*"
                 width="550"
-                height="500"
+                height="550"
                 fontSize="11"
                 title="@Resource(key='openAssetFiles', bundle='strings')"
                 creationComplete="windowCreationCompleteHandler(event)">
@@ -52,6 +52,10 @@ THE SOFTWARE.
             import otlib.utils.ClientInfo;
             import otlib.utils.ClientInfoLoader;
             import otlib.utils.OTFormat;
+            import mx.collections.ArrayCollection;
+            import otlib.core.SpriteDimensionStorage;
+            import otlib.core.SpriteDimension;
+            import flash.events.Event;
 
             //--------------------------------------------------------------------------
             // PROPERTIES
@@ -71,6 +75,8 @@ THE SOFTWARE.
             private var m_frameGroups:Boolean;
             private var m_frameGroupsChanged:Boolean;
             private var m_detail:uint;
+            private var m_spriteDimension:SpriteDimension;
+            private var m_spriteDimensionChanged:Boolean;
 
             //--------------------------------------
             // Getters / Setters
@@ -135,6 +141,16 @@ THE SOFTWARE.
                 }
             }
             public function get detail():uint { return m_detail; }
+
+            public function get spriteDimension():SpriteDimension { return m_spriteDimension; }
+            public function set spriteDimension(value:SpriteDimension):void
+            {
+                if (value != m_spriteDimension) {
+                    m_spriteDimension = value;
+                    m_spriteDimensionChanged = true;
+                    invalidateProperties();
+                }
+            }
 
             //--------------------------------------------------------------------------
             // METHODS
@@ -266,6 +282,11 @@ THE SOFTWARE.
                     m_datFile = dat;
                     m_sprFile = spr;
                     m_version = VersionStorage.getInstance().getFromClientInfo(info);
+
+                    var loadSpriteDimension:SpriteDimension = SpriteDimensionStorage.getInstance().getFromClientInfo(info);
+                    if (loadSpriteDimension)
+                        spriteDimension = loadSpriteDimension;
+
                     updateProperties();
                 }
 
@@ -317,6 +338,8 @@ THE SOFTWARE.
             {
                 var done:Boolean = (m_datFile && m_sprFile && m_version);
 
+                spriteDimensionsDropDownList.selectedItem = spriteDimension;
+
                 if (done)
                 {
                     m_extended = (m_extended || m_version.value >= 960);
@@ -351,6 +374,10 @@ THE SOFTWARE.
 
             private function windowCreationCompleteHandler(event:FlexEvent):void
             {
+                spriteDimensionsDropDownList.dataProvider = new ArrayCollection(SpriteDimensionStorage.getInstance().getList());
+                if (!spriteDimension)
+                    spriteDimension = spriteDimensionsDropDownList.dataProvider[0]
+                    
                 updateProperties();
             }
 
@@ -365,6 +392,11 @@ THE SOFTWARE.
                 {
                     clientDirectory = directory;
                 }
+            }
+
+            private function spriteDimensionsDropDownListChangeHandler(event:Event):void
+            {
+                spriteDimension = spriteDimensionsDropDownList.selectedItem as SpriteDimension;
             }
 
             private function clientDirectoryChangeHandler(event:FileTextInputEvent):void
@@ -452,6 +484,19 @@ THE SOFTWARE.
 
             <s:Label id="clientVersionLabel"/>
 
+        </mg:GroupBox>
+
+        <!-- sprite dimension -->
+        <mg:GroupBox width="100%"
+                     label="@Resource(key='spriteDimension', bundle='strings')">
+
+            <mg:layout>
+                <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle" />
+            </mg:layout>
+
+            <s:DropDownList id="spriteDimensionsDropDownList"
+                            width="100%" height="21"
+                            change="spriteDimensionsDropDownListChangeHandler(event)" />
         </mg:GroupBox>
 
         <!-- client options -->

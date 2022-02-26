@@ -39,6 +39,7 @@ package otlib.components
     import otlib.things.ThingData;
     import otlib.things.ThingType;
     import otlib.utils.OutfitData;
+    import otlib.utils.SpriteExtent;
 
     [Event(name="change", type="flash.events.Event")]
     [Event(name="complete", type="flash.events.Event")]
@@ -224,7 +225,8 @@ package otlib.components
 				var frameGroup:FrameGroup = thingData.thing.getFrameGroup(frameGroupType);
                 _textureIndex = new Vector.<Rect>();
                 _spriteSheet = thingData.getSpriteSheet(frameGroup, _textureIndex, 0);
-                _bitmap = new BitmapData(frameGroup.width * 32, frameGroup.height * 32, true);
+
+                _bitmap = new BitmapData(frameGroup.width * SpriteExtent.DEFAULT_SIZE, frameGroup.height * SpriteExtent.DEFAULT_SIZE, true);
                 _fillRect = _bitmap.rect;
                 _maxFrame = frameGroup.frames;
                 _frame = 0;

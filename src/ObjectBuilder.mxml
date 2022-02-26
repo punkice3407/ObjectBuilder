@@ -29,8 +29,8 @@ THE SOFTWARE.
                        xmlns:ob="ob.components.*"
                        xmlns:menu="ob.menu.*"
                        implements="ob.core.IObjectBuilder"
-                       minWidth="800"
-                       minHeight="600"
+                       minWidth="1024"
+                       minHeight="768"
                        fontSize="11"
                        showStatusBar="false"
                        visible="false"
@@ -91,6 +91,7 @@ THE SOFTWARE.
 
             import ob.commands.HideProgressBarCommand;
             import ob.commands.LoadVersionsCommand;
+            import ob.commands.LoadSpriteDimensionsCommand;
             import ob.commands.NeedToReloadCommand;
             import ob.commands.ProgressBarID;
             import ob.commands.ProgressCommand;
@@ -150,6 +151,9 @@ THE SOFTWARE.
             import otlib.core.IVersionStorage;
             import otlib.core.Version;
             import otlib.core.VersionStorage;
+            import otlib.core.ISpriteDimensionStorage;
+            import otlib.core.SpriteDimension;
+            import otlib.core.SpriteDimensionStorage;
             import otlib.events.ThingEditorEvent;
             import otlib.geom.Size;
             import otlib.loaders.PathHelper;
@@ -173,6 +177,9 @@ THE SOFTWARE.
             import store.AssetStore;
             import store.events.AssetStoreEvent;
             import otlib.sprites.SpriteData;
+            import otlib.utils.SpriteExtent;
+            import otlib.core.SpriteDimension;
+            import ob.commands.SetSpriteDimensionCommand;
 
             use namespace nail_internal;
 
@@ -191,6 +198,7 @@ THE SOFTWARE.
             private var _settings:ObjectBuilderSettings;
             private var _updater:ApplicationUpdaterUI = new ApplicationUpdaterUI();
             private var _versionStorage:IVersionStorage;
+            private var _spriteDimensionStorage:ISpriteDimensionStorage;
             private var _thingData:ThingData;
             private var _nextThingData:ThingData;
             private var _thingDataChanged:Boolean;
@@ -220,7 +228,7 @@ THE SOFTWARE.
             private var _clientChanged:Boolean;
             private var _clientIsTemporary:Boolean;
             private var _clientLoaded:Boolean;
-
+            
             //--------------------------------------
             // Getters / Setters
             //--------------------------------------
@@ -233,6 +241,7 @@ THE SOFTWARE.
             public function get settingsManager():ISettingsManager { return _settingsManager; }
             public function get settings():ObjectBuilderSettings { return _settings; }
             public function get versionStorage():IVersionStorage { return _versionStorage; }
+            public function get spriteDimensionStorage():ISpriteDimensionStorage { return _spriteDimensionStorage; }
 
             public function get version():Version { return _version; }
             public function get clientInfo():ClientInfo { return _clientInfo; }
@@ -305,6 +314,19 @@ THE SOFTWARE.
                 _communicator.sendCommand(command);
             }
 
+            public function setSpriteExtend(dimension:SpriteDimension):void
+            {
+                if (!dimension)
+                    return
+
+                SpriteExtent.DEFAULT_VALUE = dimension.toString();
+                SpriteExtent.DEFAULT_SIZE = dimension.size;
+                SpriteExtent.DEFAULT_DATA_SIZE = dimension.dataSize;
+
+                thingTypeEditor.spriteDimension = dimension;
+                sendCommand(new SetSpriteDimensionCommand(dimension.toString(), dimension.size, dimension.dataSize));
+            }
+
             public function start():void
             {
                 //unused
@@ -332,6 +354,7 @@ THE SOFTWARE.
                     {
                         // TODO: check if it's changed/compiled
 
+                        setSpriteExtend(window.spriteDimension);
                         sendCommand(new CreateNewFilesCommand(window.version.datSignature,
                                                               window.version.sprSignature,
                                                               window.extended,
@@ -366,6 +389,7 @@ THE SOFTWARE.
                         _settings.setLastDirectory(window.datFile);
                         _filesName = FileUtil.getName(window.datFile);
 
+                        setSpriteExtend(window.spriteDimension);
                         sendCommand(new LoadFilesCommand(window.datFile,
                                                          window.sprFile,
                                                          window.version,
@@ -1066,6 +1090,15 @@ THE SOFTWARE.
                 _versionStorage.save(file);
             }
 
+            private function loadSpriteDimensions():void
+            {
+                var file:File = File.applicationDirectory.resolvePath("sprites.xml");
+
+                _spriteDimensionStorage.load(file);
+
+                sendCommand(new LoadSpriteDimensionsCommand(file));
+            }
+
             private function firstRun():void
             {
                 // Sets as default application for supported extensions.
@@ -1267,7 +1300,7 @@ THE SOFTWARE.
                     var bitmap:BitmapData = BitmapData(Clipboard.generalClipboard.getData(ClipboardFormats.BITMAP_FORMAT));
                     bitmap = SpriteUtils.removeMagenta(bitmap);
 
-                    if (bitmap.width == 32 && bitmap.height == 32) {
+                    if (bitmap.width == SpriteExtent.DEFAULT_SIZE && bitmap.height == SpriteExtent.DEFAULT_SIZE) {
                         if (!spritesList.multipleSelected && spritesList.selectedId != 0) {
                             var pixels:ByteArray = bitmap.getPixels(bitmap.rect);
                             var spriteData:SpriteData = SpriteData.createSpriteData(spritesList.selectedId, pixels);
@@ -1395,6 +1428,9 @@ THE SOFTWARE.
             private function setThingData(thingData:ThingData):void
             {
                 _thingData = thingData;
+
+                _thingData.getBitmap(new FrameGroup);
+
                 thingView.thingData = thingData;
 
                 if (thingData) {
@@ -1578,6 +1614,7 @@ THE SOFTWARE.
                 _logger = mx.logging.Log.getLogger("ObjectBuilder");
                 _settingsManager = SettingsManager.getInstance();
                 _versionStorage = VersionStorage.getInstance();
+                _spriteDimensionStorage = SpriteDimensionStorage.getInstance();
                 _category = ThingCategory.ITEM;
 
                 createLogging();
@@ -1592,6 +1629,7 @@ THE SOFTWARE.
 
                 loadSettings();
                 loadVersions();
+                loadSpriteDimensions();
 
                 _logTarget.writeStart();
             }
@@ -1999,34 +2037,31 @@ THE SOFTWARE.
                 {
                     var bitmap:BitmapData = event.target.bitmap;
                     var thing:ThingType = thingTypeEditor.getThingTypeResult();
+                    var groupType:uint = thingTypeEditor.frameGroupSlider.value;
 
-                    var sprites:Dictionary = new Dictionary();
-                    for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+                    var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
+                    var size:Size = frameGroup.getSpriteSheetSize();
+                    if (bitmap.width == size.width && size.height == bitmap.height)
                     {
-                        var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
-                        if(!frameGroup)
-                            continue;
-
-                        var size:Size = frameGroup.getSpriteSheetSize();
-                        if(bitmap.width != size.width && size.height != bitmap.height)
-                        {
-                            var message:String = resourceManager.getString("strings", "invalidSpriteSheetSize");
-                            Alert.show(StringUtil.format(message, size.width, size.height),
-                                resourceManager.getString("strings", "invalidSpriteSheetSizeTitle"));
-                            break;
-                        }
+                        var sprites:Dictionary = new Dictionary();
 
                         var length:uint = frameGroup.spriteIndex.length;
                         sprites[groupType] = new Vector.<SpriteData>(length, true);
                         for (var i:uint = 0; i < length; i++)
                             sprites[groupType][i] = SpriteData.createSpriteData(frameGroup.spriteIndex[i]);
-                    }
 
-                    var data:ThingData = ThingData.create(OBDVersions.OBD_VERSION_3, _version.value, thing, sprites);
-                    data.setSpriteSheet(data.getFrameGroup(FrameGroupType.DEFAULT), bitmap);
-                    thingTypeEditor.thingData = data;
-                    confirmButton.enabled = true;
-                    thingTypeEditor.invalidateThingData();
+                        var data:ThingData = ThingData.create(OBDVersions.OBD_VERSION_3, _version.value, thing, sprites);
+                        data.setSpriteSheet(frameGroup, bitmap);
+                        thingTypeEditor.thingData = data;
+                        confirmButton.enabled = true;
+                        thingTypeEditor.invalidateThingData();
+                    }
+                    else
+                    {
+                        var message:String = resourceManager.getString("strings", "invalidSpriteSheetSize");
+                        Alert.show(StringUtil.format(message, size.width, size.height),
+                            resourceManager.getString("strings", "invalidSpriteSheetSizeTitle"));
+                    }
                 }
             }
 

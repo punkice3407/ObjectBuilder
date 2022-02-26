@@ -20,44 +20,19 @@
 *  THE SOFTWARE.
 */
 
-package otlib.utils
+package ob.commands
 {
-    public class ClientInfo
+    import com.mignari.workers.WorkerCommand;
+
+    public class SetSpriteDimensionCommand extends WorkerCommand
     {
-        //--------------------------------------------------------------------------
-        // PROPERTIES
-        //--------------------------------------------------------------------------
-
-        public var clientVersion:uint;
-        public var clientVersionStr:String;
-        public var datSignature:uint;
-        public var minItemId:uint;
-        public var maxItemId:uint;
-        public var minOutfitId:uint;
-        public var maxOutfitId:uint;
-        public var minEffectId:uint;
-        public var maxEffectId:uint;
-        public var minMissileId:uint;
-        public var maxMissileId:uint;
-        public var sprSignature:uint;
-        public var minSpriteId:uint;
-        public var maxSpriteId:uint;
-        public var extended:Boolean;
-        public var transparency:Boolean;
-        public var improvedAnimations:Boolean;
-        public var frameGroups:Boolean;
-        public var changed:Boolean;
-        public var isTemporary:Boolean;
-        public var loaded:Boolean;
-        public var spriteSize:uint;
-        public var spriteDataSize:uint;
-
         //--------------------------------------------------------------------------
         // CONSTRUCTOR
         //--------------------------------------------------------------------------
 
-        public function ClientInfo()
+        public function SetSpriteDimensionCommand(value:String, size:uint, dataSize:uint)
         {
+            super(value, size, dataSize);
         }
     }
 }

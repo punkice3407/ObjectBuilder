@@ -44,14 +44,13 @@ package otlib.things
     import otlib.geom.Size;
     import otlib.obd.OBDEncoder;
     import otlib.obd.OBDVersions;
-    import otlib.sprites.Sprite;
     import otlib.sprites.SpriteData;
     import otlib.things.FrameGroupType;
     import otlib.utils.ColorUtils;
     import otlib.utils.OTFormat;
     import otlib.utils.OutfitData;
     import otlib.utils.SpriteUtils;
-    import flash.html.__HTMLScriptArray;
+    import otlib.utils.SpriteExtent;
 
     public class ThingData
     {
@@ -63,6 +62,7 @@ package otlib.things
         private var m_clientVersion:uint;
         private var m_thing:ThingType;
         private var m_sprites:Dictionary;
+        private var _rect:Rectangle;
 
         //--------------------------------------
         // Getters / Setters
@@ -134,6 +134,7 @@ package otlib.things
         public function ThingData()
         {
             m_sprites = new Dictionary();
+            _rect = new Rectangle(0, 0, SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE);
         }
 
         //--------------------------------------------------------------------------
@@ -152,7 +153,7 @@ package otlib.things
         public function getSpriteSheet(frameGroup:FrameGroup, textureIndex:Vector.<Rect> = null, backgroundColor:uint = 0xFFFF00FF):BitmapData
         {
             // Measures and creates bitmap
-            var size:uint = Sprite.DEFAULT_SIZE;
+            var size:uint = SpriteExtent.DEFAULT_SIZE;
             var totalX:int = frameGroup.getTotalX();
             var totalY:int = frameGroup.getTotalY();
             var bitmapWidth:Number = (totalX * frameGroup.width) * size;
@@ -202,7 +203,7 @@ package otlib.things
         public function getTotalSpriteSheet(textureIndex:Vector.<Rect> = null, backgroundColor:uint = 0xFFFF00FF):BitmapData
         {
             // Measures and creates bitmap
-            var size:uint = Sprite.DEFAULT_SIZE;
+            var size:uint = SpriteExtent.DEFAULT_SIZE;
             var totalX:int = 0;
             var totalY:int = 0;
             var totalGroupY:Array = [];
@@ -300,7 +301,7 @@ package otlib.things
             if (frameGroup.layers < 2)
                 return spriteSheet;
 
-            var size:uint = Sprite.DEFAULT_SIZE;
+            var size:uint = SpriteExtent.DEFAULT_SIZE;
             var totalX:int = frameGroup.getTotalX();
             var totalY:int = frameGroup.height;
             var pixelsWidth:int  = frameGroup.width * size;
@@ -338,17 +339,17 @@ package otlib.things
                             for (x = 0; x < frameGroup.patternX; x++) {
                                 var i:uint = (((f % frameGroup.frames * frameGroup.patternZ + z) * frameGroup.patternY + y) * frameGroup.patternX + x) * frameGroup.layers;
                                 var rect:Rect = textureRectList[i];
-                                RECTANGLE.setTo(rect.x, rect.y, rect.width, rect.height);
+                                _rect.setTo(rect.x, rect.y, rect.width, rect.height);
 
                                 index = (((f * frameGroup.patternZ + z) * frameGroup.patternY) * frameGroup.patternX + x) * frameGroup.layers;
                                 rect = rectList[index];
                                 POINT.setTo(rect.x, rect.y);
-                                grayBitmap.copyPixels(spriteSheet, RECTANGLE, POINT);
+                                grayBitmap.copyPixels(spriteSheet, _rect, POINT);
 
                                 i++;
                                 rect = textureRectList[i];
-                                RECTANGLE.setTo(rect.x, rect.y, rect.width, rect.height);
-                                blendBitmap.copyPixels(spriteSheet, RECTANGLE, POINT);
+                                _rect.setTo(rect.x, rect.y, rect.width, rect.height);
+                                blendBitmap.copyPixels(spriteSheet, _rect, POINT);
                             }
                         }
                     }
@@ -380,7 +381,7 @@ package otlib.things
 
             bitmap = SpriteUtils.removeMagenta(bitmap);
 
-            var size:uint = Sprite.DEFAULT_SIZE;
+            var size:uint = SpriteExtent.DEFAULT_SIZE;
             var totalX:int = frameGroup.getTotalX();
             var pixelsWidth:int  = frameGroup.width * size;
             var pixelsHeight:int = frameGroup.height * size;
@@ -409,9 +410,9 @@ package otlib.things
                                         var px:int = ((frameGroup.width - w - 1) * size);
                                         var py:int = ((frameGroup.height - h - 1) * size);
 
-                                        RECTANGLE.setTo(px + fx, py + fy, size, size);
+                                        _rect.setTo(px + fx, py + fy, size, size);
                                         var bmp:BitmapData = new BitmapData(size, size, true, 0x00000000);
-                                        bmp.copyPixels(bitmap, RECTANGLE, POINT);
+                                        bmp.copyPixels(bitmap, _rect, POINT);
 
                                         var sd:SpriteData = new SpriteData();
                                         sd.pixels = bmp.getPixels(bmp.rect);
@@ -465,9 +466,9 @@ package otlib.things
             if (index < rects.length) {
                 var rect:Rect = rects[index];
                 bitmap = new BitmapData(rect.width, rect.height, true, 0);
-                RECTANGLE.setTo(rect.x, rect.y, rect.width, rect.height);
+                _rect.setTo(rect.x, rect.y, rect.width, rect.height);
                 POINT.setTo(0, 0);
-                bitmap.copyPixels(spriteSheet, RECTANGLE, POINT);
+                bitmap.copyPixels(spriteSheet, _rect, POINT);
             }
 
             spriteSheet.dispose();
@@ -516,9 +517,9 @@ package otlib.things
                     if (bmp)
                     {
                         sd.pixels.position = 0;
-                        RECTANGLE.setTo(0, 0, bmp.width, bmp.height);
+                        _rect.setTo(0, 0, bmp.width, bmp.height);
                         POINT.setTo(x, y);
-                        bitmap.copyPixels(bmp, RECTANGLE, POINT, null, null, true);
+                        bitmap.copyPixels(bmp, _rect, POINT, null, null, true);
                     }
                 }
             }
@@ -590,7 +591,6 @@ package otlib.things
         // STATIC
         //--------------------------------------------------------------------------
 
-        private static const RECTANGLE:Rectangle = new Rectangle(0, 0, 32, 32);
         private static const POINT:Point = new Point();
         private static const COLOR_TRANSFORM:ColorTransform = new ColorTransform();
         private static const MATRIX_FILTER:ColorMatrixFilter = new ColorMatrixFilter([1, -1,    0, 0,

@@ -27,6 +27,7 @@ package otlib.animation
     import otlib.geom.Size;
     import otlib.sprites.Sprite;
     import otlib.things.ThingCategory;
+    import otlib.utils.SpriteExtent;
 
 	[Bindable]
     public class FrameGroup
@@ -65,7 +66,7 @@ package otlib.animation
             this.patternX = 1;
             this.patternY = 1;
             this.patternZ = 1;
-            this.exactSize = 32;
+            this.exactSize = SpriteExtent.DEFAULT_SIZE;
             this.isAnimation = false;
             this.animationMode = AnimationMode.ASYNCHRONOUS;
             this.loopCount = 0;
@@ -150,8 +151,8 @@ package otlib.animation
         public function getSpriteSheetSize():Size
         {
             var size:Size = new Size();
-            size.width = this.patternZ * this.patternX * this.layers * this.width * Sprite.DEFAULT_SIZE;
-            size.height = this.frames * this.patternY * this.height * Sprite.DEFAULT_SIZE;
+            size.width = this.patternZ * this.patternX * this.layers * this.width * SpriteExtent.DEFAULT_SIZE;
+            size.height = this.frames * this.patternY * this.height * SpriteExtent.DEFAULT_SIZE;
             return size;
         }
 

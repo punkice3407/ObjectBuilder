@@ -43,9 +43,9 @@ package otlib.loaders
 
     import otlib.events.ProgressEvent;
     import otlib.resources.Resources;
-    import otlib.sprites.Sprite;
     import otlib.sprites.SpriteData;
     import otlib.utils.SpriteUtils;
+    import otlib.utils.SpriteExtent;
 
     [Event(name="progress", type="otlib.events.ProgressEvent")]
     [Event(name="complete", type="flash.events.Event")]
@@ -199,13 +199,13 @@ package otlib.loaders
 
         private function create(id:uint, bitmap:BitmapData):void
         {
-            if (bitmap.width != Sprite.DEFAULT_SIZE || bitmap.height != Sprite.DEFAULT_SIZE) {
+            if (bitmap.width != SpriteExtent.DEFAULT_SIZE || bitmap.height != SpriteExtent.DEFAULT_SIZE) {
                 _cancel = true;
                 dispatchEvent(new ErrorEvent(
                     ErrorEvent.ERROR,
                     false,
                     false,
-                    Resources.getString("invalidSpriteSize")));
+                    Resources.getString("invalidSpriteSize", SpriteExtent.DEFAULT_VALUE)));
                 return;
             }
 

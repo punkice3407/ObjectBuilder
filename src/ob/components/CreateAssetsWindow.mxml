@@ -26,7 +26,7 @@ THE SOFTWARE.
                 xmlns:mx="library://ns.adobe.com/flex/mx"
                 xmlns:mg="library://ns.mignari.com/mg"
                 width="400"
-                height="220"
+                height="300"
                 fontSize="11"
                 title="@Resource(key='createAssetFiles', bundle='strings')"
                 creationComplete="creationCompleteHandler(event)">
@@ -47,6 +47,9 @@ THE SOFTWARE.
             import otlib.core.Version;
             import otlib.core.VersionStorage;
 
+            import otlib.core.SpriteDimension;
+            import otlib.core.SpriteDimensionStorage;
+
             //--------------------------------------------------------------------------
             // PROPERTIES
             //--------------------------------------------------------------------------
@@ -62,6 +65,8 @@ THE SOFTWARE.
             private var m_frameGroups:Boolean;
             private var m_frameGroupsChanged:Boolean;
             private var m_detail:uint;
+            private var m_spriteDimension:SpriteDimension;
+            private var m_spriteDimensionChanged:Boolean;
 
             //--------------------------------------
             // Getters / Setters
@@ -119,6 +124,16 @@ THE SOFTWARE.
 
             public function get detail():uint { return m_detail; }
 
+            public function get spriteDimension():SpriteDimension { return m_spriteDimension; }
+            public function set spriteDimension(value:SpriteDimension):void
+            {
+                if (value != m_spriteDimension) {
+                    m_spriteDimension = value;
+                    m_spriteDimensionChanged = true;
+                    invalidateProperties();
+                }
+            }
+
             //--------------------------------------------------------------------------
             // METHODS
             //--------------------------------------------------------------------------
@@ -136,6 +151,11 @@ THE SOFTWARE.
                     m_versionChanged = false;
                 }
 
+                if (m_spriteDimensionChanged) {
+                    updateProperties();
+                    m_spriteDimensionChanged = false;
+                }
+                
                 if (m_extendedChanged) {
                     updateProperties();
                     m_extendedChanged = false;
@@ -166,6 +186,7 @@ THE SOFTWARE.
                 var done:Boolean = (m_version != null);
 
                 versionsDropDownList.selectedItem = m_version;
+                spriteDimensionsDropDownList.selectedItem = m_spriteDimension;
 
                 if (done) {
                     m_extended = (m_extended || m_version.value >= 960);
@@ -198,6 +219,11 @@ THE SOFTWARE.
             {
                 versionsDropDownList.dataProvider = new ArrayCollection(VersionStorage.getInstance().getList());
                 versionsDropDownList.setSelectedIndex(0, true);
+
+                spriteDimensionsDropDownList.dataProvider = new ArrayCollection(SpriteDimensionStorage.getInstance().getList());
+                if (!m_spriteDimension)
+                    m_spriteDimension = spriteDimensionsDropDownList.dataProvider[0]
+
                 focusManager.setFocus(confirmButton);
                 focusManager.showFocus();
             }
@@ -205,6 +231,11 @@ THE SOFTWARE.
             private function versionsDropDownListChangeHandler(event:IndexChangeEvent):void
             {
                 version = versionsDropDownList.selectedItem as Version;
+            }
+
+            private function spriteDimensionsDropDownListChangeHandler(event:IndexChangeEvent):void
+            {
+                spriteDimension = spriteDimensionsDropDownList.selectedItem as SpriteDimension;
             }
 
             private function extendedCheckBoxChangeHandler(event:Event):void
@@ -257,6 +288,18 @@ THE SOFTWARE.
             <s:DropDownList id="versionsDropDownList"
                             width="100%" height="21"
                             change="versionsDropDownListChangeHandler(event)" />
+        </mg:GroupBox>
+
+        <mg:GroupBox width="100%"
+                     label="@Resource(key='spriteDimension', bundle='strings')">
+
+            <mg:layout>
+                <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle" />
+            </mg:layout>
+
+            <s:DropDownList id="spriteDimensionsDropDownList"
+                            width="100%" height="21"
+                            change="spriteDimensionsDropDownListChangeHandler(event)" />
         </mg:GroupBox>
 
         <mg:GroupBox width="100%"

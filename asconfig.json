@@ -24,6 +24,10 @@
             {
                 "file": "src/firstRun/versions.xml",
                 "path": "versions.xml"
+            },
+			{
+                "file": "src/firstRun/sprites.xml",
+                "path": "sprites.xml"
             }
 		],
 

@@ -30,9 +30,10 @@ package otlib.sprites
     import by.blooddy.crypto.MD5;
 
     import nail.errors.NullArgumentError;
+    import otlib.utils.SpriteExtent;
 
     /**
-     * The Sprite class represents an image with 32x32 pixels.
+     * The Sprite class represents an image with SpriteExtent x SpriteExtent pixels.
      */
     public class Sprite
     {
@@ -45,6 +46,7 @@ package otlib.sprites
         private var _compressedPixels:ByteArray;
         private var _bitmap:BitmapData;
         private var _hash:String;
+        private var _rect:Rectangle;
 
         //--------------------------------------
         // Getters / Setters
@@ -81,6 +83,8 @@ package otlib.sprites
             _transparent = transparent;
             _compressedPixels = new ByteArray();
             _compressedPixels.endian = Endian.LITTLE_ENDIAN;
+
+            _rect = new Rectangle(0, 0, SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE);
         }
 
         //--------------------------------------------------------------------------
@@ -109,7 +113,7 @@ package otlib.sprites
             if (!pixels)
                 throw new NullArgumentError("pixels");
 
-            if (pixels.length != SPRITE_DATA_SIZE)
+            if (pixels.length != SpriteExtent.DEFAULT_DATA_SIZE)
                 throw new Error("Invalid sprite pixels length");
 
             _hash = null;
@@ -125,8 +129,9 @@ package otlib.sprites
             if (!pixels)
                 return null;
 
-            _bitmap = new BitmapData(DEFAULT_SIZE, DEFAULT_SIZE, true);
-            _bitmap.setPixels(RECTANGLE, pixels);
+            _bitmap = new BitmapData(SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE, true);
+            _bitmap.setPixels(_rect, pixels);
+
             return _bitmap;
         }
 
@@ -135,10 +140,10 @@ package otlib.sprites
             if (!bitmap)
                 throw new NullArgumentError("bitmap");
 
-            if (bitmap.width != DEFAULT_SIZE || bitmap.height != DEFAULT_SIZE)
+            if (bitmap.width != SpriteExtent.DEFAULT_SIZE || bitmap.height != SpriteExtent.DEFAULT_SIZE)
                 throw new Error("Invalid sprite bitmap size");
 
-            if (!compressPixels( bitmap.getPixels(RECTANGLE) ))
+            if (!compressPixels( bitmap.getPixels(_rect) ))
                 return false;
 
             _hash = null;
@@ -174,7 +179,7 @@ package otlib.sprites
                 _compressedPixels.clear();
 
             if (_bitmap)
-                _bitmap.fillRect(RECTANGLE, 0x00FF00FF);
+                _bitmap.fillRect(_rect, 0x00FF00FF);
         }
 
         public function dispose():void
@@ -298,7 +303,7 @@ package otlib.sprites
                 }
             }
 
-            while(write < SPRITE_DATA_SIZE) {
+            while(write < SpriteExtent.DEFAULT_DATA_SIZE) {
                 pixels[write++] = 0x00; // Alpha
                 pixels[write++] = 0x00; // Red
                 pixels[write++] = 0x00; // Green
@@ -307,14 +312,5 @@ package otlib.sprites
 
             return pixels;
         }
-
-        //--------------------------------------------------------------------------
-        // STATIC
-        //--------------------------------------------------------------------------
-
-        public static const DEFAULT_SIZE:uint = 32;
-        public static const SPRITE_DATA_SIZE:uint = 4096; // DEFAULT_WIDTH * DEFAULT_HEIGHT * 4 channels;
-
-        private static const RECTANGLE:Rectangle = new Rectangle(0, 0, DEFAULT_SIZE, DEFAULT_SIZE);
     }
 }

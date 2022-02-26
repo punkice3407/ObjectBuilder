@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sprites>
+    <sprite value="32x32" size="32" dataSize="4096"/>
+    <sprite value="64x64" size="64" dataSize="16384"/>
+    <sprite value="128x128" size="128" dataSize="65536"/>
+    <sprite value="256x256" size="256" dataSize="262144"/>
+</sprites>

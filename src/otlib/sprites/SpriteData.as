@@ -29,6 +29,8 @@ package otlib.sprites
 
     import otlib.components.IListObject;
     import otlib.utils.SpriteUtils;
+    import otlib.utils.SpriteExtent;
+    import flash.display.Bitmap;
 
     public class SpriteData implements IListObject
     {
@@ -38,6 +40,8 @@ package otlib.sprites
 
         private var _id:uint;
         private var _pixels:ByteArray;
+        private var _rect:Rectangle;
+        private var _bitmapData:BitmapData;
 
         //--------------------------------------
         // Getters / Setters
@@ -54,6 +58,8 @@ package otlib.sprites
 
         public function SpriteData()
         {
+            _rect = new Rectangle(0, 0, SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE)
+            _bitmapData = new BitmapData(SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE, true, 0xFFFF00FF);
         }
 
         //--------------------------------------------------------------------------
@@ -80,9 +86,9 @@ package otlib.sprites
                 try
                 {
                     pixels.position = 0;
-                    BITMAP.setPixels(RECTANGLE, pixels);
-                    bitmap = new BitmapData(Sprite.DEFAULT_SIZE, Sprite.DEFAULT_SIZE, true, backgroundColor);
-                    bitmap.copyPixels(BITMAP, RECTANGLE, POINT, null, null, true);
+                    _bitmapData.setPixels(_rect, pixels);
+                    bitmap = new BitmapData(SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE, true, backgroundColor);
+                    bitmap.copyPixels(_bitmapData, _rect, POINT, null, null, true);
                 } catch(error:Error) {
                     return null;
                 }
@@ -94,8 +100,8 @@ package otlib.sprites
         public function isEmpty():Boolean
         {
             if (pixels) {
-                BITMAP.setPixels(RECTANGLE, pixels);
-                return SpriteUtils.isEmpty(BITMAP);
+                _bitmapData.setPixels(_rect, pixels);
+                return SpriteUtils.isEmpty(_bitmapData);
             }
             return true;
         }
@@ -119,16 +125,16 @@ package otlib.sprites
         //--------------------------------------------------------------------------
         // STATIC
         //--------------------------------------------------------------------------
-
-        private static const RECTANGLE:Rectangle = new Rectangle(0, 0, Sprite.DEFAULT_SIZE, Sprite.DEFAULT_SIZE);
         private static const POINT:Point = new Point();
-        private static const BITMAP:BitmapData = new BitmapData(Sprite.DEFAULT_SIZE, Sprite.DEFAULT_SIZE, true, 0xFFFF00FF);
 
         public static function createSpriteData(id:uint = 0, pixels:ByteArray = null):SpriteData
         {
             var data:SpriteData = new SpriteData();
             data.id = id;
-            data.pixels = pixels ? pixels : BITMAP.getPixels(RECTANGLE);
+
+            var bitmapData:BitmapData = new BitmapData(SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE, true, 0xFFFF00FF);
+            data.pixels = pixels ? pixels : bitmapData.getPixels(new Rectangle(0, 0, SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE));
+
             return data;
         }
     }

@@ -27,6 +27,7 @@ package ob.utils
     import flash.utils.ByteArray;
 
     import otlib.animation.FrameGroup;
+    import otlib.utils.SpriteExtent;
 
     public class ListObject
     {
@@ -59,7 +60,7 @@ package ob.utils
         public function getBitmap():BitmapData
         {
             if (pixels && frameGroup && !_bitmap) {
-                _bitmap = new BitmapData(frameGroup.width * 32, frameGroup.height * 32, true, 0xFFFF00FF);
+                _bitmap = new BitmapData(frameGroup.width * SpriteExtent.DEFAULT_SIZE, frameGroup.height * SpriteExtent.DEFAULT_SIZE, true, 0xFFFF00FF);
                 _bitmap.setPixels(_bitmap.rect, pixels);
             }
             return _bitmap;

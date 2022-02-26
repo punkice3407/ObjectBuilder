@@ -49,6 +49,7 @@ package otlib.sprites
     import otlib.storages.events.StorageEvent;
     import otlib.utils.ChangeResult;
     import otlib.utils.SpriteUtils;
+    import otlib.utils.SpriteExtent;
 
     use namespace otlib_internal;
 
@@ -104,7 +105,7 @@ package otlib.sprites
 
         public function SpriteStorage()
         {
-            _rect = new Rectangle(0, 0, Sprite.DEFAULT_SIZE, Sprite.DEFAULT_SIZE);
+            _rect = new Rectangle(0, 0, SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE);
             _point = new Point();
         }
 
@@ -195,7 +196,7 @@ package otlib.sprites
                 throw new NullArgumentError("pixels");
             }
 
-            if (pixels.length != Sprite.SPRITE_DATA_SIZE) {
+            if (pixels.length != SpriteExtent.DEFAULT_DATA_SIZE) {
                 throw new ArgumentError("Parameter pixels has an invalid length.");
             }
 
@@ -298,9 +299,9 @@ package otlib.sprites
          * @param id The id of sprite.
          * @param bitmap The destination bitmap.
          * @param x The X destination point that represents the upper-left corner
-         * of the 32x32 area where the new pixels are placed.
+         * of the SpriteExtent x SpriteExtent area where the new pixels are placed.
          * @param y The Y destination point that represents the upper-left corner of
-         * the 32x32 area where the new pixels are placed.
+         * the SpriteExtent x SpriteExtent area where the new pixels are placed.
          */
         public function copyPixels(id:int, bitmap:BitmapData, x:int, y:int):void
         {
@@ -317,8 +318,8 @@ package otlib.sprites
                 bitmap.copyPixels(sprite, _rect, _point, null, null, true);
             }
             catch(error:Error)
-            {
-                bitmap.copyPixels((new Assets.ALERT_IMAGE).bitmapData, _rect, _point, null, null, true);
+            {        
+                bitmap.copyPixels(SpriteUtils.createAlertBitmap(), _rect, _point, null, null, true);
                 Log.error(Resources.getString("failedToGetSprite", id), error.getStackTrace());
             }
         }
@@ -363,17 +364,17 @@ package otlib.sprites
                 throw new NullArgumentError("pixels");
             }
 
-            if (pixels.length != Sprite.SPRITE_DATA_SIZE) {
+            if (pixels.length != SpriteExtent.DEFAULT_DATA_SIZE) {
                 throw new ArgumentError("Parameter pixels has an invalid length.");
             }
 
             if (hasSpriteId(id)) {
                 pixels.position = 0;
-                var bmp1:BitmapData = new BitmapData(Sprite.DEFAULT_SIZE, Sprite.DEFAULT_SIZE, true, 0xFFFF00FF);
+                var bmp1:BitmapData = new BitmapData(SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE, true, 0xFFFF00FF);
                 bmp1.setPixels(bmp1.rect, pixels);
                 var otherPixels:ByteArray = this.getPixels(id);
                 otherPixels.position = 0;
-                var bmp2:BitmapData = new BitmapData(Sprite.DEFAULT_SIZE, Sprite.DEFAULT_SIZE, true, 0xFFFF00FF);
+                var bmp2:BitmapData = new BitmapData(SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE, true, 0xFFFF00FF);
                 bmp2.setPixels(bmp2.rect, otherPixels);
                 return (bmp1.compare(bmp2) == 0);
             }
@@ -586,7 +587,7 @@ package otlib.sprites
         {
             result = result ? result : new ChangeResult();
 
-            if (pixels.length != Sprite.SPRITE_DATA_SIZE) {
+            if (pixels.length != SpriteExtent.DEFAULT_DATA_SIZE) {
                 return result.update(null, false, "Parameter pixels has an invalid length.");
             }
 
@@ -763,7 +764,7 @@ package otlib.sprites
 
         private function createAlertSprite(transparent:Boolean):Sprite
         {
-            var bitmap:BitmapData = (new Assets.ALERT_IMAGE).bitmapData;
+            var bitmap:BitmapData = SpriteUtils.createAlertBitmap();
             var sprite:Sprite = new Sprite(uint.MAX_VALUE, transparent);
             sprite.setPixels( bitmap.getPixels(bitmap.rect) );
             return sprite;

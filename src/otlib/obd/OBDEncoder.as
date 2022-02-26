@@ -49,6 +49,7 @@ package otlib.obd
     import otlib.things.ThingSerializer;
     import otlib.things.ThingType;
     import otlib.utils.OTFormat;
+    import otlib.utils.SpriteExtent;
 
     public class OBDEncoder
     {
@@ -257,7 +258,7 @@ package otlib.obd
                 var pixels:ByteArray = spriteData.pixels;
                 pixels.position = 0;
 
-                if (pixels.bytesAvailable != 4096)
+                if (pixels.bytesAvailable != SpriteExtent.DEFAULT_DATA_SIZE)
                     throw new Error(StringUtil.format("Invalid pixels length."));
 
                 bytes.writeUnsignedInt(spriteId);
@@ -350,7 +351,7 @@ package otlib.obd
                     var pixels:ByteArray = spriteData.pixels;
                     pixels.position = 0;
 
-                    if (pixels.bytesAvailable != 4096)
+                    if (pixels.bytesAvailable != SpriteExtent.DEFAULT_DATA_SIZE)
                         throw new Error(StringUtil.format("Invalid pixels length."));
 
                     bytes.writeUnsignedInt(spriteId);
@@ -406,7 +407,7 @@ package otlib.obd
             if (frameGroup.width > 1 || frameGroup.height > 1)
                 frameGroup.exactSize = bytes.readUnsignedByte();
             else
-                frameGroup.exactSize = Sprite.DEFAULT_SIZE;
+                frameGroup.exactSize = SpriteExtent.DEFAULT_SIZE;
 
             frameGroup.layers = bytes.readUnsignedByte();
             frameGroup.patternX = bytes.readUnsignedByte();
@@ -427,8 +428,8 @@ package otlib.obd
             }
 
             var totalSprites:uint = frameGroup.getTotalSprites();
-            if (totalSprites > 4096)
-                throw new Error("The Object Data has more than 4096 sprites.");
+            if (totalSprites > SpriteExtent.DEFAULT_DATA_SIZE)
+                throw new Error(StringUtil.format("The Object Data has more than {0} sprites.", SpriteExtent.DEFAULT_DATA_SIZE));
 
             frameGroup.spriteIndex = new Vector.<uint>(totalSprites, true);
 
@@ -441,7 +442,7 @@ package otlib.obd
                 frameGroup.spriteIndex[i] = spriteId;
 
                 var dataSize:uint = bytes.readUnsignedInt();
-                if (dataSize > 4096)
+                if (dataSize > SpriteExtent.DEFAULT_DATA_SIZE)
                     throw new Error("Invalid sprite data size.");
 
                 var pixels:ByteArray = new ByteArray();
@@ -491,7 +492,7 @@ package otlib.obd
             if (frameGroup.width > 1 || frameGroup.height > 1)
                 frameGroup.exactSize = bytes.readUnsignedByte();
             else
-                frameGroup.exactSize = Sprite.DEFAULT_SIZE;
+                frameGroup.exactSize = SpriteExtent.DEFAULT_SIZE;
 
             frameGroup.layers = bytes.readUnsignedByte();
             frameGroup.patternX = bytes.readUnsignedByte();
@@ -518,8 +519,8 @@ package otlib.obd
             }
 
             var totalSprites:uint = frameGroup.getTotalSprites();
-            if (totalSprites > 4096)
-                throw new Error("The Object Data has more than 4096 sprites.");
+            if (totalSprites > SpriteExtent.DEFAULT_DATA_SIZE)
+                throw new Error(StringUtil.format("The Object Data has more than {0} sprites.", SpriteExtent.DEFAULT_DATA_SIZE));
 
             frameGroup.spriteIndex = new Vector.<uint>(totalSprites, true);
 
@@ -534,7 +535,7 @@ package otlib.obd
                 var pixels:ByteArray = new ByteArray();
                 pixels.endian = Endian.BIG_ENDIAN;
 
-                bytes.readBytes(pixels, 0, 4096);
+                bytes.readBytes(pixels, 0, SpriteExtent.DEFAULT_DATA_SIZE);
 
                 var spriteData:SpriteData = new SpriteData();
                 spriteData.id = spriteId;
@@ -589,7 +590,7 @@ package otlib.obd
                 if (frameGroup.width > 1 || frameGroup.height > 1)
                     frameGroup.exactSize = bytes.readUnsignedByte();
                 else
-                    frameGroup.exactSize = Sprite.DEFAULT_SIZE;
+                    frameGroup.exactSize = SpriteExtent.DEFAULT_SIZE;
 
                 frameGroup.layers = bytes.readUnsignedByte();
                 frameGroup.patternX = bytes.readUnsignedByte();
@@ -614,8 +615,8 @@ package otlib.obd
                 }
 
                 var totalSprites:uint = frameGroup.getTotalSprites();
-                if (totalSprites > 4096)
-                    throw new Error("The Object Data has more than 4096 sprites.");
+                if (totalSprites > SpriteExtent.DEFAULT_DATA_SIZE)
+                    throw new Error(StringUtil.format("The Object Data has more than {0} sprites.", SpriteExtent.DEFAULT_DATA_SIZE));
 
                 frameGroup.spriteIndex = new Vector.<uint>(totalSprites, true);
                 sprites[groupType] = new Vector.<SpriteData>(totalSprites, true);
@@ -626,7 +627,7 @@ package otlib.obd
                     frameGroup.spriteIndex[i] = spriteId;
 
                     var dataSize:uint = bytes.readUnsignedInt();
-                    if (dataSize > 4096)
+                    if (dataSize > SpriteExtent.DEFAULT_DATA_SIZE)
                         throw new Error("Invalid sprite data size.");
 
                     var pixels:ByteArray = new ByteArray();

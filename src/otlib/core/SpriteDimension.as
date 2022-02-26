@@ -20,44 +20,67 @@
 *  THE SOFTWARE.
 */
 
-package otlib.utils
+package otlib.core
 {
-    public class ClientInfo
+    import nail.errors.NullArgumentError;
+
+    public final class SpriteDimension
     {
         //--------------------------------------------------------------------------
         // PROPERTIES
         //--------------------------------------------------------------------------
 
-        public var clientVersion:uint;
-        public var clientVersionStr:String;
-        public var datSignature:uint;
-        public var minItemId:uint;
-        public var maxItemId:uint;
-        public var minOutfitId:uint;
-        public var maxOutfitId:uint;
-        public var minEffectId:uint;
-        public var maxEffectId:uint;
-        public var minMissileId:uint;
-        public var maxMissileId:uint;
-        public var sprSignature:uint;
-        public var minSpriteId:uint;
-        public var maxSpriteId:uint;
-        public var extended:Boolean;
-        public var transparency:Boolean;
-        public var improvedAnimations:Boolean;
-        public var frameGroups:Boolean;
-        public var changed:Boolean;
-        public var isTemporary:Boolean;
-        public var loaded:Boolean;
-        public var spriteSize:uint;
-        public var spriteDataSize:uint;
+        public var value:String;
+        public var size:uint;
+        public var dataSize:uint;
 
         //--------------------------------------------------------------------------
         // CONSTRUCTOR
         //--------------------------------------------------------------------------
 
-        public function ClientInfo()
+        public function SpriteDimension()
         {
+        }
+
+        //----------------------------------------------------
+        // METHODS
+        //----------------------------------------------------
+
+        //--------------------------------------
+        // Public
+        //--------------------------------------
+
+        public function toString():String
+        {
+            return value;
+        }
+
+        public function serialize():XML
+        {
+            var xml:XML = <sprite/>;
+            xml.@value = this.value;
+            xml.@size = this.size;
+            xml.@dataSize = this.dataSize;
+            return xml;
+        }
+
+        public function unserialize(xml:XML):void
+        {
+            if (!xml)
+                throw new NullArgumentError("xml");
+
+            if (!xml.hasOwnProperty("@value"))
+                throw new Error("Version.unserialize: Missing 'value' attribute.");
+
+            if (!xml.hasOwnProperty("@size"))
+                throw new Error("Version.unserialize: Missing 'size' attribute.");
+
+            if (!xml.hasOwnProperty("@dataSize"))
+                throw new Error("Version.unserialize: Missing 'dataSize' attribute.");
+
+            this.value = String(xml.@value);
+            this.size = uint(xml.@size);
+            this.dataSize = uint(xml.@dataSize);
         }
     }
 }

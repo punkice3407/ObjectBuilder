@@ -62,7 +62,6 @@ THE SOFTWARE.
             import otlib.components.skins.SpriteButtonSkin;
             import otlib.events.ThingEditorEvent;
             import otlib.geom.Direction;
-            import otlib.sprites.Sprite;
             import otlib.sprites.SpriteData;
             import otlib.things.BindableThingType;
             import otlib.things.FrameGroupType;
@@ -71,6 +70,8 @@ THE SOFTWARE.
             import otlib.things.ThingType;
             import otlib.utils.ClientInfo;
             import otlib.utils.OutfitData;
+            import otlib.utils.SpriteExtent;
+            import otlib.core.SpriteDimension;
 
             //--------------------------------------------------------------------------
             // PROPERTIES
@@ -129,6 +130,15 @@ THE SOFTWARE.
 
             public function setCurrentFrameGroup(value:FrameGroup):void { _frameGroup = value; }
 
+            public function set spriteDimension(value:SpriteDimension):void
+            {
+                SpriteExtent.DEFAULT_VALUE = value.toString();
+                SpriteExtent.DEFAULT_SIZE = value.size;
+                SpriteExtent.DEFAULT_DATA_SIZE = value.dataSize;
+
+                _rect = new Rectangle(0, 0, SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE);
+            }
+
             //--------------------------------------------------------------------------
             // METHODS
             //--------------------------------------------------------------------------
@@ -140,7 +150,7 @@ THE SOFTWARE.
             public function saveChanges():Boolean
             {
                 if (_thingData && _changed) {
-                    if (_thingBinding.copyToThingData(_thingData, _thingBinding.groups)) {
+                    if (_thingBinding.copyToThingData(_thingData)) {
                         _changed = false;
                         dispatchEvent(new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, this.thingData));
                         return true;
@@ -153,7 +163,7 @@ THE SOFTWARE.
             {
                 if (_thingData) {
                     var thing:ThingType = new ThingType();
-                    if (_thingBinding.copyToThingType(thing, _thingBinding.groups)) {
+                    if (_thingBinding.copyToThingType(thing)) {
                         return thing;
                     }
                 }
@@ -280,7 +290,7 @@ THE SOFTWARE.
                     setCurrentFrameGroup(_thingBinding.getFrameGroup(thingView.frameGroupType))
 
                     addonGroup.visible = (isOutfit && _frameGroup.patternY > 1);
-                    cropSizeNumericStepper.maximum = Math.max(_frameGroup.width * 32, _frameGroup.height * 32);
+                    cropSizeNumericStepper.maximum = Math.max(_frameGroup.width * SpriteExtent.DEFAULT_SIZE, _frameGroup.height * SpriteExtent.DEFAULT_SIZE);
 
 					frameGroupSlider.visible = (isOutfit && _thingBinding.groups > 1);
                     animationModeDropDownList.selectedIndex = _frameGroup.animationMode;
@@ -443,7 +453,7 @@ THE SOFTWARE.
 
                 var width:uint = _frameGroup.width;
                 var height:uint = _frameGroup.height;
-                var size:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
+                var size:uint = SpriteExtent.DEFAULT_SIZE;
                 var bitmapWidth:Number = Math.max(size, width * size);
                 var bitmapHeight:Number = Math.max(size, height * size);
                 var bitmap:BitmapData = new BitmapData(bitmapWidth, bitmapHeight, true, 0x00FF00FF);
@@ -483,7 +493,7 @@ THE SOFTWARE.
                 var layers:uint = _frameGroup.layers;
                 var patternX:uint = _frameGroup.patternX;
                 var patternY:uint = _frameGroup.patternY;
-                var size:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
+                var size:uint = SpriteExtent.DEFAULT_SIZE;
                 var bitmapWidth:Number  = Math.max(size, (patternX * width) * size);
                 var bitmapHeight:Number = Math.max(size, (patternY * height) * size);
                 var pixelsWidth:int = width * size;
@@ -521,8 +531,8 @@ THE SOFTWARE.
             private function addButton(index:uint, id:uint, x:uint, y:uint):void
             {
                 var button:Button = new Button();
-                button.width = 32;
-                button.height = 32;
+                button.width = SpriteExtent.DEFAULT_SIZE;
+                button.height = SpriteExtent.DEFAULT_SIZE;
                 button.alpha = showGridCheckBox.selected ? 1 : 0;
                 button.label = index.toString();
                 button.toolTip = id.toString();
@@ -547,8 +557,9 @@ THE SOFTWARE.
                     size > 0 &&
                     buttonsContainer.width > 0 &&
                     buttonsContainer.height > 0) {
-                    var w:uint = Math.min(_frameGroup.width * 32, size);
-                    var h:uint = Math.min(_frameGroup.height * 32, size);
+
+                    var w:uint = Math.min(_frameGroup.width * SpriteExtent.DEFAULT_SIZE, size);
+                    var h:uint = Math.min(_frameGroup.height * SpriteExtent.DEFAULT_SIZE, size);
                     var px:int = bitmapView.width - w;
                     var py :int = bitmapView.height - h;
                     buttonsContainer.graphics.lineStyle(1, 0x00FF00);
@@ -721,7 +732,6 @@ THE SOFTWARE.
             {
                 _thingBinding = new BindableThingType();
                 _thingBinding.addEventListener(PropertyChangeEvent.PROPERTY_CHANGE, thingPropertyChangeHandler);
-                _rect = new Rectangle(0, 0, 32, 32);
                 _point = new Point();
             }
 

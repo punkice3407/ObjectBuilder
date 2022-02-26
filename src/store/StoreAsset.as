@@ -14,6 +14,7 @@ package store
     import otlib.things.ThingCategory;
     import otlib.things.ThingData;
 	import otlib.things.FrameGroupType;
+	import otlib.utils.SpriteUtils;
 
     [Event(name="complete", type="flash.events.Event")]
 
@@ -92,7 +93,7 @@ package store
                 catch(error:Error)
                 {
                     m_data = null;
-                    m_bitmap = (new Assets.ALERT_IMAGE).bitmapData;
+                    m_bitmap = SpriteUtils.createAlertBitmap();
                     m_error = error.message;
                     m_loaded = false;
                 }
@@ -102,7 +103,7 @@ package store
 
             function errorHandler(event:IOErrorEvent):void
             {
-                m_bitmap = (new Assets.ALERT_IMAGE).bitmapData;
+                m_bitmap = SpriteUtils.createAlertBitmap();
                 m_error = event.text;
                 m_loaded = false;
                 dispatchEvent(new Event(Event.COMPLETE));

@@ -51,6 +51,7 @@ package
     import ob.commands.FindResultCommand;
     import ob.commands.HideProgressBarCommand;
     import ob.commands.LoadVersionsCommand;
+    import ob.commands.LoadSpriteDimensionsCommand;
     import ob.commands.NeedToReloadCommand;
     import ob.commands.ProgressBarID;
     import ob.commands.ProgressCommand;
@@ -103,7 +104,6 @@ package
     import otlib.obd.OBDEncoder;
     import otlib.obd.OBDVersions;
     import otlib.resources.Resources;
-    import otlib.sprites.Sprite;
     import otlib.sprites.SpriteData;
     import otlib.sprites.SpriteStorage;
     import otlib.storages.events.StorageEvent;
@@ -120,6 +120,10 @@ package
     import otlib.utils.OTFormat;
     import otlib.utils.SpritesOptimizer;
     import otlib.utils.ThingListItem;
+    import otlib.core.SpriteDimensionStorage;
+    import otlib.utils.SpriteExtent;
+    import otlib.core.SpriteDimension;
+    import ob.commands.SetSpriteDimensionCommand;
 
     [ResourceBundle("strings")]
 
@@ -262,6 +266,8 @@ package
             _communicator.registerCallback(SettingsCommand, settingsCallback);
 
             _communicator.registerCallback(LoadVersionsCommand, loadClientVersionsCallback);
+            _communicator.registerCallback(LoadSpriteDimensionsCommand, loadSpriteDimensionsCallback);
+            _communicator.registerCallback(SetSpriteDimensionCommand, setSpriteDimensionCallback);
 
             // File commands
             _communicator.registerCallback(CreateNewFilesCommand, createNewFilesCallback);
@@ -315,6 +321,30 @@ package
             VersionStorage.getInstance().load( new File(path) );
         }
 
+        private function loadSpriteDimensionsCallback(path:String):void
+        {
+            if (isNullOrEmpty(path))
+                throw new NullOrEmptyArgumentError("path");
+
+            SpriteDimensionStorage.getInstance().load( new File(path) );
+        } 
+
+        private function setSpriteDimensionCallback(value:String, size:uint, dataSize:uint):void
+        {
+            if (isNullOrEmpty(value))
+                throw new NullOrEmptyArgumentError("value");
+
+            if (isNullOrEmpty(size))
+                throw new NullOrEmptyArgumentError("size");
+
+            if (isNullOrEmpty(dataSize))
+                throw new NullOrEmptyArgumentError("dataSize");
+
+            SpriteExtent.DEFAULT_VALUE = value;
+            SpriteExtent.DEFAULT_SIZE = size;
+            SpriteExtent.DEFAULT_DATA_SIZE = dataSize;
+        }   
+
         private function settingsCallback(settings:ObjectBuilderSettings):void
         {
             if (isNullOrEmpty(settings))
@@ -324,6 +354,7 @@ package
             _thingListAmount = settings.objectsListAmount;
             _spriteListAmount = settings.spritesListAmount;
         }
+
 
         private function createNewFilesCallback(datSignature:uint,
                                           sprSignature:uint,
@@ -523,7 +554,7 @@ package
             // Save .otfi file
             var dir:File = FileUtil.getDirectory(dat);
             var otfiFile:File = dir.resolvePath(FileUtil.getName(dat) + ".otfi");
-            var otfi:OTFI = new OTFI(extended, transparency, improvedAnimations, frameGroups, dat.name, spr.name);
+            var otfi:OTFI = new OTFI(extended, transparency, improvedAnimations, frameGroups, dat.name, spr.name, SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_DATA_SIZE);
             otfi.save(otfiFile);
 
             clientCompileComplete();
@@ -623,17 +654,21 @@ package
             var currentThing:ThingType = _things.getThingType(thing.id, thing.category);
 
 			var sprites:Dictionary = new Dictionary();
+            sprites = thingData.sprites;
+
 			for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
 			{
 				var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
 				if(!frameGroup)
 					continue;
 
-				sprites[groupType] = thingData.sprites;
-				var length:uint = sprites.length;
+                var currentFrameGroup:FrameGroup = currentThing.getFrameGroup(groupType);
+                if(!currentFrameGroup)
+                    continue;
 
+                var length:uint = sprites[groupType].length;
 				for (var i:uint = 0; i < length; i++) {
-					var spriteData:SpriteData = sprites[i];
+					var spriteData:SpriteData = sprites[groupType][i];
 					var id:uint = frameGroup.spriteIndex[i];
 
 					if (id == uint.MAX_VALUE) {
@@ -641,12 +676,11 @@ package
 							frameGroup.spriteIndex[i] = 0;
 						} else {
 
-							//var currentThingFrameGroup:FrameGroup = currentThing.getFrameGroup(groupType);
-							//if (replaceSprites && i < currentThingFrameGroup.spriteIndex.length && currentThingFrameGroup.spriteIndex[i] != 0) {
-							//	result = _sprites.replaceSprite(currentThingFrameGroup.spriteIndex[i], spriteData.pixels);
-							//} else {
-							result = _sprites.addSprite(spriteData.pixels);
-							//}
+                            if (replaceSprites && i < currentFrameGroup.spriteIndex.length && currentFrameGroup.spriteIndex[i] != 0) {
+                                result = _sprites.replaceSprite(currentFrameGroup.spriteIndex[i], spriteData.pixels);
+                            } else {
+                                result = _sprites.addSprite(spriteData.pixels);
+                            }
 
 							if (!result.done) {
 								Log.error(result.message);
@@ -1461,7 +1495,7 @@ package
             //============================================================================
             // Add sprite
 
-            var rect:Rectangle = new Rectangle(0, 0, otlib.sprites.Sprite.DEFAULT_SIZE, otlib.sprites.Sprite.DEFAULT_SIZE);
+            var rect:Rectangle = new Rectangle(0, 0, SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE);
             var pixels:ByteArray = new BitmapData(rect.width, rect.height, true, 0).getPixels(rect);
             var result:ChangeResult = _sprites.addSprite(pixels);
             if (!result.done) {
@@ -1713,7 +1747,7 @@ package
 
         private function getBitmapPixels(thing:ThingType):ByteArray
         {
-            var size:uint = otlib.sprites.Sprite.DEFAULT_SIZE;
+            var size:uint = SpriteExtent.DEFAULT_SIZE;
             var frameGroup:FrameGroup = thing.getFrameGroup(FrameGroupType.DEFAULT);
 
             var width:uint = frameGroup.width;
