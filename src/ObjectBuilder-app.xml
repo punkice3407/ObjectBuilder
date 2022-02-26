@@ -5,7 +5,7 @@
 	<filename>ObjectBuilder</filename>
 	<name>Object Builder</name>
 	<versionNumber>0.5.4</versionNumber>
-	<versionLabel>0.5.4-dev</versionLabel>
+	<versionLabel>0.5.4</versionLabel>
 	<copyright>
 		<![CDATA[Copyright (c) 2014-2022 <a href="https://github.com/Mignari/ObjectBuilder/graphs/contributors">Contributors</a>]]>
 	</copyright>
