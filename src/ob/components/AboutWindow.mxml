@@ -75,7 +75,7 @@
             protected function dbrButtonClickHandler(event:MouseEvent):void
             {
                 // Please, dont remove or change it.
-                navigateToURL(new URLRequest("https://dbroyale.com/"));
+                navigateToURL(new URLRequest("https://dbko-inferno.pl/"));
             }
 
             protected function otpButtonClickHandler(event:MouseEvent):void
@@ -145,7 +145,7 @@
         <s:Label text="Supported By:" />
 
         <mx:LinkButton id="dbrButton"
-                  label="dbroyale.com"
+                  label="dbko-inferno.pl"
                   fontWeight="bold"
                   fontSize="18"
                   color="0x03fcd7"

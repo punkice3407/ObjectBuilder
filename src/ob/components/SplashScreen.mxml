@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-Copyright (c) 2014-2019 Object Builder <https://github.com/ottools/ObjectBuilder>
+Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -155,6 +155,14 @@ THE SOFTWARE.
                       shadowColor="0x535353"
                       fontSize="12"
                       fontWeight="bold"/>
+
+    <nail:ShadowLabel id="infernoDisplay"
+                      right="55"
+                      top="130"
+                      color="0xCCCCCC"
+                      shadowColor="0x535353"
+                      fontSize="12"
+                      text="dbko-inferno.pl"/>
 
     <nail:ShadowLabel id="statusDisplay"
                       left="10"
