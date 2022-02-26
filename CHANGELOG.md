@@ -1,3 +1,33 @@
+### 0.5.4-dev
+
+Features:
+
+* New option to load sprites larger than 32x32
+
+Bug Fixes:
+
+* Fixed replace sprites
+* Fixes for frame groups in bindable thing type
+* Attempt to fix loading sprite sheets via drag drop on thing, not working properly for outfits...
+
+### 0.5.3
+
+Features:
+
+* Added better error info when using the fill option incorrectly
+
+Bug Fixes:
+
+* Fixed bugs with exporting outfits as image
+* Fixed overlapped direction buttons
+
+### 0.5.2
+
+Features:
+
+* New option in sprites contextmenu, fill current thing with selected sprites(open object thing, select sprites and click INSERT)
+* Now slicer can save empty sprites
+
 ### 0.5.1
 
 Features:
