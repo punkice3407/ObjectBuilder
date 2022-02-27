@@ -117,6 +117,9 @@ THE SOFTWARE.
                 setSavePropertiesValue(settings.savingSpriteSheet);
                 objectsAmountSlider.value = settings.objectsListAmount;
                 spritesAmountSlider.value = settings.spritesListAmount;
+                itemsDurationNumericStepper.value = settings.itemsDuration;
+                outfitsDurationNumericStepper.value = settings.outfitsDuration;
+                effectsDurationNumericStepper.value = settings.effectsDuration;
             }
 
             private function setLanguage(language:String):void
@@ -191,6 +194,9 @@ THE SOFTWARE.
                 _settings.savingSpriteSheet = getSavePropertiesValue();
                 _settings.objectsListAmount = objectsAmountSlider.value;
                 _settings.spritesListAmount = spritesAmountSlider.value;
+                _settings.itemsDuration = itemsDurationNumericStepper.value;
+                _settings.outfitsDuration = outfitsDurationNumericStepper.value;
+                _settings.effectsDuration = effectsDurationNumericStepper.value;
                 close();
             }
 
@@ -298,6 +304,31 @@ THE SOFTWARE.
                                label="@Resource(key='allProperties', bundle='strings')"
                                enabled="{savePropertiesGroupCheckBox.selected}"/>
             </mg:GroupCheckBox>
+        </s:NavigatorContent>
+
+        <s:NavigatorContent label="@Resource(key='things', bundle='strings')"
+                            width="100%" height="100%">
+            <s:layout>
+                <s:VerticalLayout padding="10" paddingTop="20" />
+            </s:layout>
+
+            <mg:GroupBox width="100%"
+                           label="@Resource(key='animationDuration', bundle='strings')">
+                <mg:layout>
+                    <s:TileLayout requestedColumnCount="2" padding="10"/>
+                </mg:layout>
+
+                <s:NumericStepper id="itemsDurationNumericStepper" width="100" minimum="0" maximum="1000"/>
+                <s:Label text="{resourceManager.getString('strings', 'items')}" paddingTop="5"/>
+    
+                <s:NumericStepper id="outfitsDurationNumericStepper" width="100" minimum="0" maximum="1000"/>
+                <s:Label text="{resourceManager.getString('strings', 'outfits')}" paddingTop="5"/>
+
+                <s:NumericStepper id="effectsDurationNumericStepper" width="100" minimum="0" maximum="1000"/>          
+                <s:Label text="{resourceManager.getString('strings', 'effects')}" paddingTop="5"/>
+
+            </mg:GroupBox>
+
         </s:NavigatorContent>
     </mx:ViewStack>
 

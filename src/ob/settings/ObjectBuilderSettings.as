@@ -36,6 +36,7 @@ package ob.settings
     import otlib.core.Version;
     import otlib.settings.Settings;
     import otlib.utils.OTFormat;
+    import otlib.things.ThingCategory;
 
     public class ObjectBuilderSettings extends Settings
     {
@@ -73,6 +74,9 @@ package ob.settings
         public var spritesListAmount:Number = 100;
         public var exportWithTransparentBackground:Boolean = false;
         public var jpegQuality:Number = 100;
+        public var itemsDuration:Number = 500;
+        public var outfitsDuration:Number = 300;
+        public var effectsDuration:Number = 100;       
 
         //--------------------------------------------------------------------------
         // CONSTRUCTOR
@@ -201,6 +205,23 @@ package ob.settings
                 return ["en_US"];
 
             return [language];
+        }
+
+        public function getDefaultDuration(category:String):uint
+        {
+            switch(category)
+            {
+                case ThingCategory.ITEM:
+                    return itemsDuration;
+
+                case ThingCategory.OUTFIT:
+                    return outfitsDuration;
+
+                case ThingCategory.EFFECT:
+                    return effectsDuration;
+            }
+
+            return 0;
         }
     }
 }

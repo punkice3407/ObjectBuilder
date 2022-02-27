@@ -134,6 +134,7 @@ THE SOFTWARE.
             import ob.components.PreferencesWindow;
             import ob.components.SplashScreen;
             import ob.components.SpritesOptimizerWindow;
+            import ob.components.FrameDurationsOptimizerWindow;
             import ob.settings.ObjectBuilderSettings;
             import ob.utils.ObUtils;
 
@@ -691,6 +692,23 @@ THE SOFTWARE.
                 _locked = true;
 
                 var window:SpritesOptimizerWindow = new SpritesOptimizerWindow();
+                window.communicator = _communicator;
+                window.addEventListener(Event.CLOSE, closeHandler);
+                window.open(this);
+
+                function closeHandler(event:Event):void
+                {
+                    _locked = false;
+                }
+            }
+
+            public function openFrameDurationsOptimizer():void
+            {
+                if (!clientLoaded || _locked) return;
+
+                _locked = true;
+
+                var window:FrameDurationsOptimizerWindow = new FrameDurationsOptimizerWindow();
                 window.communicator = _communicator;
                 window.addEventListener(Event.CLOSE, closeHandler);
                 window.open(this);
@@ -2371,6 +2389,10 @@ THE SOFTWARE.
                     case Menu.TOOLS_SPRITES_OPTIMIZER:
                         openSpritesOptimizer();
                         break;
+
+                    case Menu.TOOLS_FRAME_DURATIONS_OPTIMIZER:
+                        openFrameDurationsOptimizer();
+                        break;                    
 
                     case Menu.WINDOW_LOG:
                         openLogWindow();

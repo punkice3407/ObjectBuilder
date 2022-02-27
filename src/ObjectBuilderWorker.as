@@ -89,6 +89,8 @@ package
     import ob.commands.things.SetThingDataCommand;
     import ob.commands.things.SetThingListCommand;
     import ob.commands.things.UpdateThingCommand;
+    import ob.commands.things.OptimizeFrameDurationsCommand;
+    import ob.commands.things.OptimizeFrameDurationsResultCommand;
     import ob.settings.ObjectBuilderSettings;
     import ob.utils.ObUtils;
     import ob.utils.SpritesFinder;
@@ -120,6 +122,7 @@ package
     import otlib.utils.OTFormat;
     import otlib.utils.SpritesOptimizer;
     import otlib.utils.ThingListItem;
+    import otlib.utils.FrameDurationsOptimizer;
     import otlib.core.SpriteDimensionStorage;
     import otlib.utils.SpriteExtent;
     import otlib.core.SpriteDimension;
@@ -290,6 +293,7 @@ package
             _communicator.registerCallback(GetThingCommand, getThingCallback);
             _communicator.registerCallback(GetThingListCommand, getThingListCallback);
             _communicator.registerCallback(FindThingCommand, findThingCallback);
+            _communicator.registerCallback(OptimizeFrameDurationsCommand, optimizeFrameDurationsCallback);
 
             // Sprite commands
             _communicator.registerCallback(NewSpriteCommand, newSpriteCallback);
@@ -1604,6 +1608,28 @@ package
                 }
 
                 sendCommand(new OptimizeSpritesResultCommand(optimizer.removedCount, optimizer.oldCount, optimizer.newCount));
+            }
+        }
+
+        private function optimizeFrameDurationsCallback(items:Boolean, itemsMinimumDuration:uint, itemsMaximumDuration:uint,
+                                                outfits:Boolean, outfitsMinimumDuration:uint, outfitsMaximumDuration:uint,
+                                                effects:Boolean, effectsMinimumDuration:uint, effectsMaximumDuration:uint):void
+        {
+            var optimizer:FrameDurationsOptimizer = new FrameDurationsOptimizer(_things, items, itemsMinimumDuration, itemsMaximumDuration, 
+                                                                        outfits, outfitsMinimumDuration, outfitsMaximumDuration,
+                                                                        effects, effectsMinimumDuration, effectsMaximumDuration);
+            optimizer.addEventListener(ProgressEvent.PROGRESS, progressHandler);
+            optimizer.addEventListener(Event.COMPLETE, completeHandler);
+            optimizer.start();
+
+            function progressHandler(event:ProgressEvent):void
+            {
+                sendCommand(new ProgressCommand(ProgressBarID.OPTIMIZE, event.loaded, event.total, event.label));
+            }
+
+            function completeHandler(event:Event):void
+            {
+                sendCommand(new OptimizeFrameDurationsResultCommand());
             }
         }
 

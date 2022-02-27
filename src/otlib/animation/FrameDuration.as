@@ -23,6 +23,8 @@
 package otlib.animation
 {
     import otlib.things.ThingCategory;
+    import ob.core.IObjectBuilder;
+    import mx.core.FlexGlobals;
 
     public class FrameDuration
     {
@@ -91,16 +93,20 @@ package otlib.animation
 
         static public function getDefaultDuration(category:String):uint
         {
+            var m_application:IObjectBuilder = FlexGlobals.topLevelApplication as IObjectBuilder;
+            if (!m_application)
+                return 0;
+            
             switch(category)
             {
                 case ThingCategory.ITEM:
-                    return 500;
+                    return m_application.settings.itemsDuration;
 
                 case ThingCategory.OUTFIT:
-                    return 300;
+                    return m_application.settings.outfitsDuration;
 
                 case ThingCategory.EFFECT:
-                    return 100;
+                    return m_application.settings.effectsDuration;
             }
 
             return 0;

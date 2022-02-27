@@ -72,6 +72,7 @@ THE SOFTWARE.
             import otlib.utils.OutfitData;
             import otlib.utils.SpriteExtent;
             import otlib.core.SpriteDimension;
+            import otlib.assets.Assets;
 
             //--------------------------------------------------------------------------
             // PROPERTIES
@@ -972,6 +973,44 @@ THE SOFTWARE.
                 propertyChanged("startFrame", oldValue, _frameGroup.startFrame);
             }
 
+            protected function setDefaultDurationsHandler(event:Event):void
+            {
+                var oldDuration:FrameDuration = _frameGroup.frameDurations[animationSlider.value];
+                var newDuration:FrameDuration = oldDuration.clone();
+
+                var duration:uint = FrameDuration.getDefaultDuration(_thingData.category);
+                newDuration.minimum = duration;
+                newDuration.maximum = duration;
+
+                if (!oldDuration.equals(newDuration)) {
+					_frameGroup.frameDurations[animationSlider.value] = newDuration;
+
+                    if (oldDuration.minimum != newDuration.minimum)
+                    {
+                        minimumNumericStepper.value = duration;
+                        propertyChanged("minimumDuration", oldDuration.minimum, newDuration.minimum);
+                    }
+
+                    if (oldDuration.maximum != newDuration.maximum)
+                    {
+                        maximumNumericStepper.value = duration;
+                        propertyChanged("maximumDuration", oldDuration.maximum, newDuration.maximum);
+                    }
+                }
+            }
+
+            protected function setForAllFramesHandler(event:Event):void
+            {
+                var currentDuration:FrameDuration = _frameGroup.frameDurations[animationSlider.value];
+
+                for (var frame:uint = 0; frame < _frameGroup.frames; frame++) {
+                    var oldDuration:FrameDuration = _frameGroup.frameDurations[frame];
+                    if (!oldDuration.equals(currentDuration)) {
+                        _frameGroup.frameDurations[frame] = currentDuration.clone();
+                    }
+                }
+            } 
+
         ]]>
     </fx:Script>
 
@@ -1093,21 +1132,35 @@ THE SOFTWARE.
                         </s:HGroup>
 
                         <s:HGroup id="minimumGroup" width="100%" horizontalAlign="right" visible="false">
-                            <s:Label text="{resourceManager.getString('strings', 'minimumDuration') + ':'}"/>
+                            <s:Label text="{resourceManager.getString('strings', 'minimumDuration') + ':'}" paddingTop="5"/>
                             <s:NumericStepper id="minimumNumericStepper"
                                               width="100"
                                               minimum="0"
-                                              maximum="500"
+                                              maximum="1000"
                                               change="minimumNumericStepperChangeHandler(event)"/>
+
+                            <s:Button id="defaultDurations"
+                                    toolTip="@Resource(key='defaultDurations', bundle='strings')"
+                                    width="19"
+                                    height="19"
+                                    icon="{Assets.EDIT}"
+                                    click="setDefaultDurationsHandler(event)"/>
                         </s:HGroup>
 
                         <s:HGroup id="maximumGroup" width="100%" verticalAlign="middle" horizontalAlign="right" visible="false">
-                            <s:Label text="{resourceManager.getString('strings', 'maximumDuration') + ':'}"/>
+                            <s:Label text="{resourceManager.getString('strings', 'maximumDuration') + ':'}" paddingTop="5"/>
                             <s:NumericStepper id="maximumNumericStepper"
                                               width="100"
                                               minimum="0"
-                                              maximum="500"
+                                              maximum="1000"
                                               change="maximumNumericStepperChangeHandler(event)"/>
+
+                            <s:Button id="forAllFrames"
+                                    toolTip="@Resource(key='setForAllFrames', bundle='strings')"
+                                    width="19"
+                                    height="19"
+                                    icon="{Assets.EDIT}"
+                                    click="setForAllFramesHandler(event)"/>
                         </s:HGroup>
 
                         <s:HGroup id="addonGroup"

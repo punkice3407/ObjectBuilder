@@ -244,6 +244,12 @@ package ob.menu
             toolsSpritesOptimizer.data = TOOLS_SPRITES_OPTIMIZER;
             toolsMenu.addMenuItem(toolsSpritesOptimizer);
 
+            // Tools > Frame Durations Optimizer
+            var toolsFrameDurationsOptimizer:MenuItem = new MenuItem();
+            toolsFrameDurationsOptimizer.label = Resources.getString("frameDurationsOptimizer");
+            toolsFrameDurationsOptimizer.data = TOOLS_FRAME_DURATIONS_OPTIMIZER;
+            toolsMenu.addMenuItem(toolsFrameDurationsOptimizer);
+
             // Window
             var windowMenu:MenuItem = new MenuItem();
             windowMenu.label = Resources.getString("menu.window");
@@ -487,6 +493,7 @@ package ob.menu
         public static const TOOLS_SLICER:String = "toolsSlicer";
         public static const TOOLS_ANIMATION_EDITOR:String = "toolsAnimationEditor";
         public static const TOOLS_SPRITES_OPTIMIZER:String = "toolsSpritesOptimizer";
+        public static const TOOLS_FRAME_DURATIONS_OPTIMIZER:String = "toolsFrameDurationsOptimizer";
         public static const WINDOW_LOG:String = "windowLog";
         public static const WINDOW_VERSIONS:String = "windowVersions";
         public static const HELP_CONTENTS:String = "helpContents";
