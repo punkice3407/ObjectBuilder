@@ -44,6 +44,7 @@ package otlib.things
     import otlib.utils.ChangeResult;
     import otlib.utils.ThingUtils;
 	import otlib.animation.FrameGroup;
+	import ob.settings.ObjectBuilderSettings;
 
     use namespace otlib_internal;
 
@@ -80,6 +81,7 @@ package otlib.things
         private var _progressCount:uint;
         private var _changed:Boolean;
         private var _loaded:Boolean;
+        private var _settings:ObjectBuilderSettings;
 
         //--------------------------------------
         // Getters / Setters
@@ -104,8 +106,9 @@ package otlib.things
         // CONSTRUCTOR
         //--------------------------------------------------------------------------
 
-        public function ThingTypeStorage()
+        public function ThingTypeStorage(settings:ObjectBuilderSettings)
         {
+            _settings = settings;
         }
 
         //--------------------------------------------------------------------------
@@ -151,6 +154,7 @@ package otlib.things
                 else
                     reader = new MetadataReader6();
 
+                reader.settings = _settings;
                 reader.open(file, FileMode.READ);
                 readBytes(reader);
                 reader.close();
@@ -192,10 +196,11 @@ package otlib.things
             _outfitsCount = MIN_OUTFIT_ID;
             _effectsCount = MIN_EFFECT_ID;
             _missilesCount = MIN_MISSILE_ID;
-            _items[_itemsCount] = ThingType.create(_itemsCount, ThingCategory.ITEM, _frameGroups);
-            _outfits[_outfitsCount] = ThingType.create(_outfitsCount, ThingCategory.OUTFIT, _frameGroups);
-            _effects[_effectsCount] = ThingType.create(_effectsCount, ThingCategory.EFFECT, _frameGroups);
-            _missiles[_missilesCount] = ThingType.create(_missilesCount, ThingCategory.MISSILE, _frameGroups);
+
+            _items[_itemsCount] = ThingType.create(_itemsCount, ThingCategory.ITEM, _frameGroups, _settings.getDefaultDuration(ThingCategory.ITEM));
+            _outfits[_outfitsCount] = ThingType.create(_outfitsCount, ThingCategory.OUTFIT, _frameGroups, _settings.getDefaultDuration(ThingCategory.OUTFIT));
+            _effects[_effectsCount] = ThingType.create(_effectsCount, ThingCategory.EFFECT, _frameGroups, _settings.getDefaultDuration(ThingCategory.EFFECT));
+            _missiles[_missilesCount] = ThingType.create(_missilesCount, ThingCategory.MISSILE, _frameGroups, _settings.getDefaultDuration(ThingCategory.MISSILE));
             _changed = false;
             _loaded = true;
 
@@ -461,7 +466,7 @@ package otlib.things
                 var thing:ThingType = ThingType(_items[id]);
                 if (!ThingUtils.isValid(thing)) {
                     Log.error(Resources.getString("failedToGetThing", ThingCategory.ITEM, id));
-                    thing = ThingUtils.createAlertThing(ThingCategory.ITEM);
+                    thing = ThingUtils.createAlertThing(ThingCategory.ITEM, _settings.getDefaultDuration(ThingCategory.ITEM));
                     thing.id = id;
                 }
                 return thing;
@@ -475,7 +480,7 @@ package otlib.things
                 var thing:ThingType = ThingType(_outfits[id]);
                 if (!ThingUtils.isValid(thing)) {
                     Log.error(Resources.getString("failedToGetThing", ThingCategory.OUTFIT, id));
-                    thing = ThingUtils.createAlertThing(ThingCategory.ITEM);
+                    thing = ThingUtils.createAlertThing(ThingCategory.ITEM, _settings.getDefaultDuration(ThingCategory.ITEM));
                     thing.category = ThingCategory.OUTFIT;
                     thing.id = id;
                 }
@@ -490,7 +495,7 @@ package otlib.things
                 var thing:ThingType = ThingType(_effects[id]);
                 if (!ThingUtils.isValid(thing)) {
                     Log.error(Resources.getString("failedToGetThing", ThingCategory.EFFECT, id));
-                    thing = ThingUtils.createAlertThing(ThingCategory.ITEM);
+                    thing = ThingUtils.createAlertThing(ThingCategory.ITEM, _settings.getDefaultDuration(ThingCategory.ITEM));
                     thing.category = ThingCategory.EFFECT;
                     thing.id = id;
                 }
@@ -505,7 +510,7 @@ package otlib.things
                 var thing:ThingType = ThingType(_missiles[id]);
                 if (!ThingUtils.isValid(thing)) {
                     Log.error(Resources.getString("failedToGetThing", ThingCategory.MISSILE, id));
-                    thing = ThingUtils.createAlertThing(ThingCategory.ITEM);
+                    thing = ThingUtils.createAlertThing(ThingCategory.ITEM, _settings.getDefaultDuration(ThingCategory.ITEM));
                     thing.category = ThingCategory.MISSILE;
                     thing.id = id;
                 }
@@ -629,7 +634,7 @@ package otlib.things
                 if (equals) {
                     if (!ThingUtils.isValid(thing)) {
                         var id:uint = thing.id;
-                        thing = ThingUtils.createAlertThing(ThingCategory.EFFECT);
+                        thing = ThingUtils.createAlertThing(ThingCategory.EFFECT, _settings.getDefaultDuration(ThingCategory.EFFECT));
                         thing.id = id;
                     }
                     result.push(thing);
@@ -829,6 +834,7 @@ package otlib.things
 
             var removedThing:ThingType;
 
+            var duration:uint = _settings.getDefaultDuration(category);
             if (category == ThingCategory.ITEM)
             {
                 removedThing = _items[id];
@@ -840,7 +846,7 @@ package otlib.things
                 }
                 else
                 {
-                    _items[id] = ThingType.create(id, category, _frameGroups);
+                    _items[id] = ThingType.create(id, category, _frameGroups, duration);
                 }
             }
             else if (category == ThingCategory.OUTFIT)
@@ -854,7 +860,7 @@ package otlib.things
                 }
                 else
                 {
-                    _outfits[id] = ThingType.create(id, category, _frameGroups);
+                    _outfits[id] = ThingType.create(id, category, _frameGroups, duration);
                 }
             }
             else if (category == ThingCategory.EFFECT)
@@ -868,7 +874,7 @@ package otlib.things
                 }
                 else
                 {
-                    _effects[id] = ThingType.create(id, category, _frameGroups);
+                    _effects[id] = ThingType.create(id, category, _frameGroups, duration);
                 }
             }
             else if (category == ThingCategory.MISSILE)
@@ -882,7 +888,7 @@ package otlib.things
                 }
                 else
                 {
-                    _missiles[id] = ThingType.create(id, category, _frameGroups);
+                    _missiles[id] = ThingType.create(id, category, _frameGroups, duration);
                 }
             }
 

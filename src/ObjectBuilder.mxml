@@ -135,6 +135,7 @@ THE SOFTWARE.
             import ob.components.SplashScreen;
             import ob.components.SpritesOptimizerWindow;
             import ob.components.FrameDurationsOptimizerWindow;
+            import ob.components.FrameGroupsConverterWindow;
             import ob.settings.ObjectBuilderSettings;
             import ob.utils.ObUtils;
 
@@ -719,6 +720,23 @@ THE SOFTWARE.
                 }
             }
 
+            public function openFrameGroupsConverter():void
+            {
+                if (!clientLoaded || _locked) return;
+
+                _locked = true;
+
+                var window:FrameGroupsConverterWindow = new FrameGroupsConverterWindow();
+                window.communicator = _communicator;
+                window.addEventListener(Event.CLOSE, closeHandler);
+                window.open(this);
+
+                function closeHandler(event:Event):void
+                {
+                    _locked = false;
+                }
+            }
+
             public function openLogWindow():void
             {
                 if (_logWindow)
@@ -916,7 +934,7 @@ THE SOFTWARE.
 
                 editThing(null);
                 thingView.thingData = null;
-                thingView.frameGroupType = 0;
+                thingView.frameGroupType = FrameGroupType.DEFAULT;
                 infoPanel.clear();
                 categoryDropDownList.selectedIndex = 0;
                 thingStepper.value = 0;
@@ -1649,6 +1667,9 @@ THE SOFTWARE.
                 loadVersions();
                 loadSpriteDimensions();
 
+                thingTypeEditor.settings = _settings;
+                thingTypeEditor.bindableThingType.settings = _settings;
+                
                 _logTarget.writeStart();
             }
 
@@ -2392,7 +2413,11 @@ THE SOFTWARE.
 
                     case Menu.TOOLS_FRAME_DURATIONS_OPTIMIZER:
                         openFrameDurationsOptimizer();
-                        break;                    
+                        break;      
+
+                    case Menu.TOOLS_FRAME_GROUPS_CONVERTER:
+                        openFrameGroupsConverter();
+                        break;            
 
                     case Menu.WINDOW_LOG:
                         openLogWindow();

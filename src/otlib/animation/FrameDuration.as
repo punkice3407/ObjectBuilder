@@ -86,30 +86,5 @@ package otlib.animation
         {
             return new FrameDuration(this.minimum, this.maximum);
         }
-
-        //--------------------------------------------------------------------------
-        // STATIC
-        //--------------------------------------------------------------------------
-
-        static public function getDefaultDuration(category:String):uint
-        {
-            var m_application:IObjectBuilder = FlexGlobals.topLevelApplication as IObjectBuilder;
-            if (!m_application)
-                return 0;
-            
-            switch(category)
-            {
-                case ThingCategory.ITEM:
-                    return m_application.settings.itemsDuration;
-
-                case ThingCategory.OUTFIT:
-                    return m_application.settings.outfitsDuration;
-
-                case ThingCategory.EFFECT:
-                    return m_application.settings.effectsDuration;
-            }
-
-            return 0;
-        }
     }
 }

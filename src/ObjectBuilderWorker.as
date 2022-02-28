@@ -123,10 +123,13 @@ package
     import otlib.utils.SpritesOptimizer;
     import otlib.utils.ThingListItem;
     import otlib.utils.FrameDurationsOptimizer;
+    import otlib.utils.FrameGroupsConverter;
     import otlib.core.SpriteDimensionStorage;
     import otlib.utils.SpriteExtent;
-    import otlib.core.SpriteDimension;
     import ob.commands.SetSpriteDimensionCommand;
+    import ob.commands.things.ConvertFrameGroupsCommand;
+    import ob.commands.things.ConvertFrameGroupsResultCommand;
+    import otlib.utils.ThingUtils;
 
     [ResourceBundle("strings")]
 
@@ -151,6 +154,7 @@ package
         private var _isTemporary:Boolean;
         private var _thingListAmount:uint;
         private var _spriteListAmount:uint;
+        private var _settings:ObjectBuilderSettings;
 
         //--------------------------------------
         // Getters / Setters
@@ -294,7 +298,8 @@ package
             _communicator.registerCallback(GetThingListCommand, getThingListCallback);
             _communicator.registerCallback(FindThingCommand, findThingCallback);
             _communicator.registerCallback(OptimizeFrameDurationsCommand, optimizeFrameDurationsCallback);
-
+            _communicator.registerCallback(ConvertFrameGroupsCommand, convertFrameGroupsCallback);
+            
             // Sprite commands
             _communicator.registerCallback(NewSpriteCommand, newSpriteCallback);
             _communicator.registerCallback(ImportSpritesCommand, addSpritesCallback);
@@ -357,6 +362,8 @@ package
             Resources.locale = settings.getLanguage()[0];
             _thingListAmount = settings.objectsListAmount;
             _spriteListAmount = settings.spritesListAmount;
+
+            _settings = settings;
         }
 
 
@@ -393,11 +400,10 @@ package
 
         private function createStorage():void
         {
-            _things = new ThingTypeStorage();
+            _things = new ThingTypeStorage(_settings);
             _things.addEventListener(StorageEvent.LOAD, storageLoadHandler);
             _things.addEventListener(StorageEvent.CHANGE, storageChangeHandler);
             _things.addEventListener(ProgressEvent.PROGRESS, thingsProgressHandler);
-            _things.addEventListener(ProgressEvent.CONVERT, convertFrameGroupsProgressHandler);
             _things.addEventListener(ErrorEvent.ERROR, thingsErrorHandler);
 
             _sprites = new SpriteStorage();
@@ -463,7 +469,7 @@ package
             var improvedAnimations:Boolean = (improvedAnimations || version.value >= 1050);
             var frameGroups:Boolean = (frameGroups || version.value >= 1057);
 
-            var merger:ClientMerger = new ClientMerger(_things, _sprites);
+            var merger:ClientMerger = new ClientMerger(_things, _sprites, _settings);
             merger.addEventListener(ProgressEvent.PROGRESS, progressHandler);
             merger.addEventListener(Event.COMPLETE, completeHandler);
             merger.start(datFile, sprFile, version, extended, improvedAnimations, frameGroups, transparency);
@@ -535,21 +541,6 @@ package
                                             _improvedAnimations != improvedAnimations ||
                                             _frameGroups != frameGroups);
 
-            if(_frameGroups != frameGroups)
-            {
-                for each (var thingType:ThingType in _things.outfits)
-                {
-                    var thingData:ThingData = getThingData(thingType.id, ThingCategory.OUTFIT, OBDVersions.OBD_VERSION_2, _version.value);
-                    if(thingData)
-                    {
-                        _things.dispatchEvent(new ProgressEvent(ProgressEvent.CONVERT, ProgressBarID.CONVERT, thingType.id, _things.outfitsCount));
-
-                        if(frameGroups)
-                            thingData.convertFrameGroups(improvedAnimations);
-                    }
-                }
-            }
-
             if (!_things.compile(dat, version, extended, improvedAnimations, frameGroups) ||
                 !_sprites.compile(spr, version, extended, transparency)) {
                 return;
@@ -581,7 +572,6 @@ package
                 _things.removeEventListener(StorageEvent.LOAD, storageLoadHandler);
                 _things.removeEventListener(StorageEvent.CHANGE, storageChangeHandler);
                 _things.removeEventListener(ProgressEvent.PROGRESS, thingsProgressHandler);
-                _things.removeEventListener(ProgressEvent.CONVERT, convertFrameGroupsProgressHandler);
                 _things.removeEventListener(ErrorEvent.ERROR, thingsErrorHandler);
                 _things = null;
             }
@@ -611,8 +601,7 @@ package
 
             //============================================================================
             // Add thing
-
-            var thing:ThingType = ThingType.create(0, category, _frameGroups);
+            var thing:ThingType = ThingType.create(0, category, _frameGroups, _settings.getDefaultDuration(category));
             var result:ChangeResult = _things.addThing(thing, category);
             if (!result.done) {
                 Log.error(result.message);
@@ -768,7 +757,7 @@ package
             // Export things
 
             var label:String = Resources.getString("exportingObjects");
-            var encoder:OBDEncoder = new OBDEncoder();
+            var encoder:OBDEncoder = new OBDEncoder(_settings);
             var helper:SaveHelper = new SaveHelper();
             var backgoundColor:uint = (_transparency || transparentBackground) ? 0x00FF00FF : 0xFFFF00FF;
             var bytes:ByteArray;
@@ -828,16 +817,10 @@ package
             var spritesIds:Vector.<uint> = new Vector.<uint>();
             for (var i:uint = 0; i < length; i++) {
                 var thingData:ThingData = list[i];
-
-                if(!_frameGroups && thingData.obdVersion == OBDVersions.OBD_VERSION_3)
-                {
-                    denyIds[i] = true;
-                    Log.error(Resources.getString("cannotReplaceThingFrameGroup"));
-                    continue;
-                }
-
-                if(_frameGroups)
-                    thingData.convertFrameGroups(_improvedAnimations);
+                if(_frameGroups && thingData.obdVersion < OBDVersions.OBD_VERSION_3)
+                    ThingUtils.convertFrameGroups(thingData, ThingUtils.ADD_FRAME_GROUPS, _improvedAnimations, _settings.getDefaultDuration(thingData.category));
+                else if (!_frameGroups && thingData.obdVersion >= OBDVersions.OBD_VERSION_3)
+                    ThingUtils.convertFrameGroups(thingData, ThingUtils.REMOVE_FRAME_GROUPS, _improvedAnimations, _settings.getDefaultDuration(thingData.category));
 
                 var thing:ThingType = thingData.thing;
 				for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
@@ -931,7 +914,7 @@ package
             //============================================================================
             // Load things
 
-            var loader:ThingDataLoader = new ThingDataLoader();
+            var loader:ThingDataLoader = new ThingDataLoader(_settings);
             loader.addEventListener(ProgressEvent.PROGRESS, progressHandler);
             loader.addEventListener(Event.COMPLETE, completeHandler);
             loader.addEventListener(ErrorEvent.ERROR, errorHandler);
@@ -974,15 +957,10 @@ package
             var spritesIds:Vector.<uint> = new Vector.<uint>();
             for (var i:uint = 0; i < length; i++) {
                 var thingData:ThingData = list[i];
-                if(!_frameGroups && thingData.obdVersion == OBDVersions.OBD_VERSION_3)
-                {
-                    denyIds[i] = true;
-                    Log.error(Resources.getString("cannotImportThingFrameGroup"));
-                    continue;
-                }
-
-                if(_frameGroups)
-                    thingData.convertFrameGroups(_improvedAnimations);
+                if(_frameGroups && thingData.obdVersion < OBDVersions.OBD_VERSION_3)
+                    ThingUtils.convertFrameGroups(thingData, ThingUtils.ADD_FRAME_GROUPS, _improvedAnimations, _settings.getDefaultDuration(thingData.category));
+                else if (!_frameGroups && thingData.obdVersion >= OBDVersions.OBD_VERSION_3)
+                    ThingUtils.convertFrameGroups(thingData, ThingUtils.REMOVE_FRAME_GROUPS, _improvedAnimations, _settings.getDefaultDuration(thingData.category));
 
                 var thing:ThingType = thingData.thing;
 				for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
@@ -1078,7 +1056,7 @@ package
             //============================================================================
             // Load things
 
-            var loader:ThingDataLoader = new ThingDataLoader();
+            var loader:ThingDataLoader = new ThingDataLoader(_settings);
             loader.addEventListener(ProgressEvent.PROGRESS, progressHandler);
             loader.addEventListener(Event.COMPLETE, completeHandler);
             loader.addEventListener(ErrorEvent.ERROR, errorHandler);
@@ -1633,6 +1611,25 @@ package
             }
         }
 
+        private function convertFrameGroupsCallback(frameGroups:Boolean, mounts:Boolean):void
+        {
+            var optimizer:FrameGroupsConverter = new FrameGroupsConverter(_things, _sprites, frameGroups, mounts, _version.value, _improvedAnimations, _settings.getDefaultDuration(ThingCategory.OUTFIT));
+            optimizer.addEventListener(ProgressEvent.PROGRESS, progressHandler);
+            optimizer.addEventListener(Event.COMPLETE, completeHandler);
+            optimizer.start();
+
+            function progressHandler(event:ProgressEvent):void
+            {
+                sendCommand(new ProgressCommand(ProgressBarID.OPTIMIZE, event.loaded, event.total, event.label));
+            }
+
+            function completeHandler(event:Event):void
+            {
+                _frameGroups = frameGroups;
+                sendCommand(new ConvertFrameGroupsResultCommand());
+            }
+        }
+
         private function clientLoadComplete():void
         {
             sendCommand(new HideProgressBarCommand(ProgressBarID.DEFAULT));
@@ -1873,11 +1870,6 @@ package
         protected function thingsProgressHandler(event:ProgressEvent):void
         {
             sendCommand(new ProgressCommand(event.id, event.loaded, event.total, "Metadata"));
-        }
-
-        protected function convertFrameGroupsProgressHandler(event:ProgressEvent):void
-        {
-            sendCommand(new ProgressCommand(event.id, event.loaded, event.total, "Converting Outfits"));
         }
 
         protected function thingsErrorHandler(event:ErrorEvent):void

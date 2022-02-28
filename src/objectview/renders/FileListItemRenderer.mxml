@@ -19,6 +19,9 @@
             import otlib.things.ThingCategory;
             import otlib.things.ThingData;
 			import otlib.things.FrameGroupType;
+			import ob.settings.ObjectBuilderSettings;
+			import ob.core.IObjectBuilder;
+			import mx.core.FlexGlobals;
 
             //--------------------------------------------------------------------------
             // METHODS
@@ -36,7 +39,8 @@
 
                 try
                 {
-                    var data:ThingData = ThingData.createFromFile(file);
+                    var settings:ObjectBuilderSettings = IObjectBuilder(FlexGlobals.topLevelApplication).settings
+                    var data:ThingData = ThingData.createFromFile(file, settings);
                     var patternX:uint = 0;
 
                     if (data.category == ThingCategory.OUTFIT)

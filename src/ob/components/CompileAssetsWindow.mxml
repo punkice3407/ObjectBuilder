@@ -227,7 +227,7 @@ THE SOFTWARE.
                     extendedCheckBox.enabled = (m_version.value < 960);
                     transparencyCheckBox.enabled = true;
                     improvedAnimationsCheckBox.enabled = (m_version.value < 1050);
-                    frameGroupsCheckBox.enabled = (m_version.value < 1057);
+                    frameGroupsCheckBox.enabled = true;
                 } else {
                     extendedCheckBox.enabled = false;
                     transparencyCheckBox.enabled = false;

@@ -73,6 +73,7 @@ THE SOFTWARE.
             import otlib.utils.SpriteExtent;
             import otlib.core.SpriteDimension;
             import otlib.assets.Assets;
+            import ob.settings.ObjectBuilderSettings;
 
             //--------------------------------------------------------------------------
             // PROPERTIES
@@ -95,7 +96,8 @@ THE SOFTWARE.
             private var _filesInfoChanged:Boolean;
             private var _previewMode:Boolean;
             private var _lastAnimationFrame:uint;
-
+            private var _settings:ObjectBuilderSettings;
+            
             [Bindable]
             private var _frameGroup:FrameGroup;
 
@@ -140,6 +142,14 @@ THE SOFTWARE.
                 _rect = new Rectangle(0, 0, SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE);
             }
 
+            public function get settings():ObjectBuilderSettings { return _settings; }
+            public function set settings(value:ObjectBuilderSettings):void
+            {
+                if (_settings != value) {
+                    _settings = value;
+                }
+            }
+
             //--------------------------------------------------------------------------
             // METHODS
             //--------------------------------------------------------------------------
@@ -151,7 +161,7 @@ THE SOFTWARE.
             public function saveChanges():Boolean
             {
                 if (_thingData && _changed) {
-                    if (_thingBinding.copyToThingData(_thingData)) {
+                    if (_thingBinding.copyToThingData(_thingData, _thingBinding.groups)) {
                         _changed = false;
                         dispatchEvent(new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, this.thingData));
                         return true;
@@ -164,7 +174,7 @@ THE SOFTWARE.
             {
                 if (_thingData) {
                     var thing:ThingType = new ThingType();
-                    if (_thingBinding.copyToThingType(thing)) {
+                    if (_thingBinding.copyToThingType(thing, _thingBinding.groups)) {
                         return thing;
                     }
                 }
@@ -274,6 +284,8 @@ THE SOFTWARE.
                 frameGroupSlider.visible = false;
 				frameGroupSlider.value = 0;
 				updateFrameGroupNameLabel()
+
+                _thingBinding.settings = settings;
 
                 if (thingData) {
                     var isOutfit:Boolean = (thingData.category == ThingCategory.OUTFIT);
@@ -795,7 +807,7 @@ THE SOFTWARE.
                     {
                         group = new FrameGroup();
                         group.type = FrameGroupType.WALKING;
-                        group.makeOutfitGroup();
+                        group.makeOutfitGroup(_settings.getDefaultDuration(ThingCategory.OUTFIT));
 
                         _thingBinding.setFrameGroup(FrameGroupType.WALKING, group)
                     }
@@ -978,7 +990,7 @@ THE SOFTWARE.
                 var oldDuration:FrameDuration = _frameGroup.frameDurations[animationSlider.value];
                 var newDuration:FrameDuration = oldDuration.clone();
 
-                var duration:uint = FrameDuration.getDefaultDuration(_thingData.category);
+                var duration:uint = _settings.getDefaultDuration(_thingData.category);
                 newDuration.minimum = duration;
                 newDuration.maximum = duration;
 

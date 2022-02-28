@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<mg:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+                xmlns:s="library://ns.adobe.com/flex/spark"
+                xmlns:mx="library://ns.adobe.com/flex/mx"
+                xmlns:mg="library://ns.mignari.com/mg"
+                width="400"
+                height="220"
+                fontSize="11"
+                title="@Resource(key='frameGroupsConverter', bundle='strings')"
+                creationComplete="creationCompleteHandler(event)"
+                closing="closingHandler(event)">
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.skins.PixeledBorderContainerSkin;
+            import com.mignari.workers.IWorkerCommunicator;
+            
+            import mx.core.FlexGlobals;
+            import mx.events.FlexEvent;
+            
+            import ob.commands.ProgressBarID;
+            import ob.commands.ProgressCommand;
+            import ob.commands.things.ConvertFrameGroupsCommand;
+            import ob.commands.things.ConvertFrameGroupsResultCommand;
+            import ob.core.IObjectBuilder;
+
+            //--------------------------------------------------------------------------
+            // PROPERTIES
+            //--------------------------------------------------------------------------
+
+            private var m_application:IObjectBuilder;
+            
+            [Bindable]
+            private var m_frameGroups:Boolean;
+
+            [Bindable]
+            private var m_inProgress:Boolean;
+
+            private var m_communicator:IWorkerCommunicator;
+
+            //--------------------------------------
+            // Getters / Setters
+            //--------------------------------------
+
+            public function get communicator():IWorkerCommunicator { return m_communicator; }
+            public function set communicator(value:IWorkerCommunicator):void
+            {
+                if (m_communicator) {
+                    m_communicator.unregisterCallback(ProgressCommand, progressCallback);
+                    m_communicator.unregisterCallback(ConvertFrameGroupsResultCommand, resultCallback);
+                    m_communicator = null;
+                }
+
+                m_communicator = value;
+
+                if (m_communicator) {
+                    m_communicator.registerCallback(ProgressCommand, progressCallback);
+                    m_communicator.registerCallback(ConvertFrameGroupsResultCommand, resultCallback);
+                }
+            }
+
+            //--------------------------------------------------------------------------
+            // METHODS
+            //--------------------------------------------------------------------------
+
+            //--------------------------------------
+            // Private
+            //--------------------------------------
+
+            private function progressCallback(id:String, loaded:uint, total:uint, label:String):void
+            {
+                if (id == ProgressBarID.OPTIMIZE) {
+                    progressBar.setProgress(loaded, total);
+                    progressBar.label = label;
+                }
+            }
+
+            private function resultCallback():void
+            {
+                m_inProgress = false;
+            }
+
+            //--------------------------------------
+            // Event Handlers
+            //--------------------------------------
+
+            private function creationCompleteHandler(event:FlexEvent):void
+            {
+                m_application = FlexGlobals.topLevelApplication as IObjectBuilder;
+                m_frameGroups = m_application.clientInfo.frameGroups;
+            }
+
+            private function closingHandler(event:Event):void
+            {
+                if (m_inProgress)
+                {
+                    event.preventDefault();
+                    return;
+                }
+
+                communicator = null;
+            }
+
+            private function startButtonClickHandler(event:MouseEvent):void
+            {
+                if (m_inProgress) return;
+
+                m_communicator.sendCommand(new ConvertFrameGroupsCommand(frameGroupsCheckBox.selected, mountsCheckBox.selected));
+                m_inProgress = true;
+            }
+
+        ]]>
+    </fx:Script>
+
+    <mg:layout>
+        <s:VerticalLayout />
+    </mg:layout>
+
+    <s:VGroup width="100%" height="100%" gap="10" padding="10">
+        <mg:GroupBox width="100%">
+            <mg:layout>
+                <s:VerticalLayout padding="5" gap="5"/>
+            </mg:layout>
+
+            <s:CheckBox id="frameGroupsCheckBox" width="100%" label="@Resource(key='addRemoveFrameGroups', bundle='strings')" selected="{!m_frameGroups}"/>
+            <s:CheckBox id="mountsCheckBox" width="100%" label="@Resource(key='removeMounts', bundle='strings')"/>
+
+        </mg:GroupBox>
+
+        <mg:GroupBox width="100%" height="55" label="@Resource(key='progress', bundle='strings')">
+            <mg:layout>
+                <s:HorizontalLayout padding="10" gap="10" />
+            </mg:layout>
+
+            <s:Button id="startButton" minWidth="70" height="20"
+                      label="@Resource(key='start', bundle='strings')"
+                      click="startButtonClickHandler(event)"/>
+
+            <mx:ProgressBar id="progressBar"
+                            width="100%"
+                            height="20"
+                            fontWeight="normal"
+                            mode="manual"
+                            labelPlacement="center"
+                            label=""
+                            visible="{m_inProgress}"/>
+        </mg:GroupBox>
+    </s:VGroup>
+
+    <s:BorderContainer width="100%" skinClass="com.mignari.skins.PixeledBorderContainerSkin">
+        <s:layout>
+            <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle" horizontalAlign="right" />
+        </s:layout>
+
+        <s:Button id="closeButton"
+                  minWidth="70"
+                  label="@Resource(key='close', bundle='strings')"
+                  click="close()"/>
+    </s:BorderContainer>
+</mg:TitleWindow>

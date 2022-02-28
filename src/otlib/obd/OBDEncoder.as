@@ -50,15 +50,18 @@ package otlib.obd
     import otlib.things.ThingType;
     import otlib.utils.OTFormat;
     import otlib.utils.SpriteExtent;
+    import ob.settings.ObjectBuilderSettings;
 
     public class OBDEncoder
     {
+        public var _settings:ObjectBuilderSettings;
         //--------------------------------------------------------------------------
         // CONSTRUCTOR
         //--------------------------------------------------------------------------
 
-        public function OBDEncoder()
+        public function OBDEncoder(settings:ObjectBuilderSettings)
         {
+            _settings = settings;
         }
 
         //--------------------------------------------------------------------------
@@ -422,7 +425,7 @@ package otlib.obd
                 frameGroup.isAnimation = true;
                 frameGroup.frameDurations = new Vector.<FrameDuration>(frameGroup.frames, true);
 
-                var duration:uint = FrameDuration.getDefaultDuration(thing.category);
+                var duration:uint = _settings.getDefaultDuration(thing.category);
                 for (i = 0; i < frameGroup.frames; i++)
                     frameGroup.frameDurations[i] = new FrameDuration(duration, duration);
             }

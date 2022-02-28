@@ -31,9 +31,12 @@ package otlib.things
 	import otlib.animation.FrameGroup;
     import com.mignari.utils.StringUtil;
     import otlib.utils.SpriteExtent;
+    import ob.settings.ObjectBuilderSettings;
 
     public class MetadataReader extends FileStream implements IMetadataReader
     {
+        private var _settings:ObjectBuilderSettings;
+
         //--------------------------------------------------------------------------
         // CONSTRUCTOR
         //--------------------------------------------------------------------------
@@ -50,6 +53,13 @@ package otlib.things
         //--------------------------------------
         // Public
         //--------------------------------------
+
+        public function get settings():ObjectBuilderSettings { return _settings; }
+        public function set settings(value:ObjectBuilderSettings):void 
+        {
+            if (_settings != value)
+                _settings = value;
+        }
 
         public function readSignature():uint
         {
@@ -131,7 +141,7 @@ package otlib.things
                             frameGroup.frameDurations[i] = new FrameDuration(minimum, maximum);
                         }
                     } else {
-                        var duration:uint = FrameDuration.getDefaultDuration(type.category);
+                        var duration:uint = settings.getDefaultDuration(type.category);
                         for (i = 0; i < frameGroup.frames; i++)
                             frameGroup.frameDurations[i] = new FrameDuration(duration, duration);
                     }

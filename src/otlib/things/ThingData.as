@@ -51,6 +51,7 @@ package otlib.things
     import otlib.utils.OutfitData;
     import otlib.utils.SpriteUtils;
     import otlib.utils.SpriteExtent;
+    import ob.settings.ObjectBuilderSettings;
 
     public class ThingData
     {
@@ -543,7 +544,7 @@ package otlib.things
             grey.copyPixels(canvas, rect, POINT, null, null, true);
         }
 
-        private function addFrameGroupSprites():void
+        public function addFrameGroupSprites():void
         {
             var spritesGroup:Dictionary = new Dictionary();
             for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
@@ -572,19 +573,6 @@ package otlib.things
             }
 
             this.m_sprites = spritesGroup;
-        }
-
-        public function convertFrameGroups(improvedAnimations:Boolean):void
-        {
-            if(this.m_thing.animateAlways || this.category != ThingCategory.OUTFIT)
-                return;
-
-            if(this.m_thing.frameGroups.length > 1)
-                return;
-
-            this.m_thing.addFrameGroupState(improvedAnimations);
-            this.addFrameGroupSprites();
-            return;
         }
 
         //--------------------------------------------------------------------------
@@ -636,9 +624,9 @@ package otlib.things
             return thingData;
         }
 
-        public static function createFromFile(file:File):ThingData
+        public static function createFromFile(file:File, settings:ObjectBuilderSettings):ThingData
         {
-            if (!file || file.extension != OTFormat.OBD || !file.exists)
+            if (!file || file.extension != OTFormat.OBD || !file.exists || !settings)
                 return null;
 
             var bytes:ByteArray = new ByteArray();
@@ -646,7 +634,7 @@ package otlib.things
             stream.open(file, FileMode.READ);
             stream.readBytes(bytes, 0, stream.bytesAvailable);
             stream.close();
-            return new OBDEncoder().decode(bytes);
+            return new OBDEncoder(settings).decode(bytes);
         }
     }
 }

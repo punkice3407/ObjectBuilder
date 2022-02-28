@@ -39,6 +39,7 @@ package otlib.loaders
     import otlib.obd.OBDEncoder;
     import otlib.things.ThingData;
     import otlib.utils.OTFormat;
+    import ob.settings.ObjectBuilderSettings;
 
     [Event(name="progress", type="otlib.events.ProgressEvent")]
     [Event(name="complete", type="flash.events.Event")]
@@ -66,9 +67,9 @@ package otlib.loaders
         // CONSTRUCTOR
         //--------------------------------------------------------------------------
 
-        public function ThingDataLoader()
+        public function ThingDataLoader(settings:ObjectBuilderSettings)
         {
-            _encoder = new OBDEncoder();
+            _encoder = new OBDEncoder(settings);
         }
 
         //--------------------------------------------------------------------------

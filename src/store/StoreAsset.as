@@ -15,6 +15,9 @@ package store
     import otlib.things.ThingData;
 	import otlib.things.FrameGroupType;
 	import otlib.utils.SpriteUtils;
+	import ob.settings.ObjectBuilderSettings;
+	import ob.core.IObjectBuilder;
+	import mx.core.FlexGlobals;
 
     [Event(name="complete", type="flash.events.Event")]
 
@@ -79,8 +82,12 @@ package store
             {
                 try
                 {
+                    var settings:ObjectBuilderSettings = IObjectBuilder(FlexGlobals.topLevelApplication).settings
+                    trace("StoreAsset")
+                    trace(settings)
+
                     var bytes:ByteArray = ByteArray(loader.data);
-                    var encoder:OBDEncoder = new OBDEncoder();
+                    var encoder:OBDEncoder = new OBDEncoder(settings);
                     var patternX:uint = 0;
 
                     m_data = encoder.decode(bytes);

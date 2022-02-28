@@ -86,6 +86,9 @@ THE SOFTWARE.
             import otlib.utils.OTFormat;
             import otlib.utils.SpriteUtils;
 			import flash.utils.Dictionary;
+			import ob.core.IObjectBuilder;
+			import mx.core.FlexGlobals;
+			import ob.settings.ObjectBuilderSettings;
 
             //--------------------------------------------------------------------------
             // PROPERTIES
@@ -106,6 +109,7 @@ THE SOFTWARE.
             private var _zoomChanged:Boolean;
             private var _lastValues:Rectangle = new Rectangle();
             private var _transparency:Boolean = true;
+            private var _settingsApplication:ObjectBuilderSettings;
 
             //--------------------------------------
             // Getters / Setters
@@ -199,7 +203,7 @@ THE SOFTWARE.
                         bitmap = thingView.thingData.getSpriteSheet(thingView.thingData.getFrameGroup(FrameGroupType.DEFAULT), null, backgoundColor);
                         bytes = ImageCodec.encode(bitmap, format);
                     } else if (format == OTFormat.OBD) {
-                        bytes = new OBDEncoder().encode(thingView.thingData);
+                        bytes = new OBDEncoder(_settingsApplication).encode(thingView.thingData);
                     }
 
                     helper.addFile(bytes, window.fileName, format, file);
@@ -381,8 +385,7 @@ THE SOFTWARE.
 					frameGroup.isAnimation = true;
 					frameGroup.frameDurations = new Vector.<FrameDuration>(frameGroup.frames, true);
 
-                    var duration:uint = FrameDuration.getDefaultDuration(thing.category);
-
+                    var duration:uint = _settingsApplication.getDefaultDuration(thing.category);
                     for (f = 0; f < frameGroup.frames; f++) {
                         var frame:Frame = framesList.getObjectAt(f) as Frame;
                         if (frame && frame.duration)
@@ -539,7 +542,7 @@ THE SOFTWARE.
 
             private function openOBD(file:File):void
             {
-                var thingData:ThingData = ThingData.createFromFile(file);
+                var thingData:ThingData = ThingData.createFromFile(file, _settingsApplication);
                 if (!thingData)
                     return;
 
@@ -616,6 +619,8 @@ THE SOFTWARE.
                 loadSettings();
 
                 systemManager.stage.addEventListener(KeyboardEvent.KEY_DOWN, keyDownHandler);
+
+                _settingsApplication = IObjectBuilder(FlexGlobals.topLevelApplication).settings
             }
 
             protected function closingHandler(event:Event):void
@@ -798,7 +803,7 @@ THE SOFTWARE.
                     if (frame.delayMs != 0)
                         duration = Math.min(frame.delayMs, 500);
                     else
-                        duration = FrameDuration.getDefaultDuration( getCurrentCategory() );
+                        duration = _settingsApplication.getDefaultDuration(getCurrentCategory());
 
                     var f:Frame = new Frame(frame.bitmap);
                     f.duration = new FrameDuration(duration, duration);

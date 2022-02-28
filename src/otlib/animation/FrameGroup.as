@@ -25,8 +25,6 @@ package otlib.animation
     import flash.utils.describeType;
 
     import otlib.geom.Size;
-    import otlib.sprites.Sprite;
-    import otlib.things.ThingCategory;
     import otlib.utils.SpriteExtent;
 
 	[Bindable]
@@ -156,14 +154,13 @@ package otlib.animation
             return size;
         }
 
-        public function makeOutfitGroup():void
+        public function makeOutfitGroup(duration:uint):void
         {
             this.patternX = 4; // Directions
             this.frames = 1;   // Animations
             this.isAnimation = false;
             this.frameDurations = new Vector.<FrameDuration>(this.frames, true);
 
-            var duration:uint = FrameDuration.getDefaultDuration(ThingCategory.OUTFIT);
             for (var i:uint = 0; i < this.frames; i++)
                 this.frameDurations[i] = new FrameDuration(duration, duration);
 

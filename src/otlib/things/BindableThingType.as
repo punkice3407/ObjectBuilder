@@ -38,6 +38,7 @@ package otlib.things
     import otlib.obd.OBDVersions;
     import otlib.sprites.SpriteData;
     import otlib.things.FrameGroupType;
+    import ob.settings.ObjectBuilderSettings;
 
     [Event(name="propertyChange", type="mx.events.PropertyChangeEvent")]
 
@@ -240,6 +241,9 @@ package otlib.things
 		[Bindable]
 		public var frameGroups:Array;
 
+        [Bindable]
+        public var settings:ObjectBuilderSettings;
+
         //--------------------------------------------------------------------------
         // CONSTRUCTOR
         //--------------------------------------------------------------------------
@@ -337,13 +341,13 @@ package otlib.things
             return true;
         }
 
-        public function copyToThingData(data:ThingData):Boolean
+        public function copyToThingData(data:ThingData, groups:uint):Boolean
         {
-            if (!copyToThingType(data.thing)) return false;
+            if (!copyToThingType(data.thing, groups)) return false;
 
             if (this.sprites) {
                 var sprites:Dictionary = new Dictionary();
-                for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+                for (var groupType:uint = FrameGroupType.DEFAULT; groupType < groups; groupType++)
                 {
                     if(!this.getFrameGroup(groupType))
                         continue;
@@ -363,7 +367,7 @@ package otlib.things
             return true;
         }
 
-        public function copyToThingType(thing:ThingType):Boolean
+        public function copyToThingType(thing:ThingType, groups:uint = 2):Boolean
         {
             if (!thing)
                 return false;
@@ -376,7 +380,7 @@ package otlib.things
             }
 
             thing.frameGroups = [];
-			for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+			for (var groupType:uint = FrameGroupType.DEFAULT; groupType < groups; groupType++)
 			{
 				var frameGroup:FrameGroup = this.getFrameGroup(groupType);
 				if(!frameGroup)
@@ -396,7 +400,7 @@ package otlib.things
             frameGroup.isAnimation = (frameGroup.frames > 1);
 
             if (frameGroup.isAnimation) {
-                var duration:uint = FrameDuration.getDefaultDuration(this.category);
+                var duration:uint = settings.getDefaultDuration(this.category);
                 var frameDurations:Vector.<FrameDuration> = new Vector.<FrameDuration>(frameGroup.frames, true);
                 for (var i:uint = 0; i < frameGroup.frames; i++) {
                     if (frameGroup.frameDurations && i < frameGroup.frameDurations.length)
@@ -414,7 +418,7 @@ package otlib.things
         public function toThingData(version:uint):ThingData
         {
             var thing:ThingType = new ThingType();
-            if (!copyToThingType(thing) || !this.sprites)
+            if (!copyToThingType(thing, groups) || !this.sprites)
                 return null;
 
             var sprites:Dictionary = new Dictionary();

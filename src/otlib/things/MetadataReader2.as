@@ -258,7 +258,7 @@ package otlib.things
                             frameGroup.frameDurations[i] = new FrameDuration(minimum, maximum);
                         }
                     } else {
-                        var duration:uint = FrameDuration.getDefaultDuration(type.category);
+                        var duration:uint = settings.getDefaultDuration(type.category);
                         for (i = 0; i < frameGroup.frames; i++)
                             frameGroup.frameDurations[i] = new FrameDuration(duration, duration);
                     }

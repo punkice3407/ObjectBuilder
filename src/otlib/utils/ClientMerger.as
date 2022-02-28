@@ -43,6 +43,7 @@ package otlib.utils
     import otlib.things.ThingTypeStorage;
 	import otlib.animation.FrameGroup;
 	import otlib.things.FrameGroupType;
+	import ob.settings.ObjectBuilderSettings;
 
     use namespace otlib_internal;
 
@@ -63,6 +64,8 @@ package otlib.utils
         private var m_currentObjects:ThingTypeStorage;
         private var m_currentSprites:SpriteStorage;
 
+        private var m_settings:ObjectBuilderSettings;
+
         //--------------------------------------
         // Getters / Setters
         //--------------------------------------
@@ -77,7 +80,7 @@ package otlib.utils
         // CONSTRUCTOR
         //--------------------------------------------------------------------------
 
-        public function ClientMerger(objects:ThingTypeStorage, sprites:SpriteStorage)
+        public function ClientMerger(objects:ThingTypeStorage, sprites:SpriteStorage, settings:ObjectBuilderSettings)
         {
             if (!objects)
                 throw new NullArgumentError("objects");
@@ -85,8 +88,12 @@ package otlib.utils
             if (!sprites)
                 throw new NullArgumentError("sprites");
 
+            if (!settings)
+                throw new NullArgumentError("settings");
+
             m_currentObjects = objects;
             m_currentSprites = sprites;
+            m_settings = settings;
         }
 
         //--------------------------------------------------------------------------
@@ -121,7 +128,7 @@ package otlib.utils
             if (!version)
                 throw new NullArgumentError("version");
 
-            m_objects = new ThingTypeStorage();
+            m_objects = new ThingTypeStorage(m_settings);
             m_objects.addEventListener(ErrorEvent.ERROR, errorHandler);
 
             m_sprites = new SpriteStorage();

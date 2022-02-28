@@ -250,6 +250,12 @@ package ob.menu
             toolsFrameDurationsOptimizer.data = TOOLS_FRAME_DURATIONS_OPTIMIZER;
             toolsMenu.addMenuItem(toolsFrameDurationsOptimizer);
 
+            // Tools > Frame Groups Converter
+            var toolsFrameGroupsConverter:MenuItem = new MenuItem();
+            toolsFrameGroupsConverter.label = Resources.getString("frameGroupsConverter");
+            toolsFrameGroupsConverter.data = TOOLS_FRAME_GROUPS_CONVERTER;
+            toolsMenu.addMenuItem(toolsFrameGroupsConverter);
+
             // Window
             var windowMenu:MenuItem = new MenuItem();
             windowMenu.label = Resources.getString("menu.window");
@@ -494,6 +500,7 @@ package ob.menu
         public static const TOOLS_ANIMATION_EDITOR:String = "toolsAnimationEditor";
         public static const TOOLS_SPRITES_OPTIMIZER:String = "toolsSpritesOptimizer";
         public static const TOOLS_FRAME_DURATIONS_OPTIMIZER:String = "toolsFrameDurationsOptimizer";
+        public static const TOOLS_FRAME_GROUPS_CONVERTER:String = "toolsFrameGroupsConverter";
         public static const WINDOW_LOG:String = "windowLog";
         public static const WINDOW_VERSIONS:String = "windowVersions";
         public static const HELP_CONTENTS:String = "helpContents";

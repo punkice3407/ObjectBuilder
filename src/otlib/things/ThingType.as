@@ -31,6 +31,8 @@ package otlib.things
     import otlib.resources.Resources;
     import otlib.sprites.Sprite;
     import otlib.things.FrameGroupType;
+    import ob.core.IObjectBuilder;
+    import mx.core.FlexGlobals;
 
     public class ThingType
     {
@@ -167,14 +169,13 @@ package otlib.things
             return spriteIndex;
         }
 
-        public function addFrameGroupState(improvedAnimations:Boolean):void
+        public function addFrameGroupState(improvedAnimations:Boolean, duration:uint):void
         {
             var normal:FrameGroup = this.getFrameGroup(FrameGroupType.DEFAULT);
             if(!normal || normal.frames < 3)
                 return;
 
             var frameId:uint;
-            var defaultDuration:uint = FrameDuration.getDefaultDuration(ThingCategory.OUTFIT);
 
             var idle:FrameGroup = normal.clone();
             idle.frames = 1;
@@ -204,14 +205,14 @@ package otlib.things
                 if (improvedAnimations && normal.frameDurations[frameId])
                     walking.frameDurations[frameId] = normal.frameDurations[frameId].clone();
                 else
-                    walking.frameDurations[frameId] = new FrameDuration(defaultDuration, defaultDuration);
+                    walking.frameDurations[frameId] = new FrameDuration(duration, duration);
             }
 
             this.setFrameGroup(FrameGroupType.DEFAULT, idle);
             this.setFrameGroup(FrameGroupType.WALKING, walking);
         }
 
-        public function removeFrameGroupState(frameDurations:Boolean):void
+        public function removeFrameGroupState(improvedAnimations:Boolean, duration:uint):void
         {
             var idle:FrameGroup = this.getFrameGroup(FrameGroupType.DEFAULT);
             var walking:FrameGroup = this.getFrameGroup(FrameGroupType.WALKING);
@@ -225,7 +226,7 @@ package otlib.things
         // STATIC
         //--------------------------------------------------------------------------
 
-        public static function create(id:uint, category:String, frameGroups:Boolean):ThingType
+        public static function create(id:uint, category:String, frameGroups:Boolean, duration:uint):ThingType
         {
             if (!ThingCategory.getCategory(category))
                 throw new Error(Resources.getString("invalidCategory"));
@@ -245,7 +246,7 @@ package otlib.things
                 {
 					group = new FrameGroup();
                     group.type = groupType;
-                    group.makeOutfitGroup();
+                    group.makeOutfitGroup(duration);
 
                     thing.setFrameGroup(groupType, group);
                 }

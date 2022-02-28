@@ -20,22 +20,19 @@
 *  THE SOFTWARE.
 */
 
-package otlib.things
+package ob.commands.things
 {
-    import flash.utils.IDataInput;
-    import ob.settings.ObjectBuilderSettings;
+    import com.mignari.workers.WorkerCommand;
 
-    public interface IMetadataReader extends IDataInput
+    public class ConvertFrameGroupsCommand extends WorkerCommand
     {
-        function get settings():ObjectBuilderSettings;
-        function set settings(value:ObjectBuilderSettings):void;
+        //--------------------------------------------------------------------------
+        // CONSTRUCTOR
+        //--------------------------------------------------------------------------
 
-        function readSignature():uint;
-        function readItemsCount():uint;
-        function readOutfitsCount():uint;
-        function readEffectsCount():uint;
-        function readMissilesCount():uint;
-        function readProperties(type:ThingType):Boolean;
-        function readTexturePatterns(type:ThingType, extended:Boolean, frameDurations:Boolean, frameGroups:Boolean):Boolean;
+        public function ConvertFrameGroupsCommand(frameGroups:Boolean, mounts:Boolean)
+        {
+            super(frameGroups, mounts);
+        }
     }
 }

@@ -307,7 +307,7 @@ THE SOFTWARE.
             {
                 try
                 {
-                    var thingData:ThingData = ThingData.createFromFile(file);
+                    var thingData:ThingData = ThingData.createFromFile(file, m_application.settings);
                     thingView.thingData = thingData;
 
                     if (thingData) {

@@ -28,6 +28,7 @@ package otlib.utils
     import otlib.things.ThingType;
     import otlib.animation.FrameGroup;
     import otlib.things.FrameGroupType;
+    import otlib.things.ThingData;
 
     public final class ThingUtils
     {
@@ -44,9 +45,9 @@ package otlib.utils
         // STATIC
         //--------------------------------------------------------------------------
 
-        public static function createAlertThing(category:String):ThingType
+        public static function createAlertThing(category:String, duration:uint):ThingType
         {
-            var thing:ThingType = ThingType.create(0, category, false);
+            var thing:ThingType = ThingType.create(0, category, false, duration);
             if (thing) {
                 var frameGroup:FrameGroup = thing.getFrameGroup(FrameGroupType.DEFAULT);
                 var spriteIndex:Vector.<uint> = frameGroup.spriteIndex;
@@ -96,5 +97,36 @@ package otlib.utils
 
             return false;
         }
+
+        public static function convertFrameGroups(thingData:ThingData, frameGroups:uint, improvedAnimations:Boolean, duration:uint):void
+        {
+            if(thingData.thing.animateAlways || thingData.category != ThingCategory.OUTFIT)
+                return;
+
+            if (frameGroups == REMOVE_FRAME_GROUPS)
+            {
+                if(thingData.thing.frameGroups.length <= 1)
+                    return;
+
+                //thingData.thing.removeFrameGroupState(improvedAnimations, duration);
+                //this.removeFrameGroupSprites();
+                trace("removeFrameGroups TODO")
+            }
+            else if (frameGroups == ADD_FRAME_GROUPS)
+            {
+                if(thingData.thing.frameGroups.length > 1)
+                    return;
+
+                thingData.thing.addFrameGroupState(improvedAnimations, duration);
+                thingData.addFrameGroupSprites();
+
+                trace("addFrameGroup")
+            }
+
+            return;
+        }
+
+        public static var REMOVE_FRAME_GROUPS:uint = 0;
+        public static var ADD_FRAME_GROUPS:uint = 1;
     }
 }
