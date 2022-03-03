@@ -62,7 +62,7 @@ package otlib.utils
         private var m_sprites:SpriteStorage;
         private var m_finished:Boolean;
         private var m_frameGroups:Boolean;
-        private var m_mounts:Boolean;
+        private var m_removeMounts:Boolean;
         private var m_clientVersion:uint;
         private var m_improvedAnimations:Boolean;
         private var m_defaultDuration:uint;
@@ -72,7 +72,7 @@ package otlib.utils
         // CONSTRUCTOR
         //--------------------------------------------------------------------------
 
-        public function FrameGroupsConverter(objects:ThingTypeStorage, sprites:SpriteStorage, frameGroups:Boolean, mounts:Boolean, clientVersion:uint, improvedAnimations:Boolean, duration:uint)
+        public function FrameGroupsConverter(objects:ThingTypeStorage, sprites:SpriteStorage, frameGroups:Boolean, removeMounts:Boolean, clientVersion:uint, improvedAnimations:Boolean, duration:uint)
         {
             if (!objects)
                 throw new NullArgumentError("objects");
@@ -80,7 +80,7 @@ package otlib.utils
             m_objects = objects;
             m_sprites = sprites;
             m_frameGroups = frameGroups;
-            m_mounts = mounts;
+            m_removeMounts = removeMounts;
             m_clientVersion = clientVersion;
             m_improvedAnimations = improvedAnimations;
             m_defaultDuration = duration
@@ -113,7 +113,7 @@ package otlib.utils
                     if (m_frameGroups)
                         frameGroups = ThingUtils.ADD_FRAME_GROUPS;
 
-                    ThingUtils.convertFrameGroups(thingData, frameGroups, m_improvedAnimations, m_defaultDuration);
+                    ThingUtils.convertFrameGroups(thingData, frameGroups, m_improvedAnimations, m_defaultDuration, m_removeMounts);
                 }
             }
                 

@@ -33,6 +33,8 @@ package otlib.things
     import otlib.things.FrameGroupType;
     import ob.core.IObjectBuilder;
     import mx.core.FlexGlobals;
+    import otlib.utils.SpriteExtent;
+    import flash.utils.Dictionary;
 
     public class ThingType
     {
@@ -171,11 +173,9 @@ package otlib.things
 
         public function addFrameGroupState(improvedAnimations:Boolean, duration:uint):void
         {
-            var normal:FrameGroup = this.getFrameGroup(FrameGroupType.DEFAULT);
+            var normal:FrameGroup = getFrameGroup(FrameGroupType.DEFAULT);
             if(!normal || normal.frames < 3)
                 return;
-
-            var frameId:uint;
 
             var idle:FrameGroup = normal.clone();
             idle.frames = 1;
@@ -201,25 +201,98 @@ package otlib.things
             walking.loopCount = 0;
             walking.startFrame = 0;
 
-            for (frameId = 0; frameId < walking.frames; frameId++) {
+            for (var frameId:uint = 0; frameId < walking.frames; frameId++) {
                 if (improvedAnimations && normal.frameDurations[frameId])
                     walking.frameDurations[frameId] = normal.frameDurations[frameId].clone();
                 else
                     walking.frameDurations[frameId] = new FrameDuration(duration, duration);
             }
 
-            this.setFrameGroup(FrameGroupType.DEFAULT, idle);
-            this.setFrameGroup(FrameGroupType.WALKING, walking);
+            setFrameGroup(FrameGroupType.DEFAULT, idle);
+            setFrameGroup(FrameGroupType.WALKING, walking);
         }
 
-        public function removeFrameGroupState(improvedAnimations:Boolean, duration:uint):void
+        private function countSpritesInFrame(frameGroup:FrameGroup, frame:uint):uint
         {
-            var idle:FrameGroup = this.getFrameGroup(FrameGroupType.DEFAULT);
-            var walking:FrameGroup = this.getFrameGroup(FrameGroupType.WALKING);
-            if(!idle || !walking)
-                return;
+            var sprites:uint = 0;
+            for (var z:uint = 0; z < frameGroup.patternZ; z++)
+            {
+                for (var y:uint = 0; y < frameGroup.patternY; y++)
+                {
+                    for (var x:uint = 0; x < frameGroup.patternX; x++)
+                    {
+                        for (var l:uint = 0; l < frameGroup.layers; l++)
+                        {
+                            for (var w:uint = 0; w < frameGroup.width; w++)
+                            {
+                                for (var h:uint = 0; h < frameGroup.height; h++)
+                                    sprites++;
+                            }
+                        }
+                    }
+                }
+            }
 
-            //TODO
+            return sprites;
+        }
+
+        public function removeFrameGroupState(improvedAnimations:Boolean, duration:uint, removeMounts:Boolean):void
+        {
+            var idle:FrameGroup = getFrameGroup(FrameGroupType.DEFAULT);
+            var walking:FrameGroup = getFrameGroup(FrameGroupType.WALKING);
+            if(!normal && !walking)
+                return;
+                
+            if (removeMounts)
+            {
+                idle.patternZ = 1
+                walking.patternZ = 1
+            }
+
+            var normal:FrameGroup = idle.clone();
+            normal.frames = 3;
+
+            var spriteIndex:Vector.<uint> = new Vector.<uint>();
+
+            var frameSpriteLength:uint = countSpritesInFrame(idle, 0);
+            for (var spriteId:uint = 0; spriteId < frameSpriteLength; spriteId++)
+                spriteIndex.push(idle.spriteIndex[spriteId])
+
+            for (spriteId = 0; spriteId < frameSpriteLength; spriteId++)
+                spriteIndex.push(walking.spriteIndex[spriteId])
+
+            var walkingFramesLength:uint = walking.spriteIndex.length
+            if (walkingFramesLength > frameSpriteLength * 4)
+            {
+                // Check for fourth frame in walking
+                for (spriteId = frameSpriteLength * 4; spriteId < (frameSpriteLength * 4) + frameSpriteLength; spriteId++)
+                    spriteIndex.push(walking.spriteIndex[spriteId])
+            }
+            else if (walkingFramesLength > frameSpriteLength)
+            {
+                // Check for second frame in walking
+                for (spriteId = frameSpriteLength; spriteId < frameSpriteLength + frameSpriteLength; spriteId++)
+                    spriteIndex.push(walking.spriteIndex[spriteId])
+            }
+            else
+            {
+                // Add first frame in walking
+                for (spriteId = 0; spriteId < frameSpriteLength; spriteId++)
+                spriteIndex.push(walking.spriteIndex[spriteId]) 
+            }
+
+            normal.spriteIndex = spriteIndex;
+            normal.isAnimation = true;
+            normal.frameDurations = new Vector.<FrameDuration>(normal.frames, true);
+            normal.animationMode = AnimationMode.ASYNCHRONOUS;
+            normal.loopCount = 0;
+            normal.startFrame = 0;
+
+            for (var frameId:uint = 0; frameId < normal.frames; frameId++)
+                normal.frameDurations[frameId] = new FrameDuration(duration, duration);
+
+            frameGroups = [];
+            frameGroups[FrameGroupType.DEFAULT] = normal;
         }
 
         //--------------------------------------------------------------------------

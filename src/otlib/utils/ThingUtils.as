@@ -98,7 +98,7 @@ package otlib.utils
             return false;
         }
 
-        public static function convertFrameGroups(thingData:ThingData, frameGroups:uint, improvedAnimations:Boolean, duration:uint):void
+        public static function convertFrameGroups(thingData:ThingData, frameGroups:uint, improvedAnimations:Boolean, duration:uint, removeMounts:Boolean):void
         {
             if(thingData.thing.animateAlways || thingData.category != ThingCategory.OUTFIT)
                 return;
@@ -106,11 +106,10 @@ package otlib.utils
             if (frameGroups == REMOVE_FRAME_GROUPS)
             {
                 if(thingData.thing.frameGroups.length <= 1)
-                    return;
+                    return;       
 
-                //thingData.thing.removeFrameGroupState(improvedAnimations, duration);
-                //this.removeFrameGroupSprites();
-                trace("removeFrameGroups TODO")
+                thingData.thing.removeFrameGroupState(improvedAnimations, duration, removeMounts);
+                thingData.removeFrameGroupSprites();
             }
             else if (frameGroups == ADD_FRAME_GROUPS)
             {
@@ -119,8 +118,6 @@ package otlib.utils
 
                 thingData.thing.addFrameGroupState(improvedAnimations, duration);
                 thingData.addFrameGroupSprites();
-
-                trace("addFrameGroup")
             }
 
             return;

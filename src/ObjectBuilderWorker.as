@@ -818,9 +818,9 @@ package
             for (var i:uint = 0; i < length; i++) {
                 var thingData:ThingData = list[i];
                 if(_frameGroups && thingData.obdVersion < OBDVersions.OBD_VERSION_3)
-                    ThingUtils.convertFrameGroups(thingData, ThingUtils.ADD_FRAME_GROUPS, _improvedAnimations, _settings.getDefaultDuration(thingData.category));
+                    ThingUtils.convertFrameGroups(thingData, ThingUtils.ADD_FRAME_GROUPS, _improvedAnimations, _settings.getDefaultDuration(thingData.category), _version.value < 870);
                 else if (!_frameGroups && thingData.obdVersion >= OBDVersions.OBD_VERSION_3)
-                    ThingUtils.convertFrameGroups(thingData, ThingUtils.REMOVE_FRAME_GROUPS, _improvedAnimations, _settings.getDefaultDuration(thingData.category));
+                    ThingUtils.convertFrameGroups(thingData, ThingUtils.REMOVE_FRAME_GROUPS, _improvedAnimations, _settings.getDefaultDuration(thingData.category), _version.value < 870);
 
                 var thing:ThingType = thingData.thing;
 				for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
@@ -958,9 +958,9 @@ package
             for (var i:uint = 0; i < length; i++) {
                 var thingData:ThingData = list[i];
                 if(_frameGroups && thingData.obdVersion < OBDVersions.OBD_VERSION_3)
-                    ThingUtils.convertFrameGroups(thingData, ThingUtils.ADD_FRAME_GROUPS, _improvedAnimations, _settings.getDefaultDuration(thingData.category));
+                    ThingUtils.convertFrameGroups(thingData, ThingUtils.ADD_FRAME_GROUPS, _improvedAnimations, _settings.getDefaultDuration(thingData.category), _version.value < 870);
                 else if (!_frameGroups && thingData.obdVersion >= OBDVersions.OBD_VERSION_3)
-                    ThingUtils.convertFrameGroups(thingData, ThingUtils.REMOVE_FRAME_GROUPS, _improvedAnimations, _settings.getDefaultDuration(thingData.category));
+                    ThingUtils.convertFrameGroups(thingData, ThingUtils.REMOVE_FRAME_GROUPS, _improvedAnimations, _settings.getDefaultDuration(thingData.category), _version.value < 870);
 
                 var thing:ThingType = thingData.thing;
 				for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)

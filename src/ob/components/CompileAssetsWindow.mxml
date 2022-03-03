@@ -222,8 +222,6 @@ THE SOFTWARE.
                 if (done) {
                     m_extended = (m_extended || m_version.value >= 960);
                     m_improvedAnimations = (m_improvedAnimations || m_version.value >= 1050);
-                    m_frameGroups = (m_frameGroups || m_version.value >= 1057);
-
                     extendedCheckBox.enabled = (m_version.value < 960);
                     transparencyCheckBox.enabled = true;
                     improvedAnimationsCheckBox.enabled = (m_version.value < 1050);

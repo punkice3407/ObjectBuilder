@@ -549,20 +549,15 @@ package otlib.things
             var spritesGroup:Dictionary = new Dictionary();
             for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
             {
-                var frameGroup:FrameGroup = this.m_thing.getFrameGroup(groupType);
+                var frameGroup:FrameGroup = m_thing.getFrameGroup(groupType);
                 if(!frameGroup)
                     continue;
 
                 var _length:uint = frameGroup.spriteIndex.length;
                 spritesGroup[groupType] = new Vector.<SpriteData>(_length, true);
 
-                var sprites:Vector.<SpriteData> = this.sprites[FrameGroupType.DEFAULT];
-                for (var sprite:uint = 0; sprite < sprites.length; sprite++)
+                for each (var spriteData:SpriteData in m_sprites[FrameGroupType.DEFAULT])
                 {
-                    var spriteData:SpriteData = sprites[sprite];
-                    if(!spriteData)
-                        continue;
-
                     for (var index:uint = 0; index < _length; index++)
                     {
                         var spriteIndex:uint = frameGroup.spriteIndex[index];
@@ -572,9 +567,34 @@ package otlib.things
                 }
             }
 
-            this.m_sprites = spritesGroup;
+            m_sprites = spritesGroup;
         }
 
+        public function removeFrameGroupSprites():void
+        {
+            var spritesGroup:Dictionary = new Dictionary();
+            var frameGroup:FrameGroup = m_thing.getFrameGroup(FrameGroupType.DEFAULT);
+            if(!frameGroup)
+                return;
+
+            var _length:uint = frameGroup.spriteIndex.length;
+            spritesGroup[FrameGroupType.DEFAULT] = new Vector.<SpriteData>(_length, true);
+
+            for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+            {
+                for each (var spriteData:SpriteData in m_sprites[groupType])
+                {
+                    for (var index:uint = 0; index < _length; index++)
+                    {
+                        if(frameGroup.spriteIndex[index] == spriteData.id)
+                            spritesGroup[FrameGroupType.DEFAULT][index] = spriteData.clone();
+                    }
+                }
+            }
+
+            m_sprites = spritesGroup;
+        }
+        
         //--------------------------------------------------------------------------
         // STATIC
         //--------------------------------------------------------------------------
