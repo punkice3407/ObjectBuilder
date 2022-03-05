@@ -80,28 +80,28 @@
 	<version value="1056" string="10.56" dat="542143B0" spr="542143DE" otb="0"/>
 	<version value="1057" string="10.57" dat="542535F9" spr="54253627" otb="0"/>
 	<version value="1058" string="10.58" dat="542D12E7" spr="542D1315" otb="0"/>
-    <version value="1059" string="10.59" dat="5434084B" spr="54340879" otb="0"/>
-    <version value="1060" string="10.60" dat="5448D9C7" spr="5448DA10" otb="0"/>
-    <version value="1061" string="10.61" dat="5448D9C7" spr="5448DA10" otb="0"/>
-    <version value="1062" string="10.62" dat="54622638" spr="54622667" otb="0"/>
-    <version value="1063" string="10.63" dat="546B502A" spr="546B505E" otb="0"/>
-    <version value="1064" string="10.64" dat="547F05BE" spr="547F0632" otb="0"/>
-    <version value="1070" string="10.70" dat="5481BB97" spr="5481BC06" otb="0"/>
-    <version value="1071" string="10.71" dat="334F" spr="548E9EFE" otb="0"/>
-    <version value="1072" string="10.72" dat="3729" spr="54B37B99" otb="0"/>
-    <version value="1073" string="10.73" dat="374D" spr="54BC95AE" otb="0"/>
-    <version value="1074" string="10.74" dat="375E" spr="54C5FAB2" otb="0"/>
-    <version value="1075" string="10.75" dat="3775" spr="54D85085" otb="0"/>
-    <version value="1076" string="10.76" dat="37DF" spr="54F03CE9" otb="0"/>
-    <version value="1077" string="10.77" dat="38DE" spr="5525213D" otb="0"/>
-    <version value="1090" string="10.90" dat="3F26" spr="565EE171" otb="0"/>
-    <version value="1091" string="10.91" dat="3F81" spr="56BC8198" otb="0"/>
-    <version value="1092" string="10.92" dat="4086" spr="570742B8" otb="0"/>
-    <version value="1093" string="10.93 test" dat="40FF" spr="57161DEA" otb="0"/>
-    <version value="1093" string="10.93" dat="413F" spr="5726E657" otb="0"/>
-    <version value="1094" string="10.94" dat="41E5" spr="57459D43" otb="0"/>
-    <version value="1095" string="10.95" dat="41F3" spr="575A84BD" otb="0"/>
-    <version value="1098" string="10.98" dat="42A3" spr="57BBD603" otb="0"/>
-    <version value="1099" string="10.99" dat="4347" spr="57FF106B" otb="0"/>
-    <version value="1231" string="12.31" dat="4A10" spr="59E48E02" otb="0"/>    
+	<version value="1059" string="10.59" dat="5434084B" spr="54340879" otb="0"/>
+	<version value="1060" string="10.60" dat="5448D9C7" spr="5448DA10" otb="0"/>
+	<version value="1061" string="10.61" dat="5448D9C7" spr="5448DA10" otb="0"/>
+	<version value="1062" string="10.62" dat="54622638" spr="54622667" otb="0"/>
+	<version value="1063" string="10.63" dat="546B502A" spr="546B505E" otb="0"/>
+	<version value="1064" string="10.64" dat="547F05BE" spr="547F0632" otb="0"/>
+	<version value="1070" string="10.70" dat="5481BB97" spr="5481BC06" otb="0"/>
+	<version value="1071" string="10.71" dat="334F" spr="548E9EFE" otb="0"/>
+	<version value="1072" string="10.72" dat="3729" spr="54B37B99" otb="0"/>
+	<version value="1073" string="10.73" dat="374D" spr="54BC95AE" otb="0"/>
+	<version value="1074" string="10.74" dat="375E" spr="54C5FAB2" otb="0"/>
+	<version value="1075" string="10.75" dat="3775" spr="54D85085" otb="0"/>
+	<version value="1076" string="10.76" dat="37DF" spr="54F03CE9" otb="0"/>
+	<version value="1077" string="10.77" dat="38DE" spr="5525213D" otb="0"/>
+	<version value="1090" string="10.90" dat="3F26" spr="565EE171" otb="0"/>
+	<version value="1091" string="10.91" dat="3F81" spr="56BC8198" otb="0"/>
+	<version value="1092" string="10.92" dat="4086" spr="570742B8" otb="0"/>
+	<version value="1093" string="10.93 test" dat="40FF" spr="57161DEA" otb="0"/>
+	<version value="1093" string="10.93" dat="413F" spr="5726E657" otb="0"/>
+	<version value="1094" string="10.94" dat="41E5" spr="57459D43" otb="0"/>
+	<version value="1095" string="10.95" dat="41F3" spr="575A84BD" otb="0"/>
+	<version value="1098" string="10.98" dat="42A3" spr="57BBD603" otb="0"/>
+	<version value="1099" string="10.99" dat="4347" spr="57FF106B" otb="0"/>
+	<version value="1286" string="12.86" dat="4A10" spr="59E48E02" otb="0"/>
 </versions>
