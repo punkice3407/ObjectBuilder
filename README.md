@@ -15,7 +15,7 @@ Some features:
 Supported client versions:
 ----
 
-* 7.10 - 12.31
+* 7.10 - 12.86
 
 
 Downloads
