@@ -1781,10 +1781,7 @@ package
 
             if (thing.category == ThingCategory.OUTFIT) {
                 layers = 1;
-				if(thing.getFrameGroup(FrameGroupType.WALKING))
-					x = 2;
-				else
-					x = frameGroup.frames > 1 ? 2 : 0;
+				x = frameGroup.patternX > 1 ? 2 : 0;
             }
 
             for (var l:uint = 0; l < layers; l++) {
