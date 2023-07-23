@@ -139,8 +139,19 @@ package ob.utils
                 var id:uint = 0;
                 var file : File = list[i];
                 var name:String = FileUtil.getName(file);
-                var index:int = name.indexOf("_");
-                if (index != -1) id = parseInt(name.split("_")[1]);
+
+                var parts:Array = name.split("_");
+                if (parts.length > 1) {
+                    id = parseInt(parts[1])
+                } else {
+                    var extensionIndex:int = name.indexOf(".");
+                    if (extensionIndex != -1) {
+                        id = parseInt(name.substring(0, extensionIndex))
+                    } else {
+                        id = parseInt(name)
+                    }
+                }
+
                 array[i] = {id:id, file:file};
             }
 

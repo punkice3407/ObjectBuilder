@@ -48,14 +48,14 @@ THE SOFTWARE.
             import com.worlize.gif.GIFDecoder;
             import com.worlize.gif.GIFFrame;
             import com.worlize.gif.events.GIFDecoderEvent;
-            
+
             import mx.events.DragEvent;
             import mx.events.FlexEvent;
             import mx.events.MoveEvent;
             import mx.managers.DragManager;
-            
+
             import spark.events.IndexChangeEvent;
-            
+
             import nail.assets.NailAssets;
             import nail.components.controls.Alert;
             import nail.image.ClipboardBitmapLoader;
@@ -67,9 +67,9 @@ THE SOFTWARE.
             import nail.utils.SaveHelper;
             import nail.utils.StringUtil;
             import nail.utils.WindowUtil;
-            
+
             import ob.utils.ObUtils;
-            
+
             import otlib.animation.FrameDuration;
 			import otlib.animation.FrameGroup;
             import otlib.assets.Assets;
@@ -356,7 +356,7 @@ THE SOFTWARE.
                 var height:uint = _size.height;
                 var thing:ThingType = new ThingType();
 				var frameGroup:FrameGroup = new FrameGroup();
-				
+
                 thing.category = getCurrentCategory();
                 thing.id = 0;
 				frameGroup.width = (width / 32);
@@ -376,7 +376,7 @@ THE SOFTWARE.
 
 				var sprites:Dictionary = new Dictionary();
 				sprites[FrameGroupType.DEFAULT] = new Vector.<SpriteData>(spriteCount);
-				
+
                 var id:uint = uint.MAX_VALUE;
                 var rect:Rectangle = new Rectangle(0, 0, 32, 32);
                 var f:uint;
@@ -719,7 +719,7 @@ THE SOFTWARE.
                 if (clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT)) {
                     var dropfiles:Array = clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
 
-                    FileUtil.sortFiles(dropfiles, Array.NUMERIC | Array.DESCENDING);
+                    ObUtils.sortFiles(dropfiles, Array.NUMERIC | Array.DESCENDING);
 
                     var length:uint = dropfiles.length;
                     var list:Vector.<File> = new Vector.<File>();

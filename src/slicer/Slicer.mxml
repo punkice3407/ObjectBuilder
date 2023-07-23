@@ -517,7 +517,7 @@ THE SOFTWARE.
                 if (clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT)) {
                     var dropfiles:Array = clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
 
-                    FileUtil.sortFiles(dropfiles, Array.NUMERIC | Array.DESCENDING);
+                    ObUtils.sortFiles(dropfiles, Array.NUMERIC | Array.DESCENDING);
 
                     var length:uint = dropfiles.length;
                     var list:Vector.<File> = new Vector.<File>();

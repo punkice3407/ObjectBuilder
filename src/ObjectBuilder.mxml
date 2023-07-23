@@ -230,7 +230,7 @@ THE SOFTWARE.
             private var _clientChanged:Boolean;
             private var _clientIsTemporary:Boolean;
             private var _clientLoaded:Boolean;
-            
+
             //--------------------------------------
             // Getters / Setters
             //--------------------------------------
@@ -1254,14 +1254,13 @@ THE SOFTWARE.
 
                 var extra:String = "";
                 if(format == OTFormat.OBD)
-                    extra = "-" + clientVersion.toString() + "-v" + obdVersion.toString().substring(0, 1);
+                    extra = clientVersion.toString() + "-v" + obdVersion.toString().substring(0, 1);
 
                 var length:uint = things.length;
                 for (var i:uint = 0; i < length; i++) {
                     var id:uint = things[i].id;
-                    var name:String = fileName + "_" + id.toString() + extra.replace(" ", "").replace(".", "");
 
-                    queue.addFile(id, name, format, directory);
+                    queue.addFile(id, fileName + "_" + id.toString() + "_" + extra.replace(" ", "").replace(".", ""), format, directory);
                 }
                 queue.start();
 
@@ -1283,13 +1282,12 @@ THE SOFTWARE.
                 var queue:FileQueueHelper = new FileQueueHelper();
                 queue.parent = this;
                 queue.addEventListener(Event.COMPLETE, completeHandler);
-                var changeName:Boolean = (fileName.indexOf("_") == -1);
 
                 var length:uint = sprites.length;
                 for (var i:uint = 0; i < length; i++) {
                     var id:uint = sprites[i].id;
-                    var name:String = !changeName ? fileName : (name = fileName + "_" + id);
-                    queue.addFile(id, name, format, directory);
+
+                    queue.addFile(id, fileName + "_" + id.toString(), format, directory);
                 }
                 queue.start();
 
@@ -1669,7 +1667,7 @@ THE SOFTWARE.
 
                 thingTypeEditor.settings = _settings;
                 thingTypeEditor.bindableThingType.settings = _settings;
-                
+
                 _logTarget.writeStart();
             }
 
@@ -1847,7 +1845,7 @@ THE SOFTWARE.
                         return;
                     }
 
-                    FileUtil.sortFiles(files, Array.NUMERIC | Array.DESCENDING);
+                    ObUtils.sortFiles(files, Array.NUMERIC | Array.DESCENDING);
 
                     for (var i:uint = 0; i < length; i++) {
                         list[i] = new PathHelper(files[i].nativePath, selectedIds[i]);
@@ -1875,7 +1873,7 @@ THE SOFTWARE.
                     var length:uint = files.length;
                     var list:Vector.<PathHelper> = new Vector.<PathHelper>(length, true);
 
-                    FileUtil.sortFiles(files, Array.NUMERIC);
+                    ObUtils.sortFiles(files, Array.NUMERIC);
 
                     for (var i:uint = 0; i < length; i++) {
                         list[i] = new PathHelper(files[i].nativePath, i);
@@ -2035,6 +2033,8 @@ THE SOFTWARE.
                     var length:uint = dropfiles.length;
                     var list:Vector.<PathHelper> = new Vector.<PathHelper>();
 
+                    ObUtils.sortFiles(dropfiles, Array.NUMERIC);
+
                     for (var i:uint = 0; i < length; i++) {
                         var file:File = dropfiles[i];
                         if (file.extension == OTFormat.OBD) {
@@ -2133,7 +2133,7 @@ THE SOFTWARE.
                         return;
                     }
 
-                    FileUtil.sortFiles(files, Array.NUMERIC | Array.DESCENDING);
+                    ObUtils.sortFiles(files, Array.NUMERIC | Array.DESCENDING);
 
                     for (var i:uint = 0; i < length; i++) {
                         list[i] = new PathHelper(files[i].nativePath, selectedIds[i]);
@@ -2196,7 +2196,7 @@ THE SOFTWARE.
                     if (length > 0)
                         _settings.setIODirectory(files[0]);
 
-                    FileUtil.sortFiles(files, Array.NUMERIC | Array.DESCENDING);
+                    ObUtils.sortFiles(files, Array.NUMERIC | Array.DESCENDING);
 
                     for (var i:uint = 0; i < length; i++) {
                         list[i] = new PathHelper(files[i].nativePath, i);
@@ -2293,7 +2293,7 @@ THE SOFTWARE.
                 if (clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT)) {
                     var dropfiles:Array = clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
 
-                    FileUtil.sortFiles(dropfiles, Array.NUMERIC | Array.DESCENDING);
+                    ObUtils.sortFiles(dropfiles, Array.NUMERIC | Array.DESCENDING);
 
                     var length:uint = dropfiles.length;
                     var list:Vector.<PathHelper> = new Vector.<PathHelper>();
@@ -2413,11 +2413,11 @@ THE SOFTWARE.
 
                     case Menu.TOOLS_FRAME_DURATIONS_OPTIMIZER:
                         openFrameDurationsOptimizer();
-                        break;      
+                        break;
 
                     case Menu.TOOLS_FRAME_GROUPS_CONVERTER:
                         openFrameGroupsConverter();
-                        break;            
+                        break;
 
                     case Menu.WINDOW_LOG:
                         openLogWindow();
