@@ -768,8 +768,8 @@ package otlib.obd
 
                     case HAS_OFFSET:
                         thing.hasOffset = true;
-                        thing.offsetX = input.readUnsignedShort();
-                        thing.offsetY = input.readUnsignedShort();
+                        thing.offsetX = input.readShort();
+                        thing.offsetY = input.readShort();
                         break;
 
                     case HAS_ELEVATION:

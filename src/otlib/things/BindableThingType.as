@@ -135,10 +135,10 @@ package otlib.things
         public var hasOffset:Boolean;
 
         [Bindable]
-        public var offsetX:uint;
+        public var offsetX:int;
 
         [Bindable]
-        public var offsetY:uint;
+        public var offsetY:int;
 
         [Bindable]
         public var dontHide:Boolean;
@@ -385,7 +385,7 @@ package otlib.things
 				var frameGroup:FrameGroup = this.getFrameGroup(groupType);
 				if(!frameGroup)
                     continue;
-			
+
                 thing.frameGroups[groupType] = frameGroup.clone();
 			}
 

@@ -166,8 +166,8 @@ package otlib.things
 
                     case MetadataFlags6.HAS_OFFSET:
                         type.hasOffset = true;
-                        type.offsetX = readUnsignedShort();
-                        type.offsetY = readUnsignedShort();
+                        type.offsetX = readShort();
+                        type.offsetY = readShort();
                         break;
 
                     case MetadataFlags6.HAS_ELEVATION:

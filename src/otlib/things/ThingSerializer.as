@@ -394,8 +394,8 @@ package otlib.things
                         break;
                     case MetadataFlags3.HAS_OFFSET:
                         thing.hasOffset = true;
-                        thing.offsetX = input.readUnsignedShort();
-                        thing.offsetY = input.readUnsignedShort();
+                        thing.offsetX = input.readShort();
+                        thing.offsetY = input.readShort();
                         break;
                     case MetadataFlags3.HAS_ELEVATION:
                         thing.hasElevation = true;
@@ -526,8 +526,8 @@ package otlib.things
                         break;
                     case MetadataFlags4.HAS_OFFSET:
                         thing.hasOffset = true;
-                        thing.offsetX = input.readUnsignedShort();
-                        thing.offsetY = input.readUnsignedShort();
+                        thing.offsetX = input.readShort();
+                        thing.offsetY = input.readShort();
                         break;
                     case MetadataFlags4.HAS_ELEVATION:
                         thing.hasElevation = true;
@@ -658,8 +658,8 @@ package otlib.things
                         break;
                     case MetadataFlags5.HAS_OFFSET:
                         thing.hasOffset = true;
-                        thing.offsetX = input.readUnsignedShort();
-                        thing.offsetY = input.readUnsignedShort();
+                        thing.offsetX = input.readShort();
+                        thing.offsetY = input.readShort();
                         break;
                     case MetadataFlags5.HAS_ELEVATION:
                         thing.hasElevation = true;
@@ -807,8 +807,8 @@ package otlib.things
                         break;
                     case MetadataFlags6.HAS_OFFSET:
                         thing.hasOffset = true;
-                        thing.offsetX = input.readUnsignedShort();
-                        thing.offsetY = input.readUnsignedShort();
+                        thing.offsetX = input.readShort();
+                        thing.offsetY = input.readShort();
                         break;
                     case MetadataFlags6.HAS_ELEVATION:
                         thing.hasElevation = true;
@@ -860,7 +860,7 @@ package otlib.things
                         break;
                     case MetadataFlags6.TOP_EFFECT:
                         thing.topEffect = true;
-                        break; 
+                        break;
                     case MetadataFlags6.USABLE:
                         thing.usable = true;
                         break;

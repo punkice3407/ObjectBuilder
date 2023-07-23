@@ -97,7 +97,7 @@ THE SOFTWARE.
             private var _previewMode:Boolean;
             private var _lastAnimationFrame:uint;
             private var _settings:ObjectBuilderSettings;
-            
+
             [Bindable]
             private var _frameGroup:FrameGroup;
 
@@ -361,10 +361,10 @@ THE SOFTWARE.
                 isLensHelpGroupCheckBox.includeInLayout = isItem;
 
                 if (info.clientVersion >= 755) {
-                    offsetXNumericStepper.minimum = 1;
-                    offsetXNumericStepper.maximum = 32;
-                    offsetYNumericStepper.minimum = 1;
-                    offsetYNumericStepper.maximum = 32;
+                    offsetXNumericStepper.minimum = -64;
+                    offsetXNumericStepper.maximum = 64;
+                    offsetYNumericStepper.minimum = -64;
+                    offsetYNumericStepper.maximum = 64;
                 } else {
                     offsetXNumericStepper.minimum = 8;
                     offsetXNumericStepper.maximum = 8;
@@ -1021,7 +1021,7 @@ THE SOFTWARE.
                         _frameGroup.frameDurations[frame] = currentDuration.clone();
                     }
                 }
-            } 
+            }
 
         ]]>
     </fx:Script>
@@ -1508,7 +1508,6 @@ THE SOFTWARE.
                                          textAlign="right"/>
                                 <s:NumericStepper id="offsetXNumericStepper"
                                                   width="80"
-                                                  maximum="32"
                                                   value="{_thingBinding.offsetX}"
                                                   change="{_thingBinding.offsetX = offsetXNumericStepper.value;}"/>
                                 <s:Spacer width="30"/>
@@ -1521,7 +1520,6 @@ THE SOFTWARE.
                                          textAlign="right"/>
                                 <s:NumericStepper id="offsetYNumericStepper"
                                                   width="80"
-                                                  maximum="32"
                                                   value="{_thingBinding.offsetY}"
                                                   change="{_thingBinding.offsetY = offsetYNumericStepper.value;}"/>
                                 <s:Spacer width="30"/>

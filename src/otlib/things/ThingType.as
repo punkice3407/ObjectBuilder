@@ -76,8 +76,8 @@ package otlib.things
         public var isTranslucent:Boolean;
         public var floorChange:Boolean;
         public var hasOffset:Boolean;
-        public var offsetX:uint;
-        public var offsetY:uint;
+        public var offsetX:int;
+        public var offsetY:int;
         public var hasElevation:Boolean;
         public var elevation:uint;
         public var isLyingObject:Boolean;
