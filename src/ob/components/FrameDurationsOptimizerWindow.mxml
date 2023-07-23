@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,10 +35,10 @@ THE SOFTWARE.
     <fx:Script>
         <![CDATA[
             import com.mignari.workers.IWorkerCommunicator;
-            
+
             import mx.core.FlexGlobals;
             import mx.events.FlexEvent;
-            
+
             import ob.commands.ProgressBarID;
             import ob.commands.ProgressCommand;
             import ob.commands.things.OptimizeFrameDurationsCommand;
@@ -130,10 +130,10 @@ THE SOFTWARE.
 
             private function startButtonClickHandler(event:MouseEvent):void
             {
-                if (m_inProgress) 
+                if (m_inProgress)
                     return;
 
-                if (!itemsGroupCheckBox.selected && !outfitsGroupCheckBox.selected && !effectsGroupCheckBox.selected) 
+                if (!itemsGroupCheckBox.selected && !outfitsGroupCheckBox.selected && !effectsGroupCheckBox.selected)
                     return;
 
                 m_communicator.sendCommand(new OptimizeFrameDurationsCommand(itemsGroupCheckBox.selected, itemsMinimumDurationNumericStepper.value, itemsMaximumDurationNumericStepper.value,

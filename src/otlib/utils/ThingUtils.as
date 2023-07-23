@@ -1,5 +1,5 @@
 /*
-*  Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+*  Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
 *
 *  Permission is hereby granted, free of charge, to any person obtaining a copy
 *  of this software and associated documentation files (the "Software"), to deal
@@ -65,8 +65,8 @@ package otlib.utils
                 return false;
 
             var frameGroup:FrameGroup = thing.getFrameGroup(FrameGroupType.DEFAULT);
-            if(!frameGroup)   
-                return false;   
+            if(!frameGroup)
+                return false;
 
             return frameGroup.width != 0 && frameGroup.height != 0;
         }
@@ -74,8 +74,8 @@ package otlib.utils
         public static function isEmpty(thing:ThingType):Boolean
         {
             var frameGroup:FrameGroup = thing.getFrameGroup(FrameGroupType.DEFAULT);
-            if(!frameGroup)   
-                return true; 
+            if(!frameGroup)
+                return true;
 
             var length:uint = frameGroup.spriteIndex ? frameGroup.spriteIndex.length : 0;
             if (length == 0)
@@ -106,7 +106,7 @@ package otlib.utils
             if (frameGroups == REMOVE_FRAME_GROUPS)
             {
                 if(thingData.thing.frameGroups.length <= 1)
-                    return;       
+                    return;
 
                 thingData.thing.removeFrameGroupState(improvedAnimations, duration, removeMounts);
                 thingData.removeFrameGroupSprites();

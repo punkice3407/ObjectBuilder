@@ -1,5 +1,5 @@
 /*
-*  Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+*  Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
 *
 *  Permission is hereby granted, free of charge, to any person obtaining a copy
 *  of this software and associated documentation files (the "Software"), to deal
@@ -23,12 +23,12 @@
 package ob.core
 {
     import flash.filesystem.File;
-    
+
     import mx.core.IUIComponent;
     import mx.core.IWindow;
-    
+
     import ob.settings.ObjectBuilderSettings;
-    
+
     import otlib.core.IVersionStorage;
     import otlib.core.Version;
     import otlib.utils.ClientInfo;
@@ -74,7 +74,7 @@ package ob.core
 
         function openAnimationEditor():void;
         function closeAnimationEditor():void;
-    
+
         function openAssetStore():void;
         function closeAssetStore():void;
 

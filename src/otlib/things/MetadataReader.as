@@ -1,5 +1,5 @@
 /*
-*  Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+*  Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
 *
 *  Permission is hereby granted, free of charge, to any person obtaining a copy
 *  of this software and associated documentation files (the "Software"), to deal
@@ -55,7 +55,7 @@ package otlib.things
         //--------------------------------------
 
         public function get settings():ObjectBuilderSettings { return _settings; }
-        public function set settings(value:ObjectBuilderSettings):void 
+        public function set settings(value:ObjectBuilderSettings):void
         {
             if (_settings != value)
                 _settings = value;
@@ -106,7 +106,7 @@ package otlib.things
             var i:uint;
             var groupType:uint;
 			var frameGroup:FrameGroup;
-            for(groupType = 0; groupType < groupCount; groupType++) 
+            for(groupType = 0; groupType < groupCount; groupType++)
             {
 			    if(frameGroups && type.category == ThingCategory.OUTFIT)
 					readUnsignedByte();

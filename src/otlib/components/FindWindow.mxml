@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -48,11 +48,11 @@ THE SOFTWARE.
     <fx:Script>
         <![CDATA[
             import com.mignari.workers.IWorkerCommunicator;
-            
+
             import mx.core.FlexGlobals;
             import mx.events.FlexEvent;
             import mx.events.PropertyChangeEvent;
-            
+
             import ob.commands.FindResultCommand;
             import ob.commands.ProgressBarID;
             import ob.commands.ProgressCommand;
@@ -63,7 +63,7 @@ THE SOFTWARE.
             import ob.commands.things.GetThingCommand;
             import ob.commands.things.RemoveThingCommand;
             import ob.core.IObjectBuilder;
-            
+
             import otlib.assets.Assets;
             import otlib.components.renders.SpriteListRenderer;
             import otlib.components.renders.ThingListRenderer;

@@ -1,5 +1,5 @@
 /*
-*  Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+*  Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
 *
 *  Permission is hereby granted, free of charge, to any person obtaining a copy
 *  of this software and associated documentation files (the "Software"), to deal
@@ -299,7 +299,7 @@ package
             _communicator.registerCallback(FindThingCommand, findThingCallback);
             _communicator.registerCallback(OptimizeFrameDurationsCommand, optimizeFrameDurationsCallback);
             _communicator.registerCallback(ConvertFrameGroupsCommand, convertFrameGroupsCallback);
-            
+
             // Sprite commands
             _communicator.registerCallback(NewSpriteCommand, newSpriteCallback);
             _communicator.registerCallback(ImportSpritesCommand, addSpritesCallback);
@@ -336,7 +336,7 @@ package
                 throw new NullOrEmptyArgumentError("path");
 
             SpriteDimensionStorage.getInstance().load( new File(path) );
-        } 
+        }
 
         private function setSpriteDimensionCallback(value:String, size:uint, dataSize:uint):void
         {
@@ -352,7 +352,7 @@ package
             SpriteExtent.DEFAULT_VALUE = value;
             SpriteExtent.DEFAULT_SIZE = size;
             SpriteExtent.DEFAULT_DATA_SIZE = dataSize;
-        }   
+        }
 
         private function settingsCallback(settings:ObjectBuilderSettings):void
         {
@@ -1593,7 +1593,7 @@ package
                                                 outfits:Boolean, outfitsMinimumDuration:uint, outfitsMaximumDuration:uint,
                                                 effects:Boolean, effectsMinimumDuration:uint, effectsMaximumDuration:uint):void
         {
-            var optimizer:FrameDurationsOptimizer = new FrameDurationsOptimizer(_things, items, itemsMinimumDuration, itemsMaximumDuration, 
+            var optimizer:FrameDurationsOptimizer = new FrameDurationsOptimizer(_things, items, itemsMinimumDuration, itemsMaximumDuration,
                                                                         outfits, outfitsMinimumDuration, outfitsMaximumDuration,
                                                                         effects, effectsMinimumDuration, effectsMaximumDuration);
             optimizer.addEventListener(ProgressEvent.PROGRESS, progressHandler);

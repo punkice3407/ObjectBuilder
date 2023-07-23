@@ -1,5 +1,5 @@
 /*
-*  Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+*  Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
 *
 *  Permission is hereby granted, free of charge, to any person obtaining a copy
 *  of this software and associated documentation files (the "Software"), to deal
@@ -242,7 +242,7 @@ package otlib.things
             var walking:FrameGroup = getFrameGroup(FrameGroupType.WALKING);
             if(!normal && !walking)
                 return;
-                
+
             if (removeMounts)
             {
                 idle.patternZ = 1
@@ -278,7 +278,7 @@ package otlib.things
             {
                 // Add first frame in walking
                 for (spriteId = 0; spriteId < frameSpriteLength; spriteId++)
-                spriteIndex.push(walking.spriteIndex[spriteId]) 
+                spriteIndex.push(walking.spriteIndex[spriteId])
             }
 
             normal.spriteIndex = spriteIndex;

@@ -1,5 +1,5 @@
 /*
-*  Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+*  Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
 *
 *  Permission is hereby granted, free of charge, to any person obtaining a copy
 *  of this software and associated documentation files (the "Software"), to deal
@@ -271,7 +271,7 @@ package otlib.utils
 					var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
 					if(!frameGroup)
 						continue;
-					
+
 					var spriteIDs:Vector.<uint> = frameGroup.spriteIndex;
 					for (var i:int = spriteIDs.length - 1; i >= 0; i--)
 					{
@@ -291,7 +291,7 @@ package otlib.utils
 					var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
 					if(!frameGroup)
 						continue;
-					
+
 					var spriteIDs:Vector.<uint> = frameGroup.spriteIndex;
 					for (var i:int = spriteIDs.length - 1; i >= 0; i--)
 					{

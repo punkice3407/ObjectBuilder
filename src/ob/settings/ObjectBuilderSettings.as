@@ -1,5 +1,5 @@
 /*
-*  Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+*  Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
 *
 *  Permission is hereby granted, free of charge, to any person obtaining a copy
 *  of this software and associated documentation files (the "Software"), to deal
@@ -76,7 +76,7 @@ package ob.settings
         public var jpegQuality:Number = 100;
         public var itemsDuration:Number = 500;
         public var outfitsDuration:Number = 300;
-        public var effectsDuration:Number = 100;       
+        public var effectsDuration:Number = 100;
 
         //--------------------------------------------------------------------------
         // CONSTRUCTOR

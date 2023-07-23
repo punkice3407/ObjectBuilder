@@ -1,5 +1,5 @@
 /*
-*  Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+*  Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
 *
 *  Permission is hereby granted, free of charge, to any person obtaining a copy
 *  of this software and associated documentation files (the "Software"), to deal
@@ -25,11 +25,11 @@ package ob.utils
     import flash.events.Event;
     import flash.events.EventDispatcher;
     import flash.utils.Dictionary;
-    
+
     import nail.errors.NullArgumentError;
-    
+
     import ob.commands.ProgressBarID;
-    
+
     import otlib.animation.FrameGroup;
     import otlib.core.otlib_internal;
     import otlib.events.ProgressEvent;
@@ -167,10 +167,10 @@ package ob.utils
 					var frameGroup:FrameGroup = thing.getFrameGroup(groupType);
 					if(!frameGroup)
 						continue;
-					
+
 					var spriteIDs:Vector.<uint> = frameGroup.spriteIndex;
 					var length:uint = spriteIDs.length;
-					
+
 					for (var i:int = 0; i < length; i++)
 						usedList[ spriteIDs[i] ] = true;
 				}

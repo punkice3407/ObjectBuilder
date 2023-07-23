@@ -1,5 +1,5 @@
 /*
-*  Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+*  Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
 *
 *  Permission is hereby granted, free of charge, to any person obtaining a copy
 *  of this software and associated documentation files (the "Software"), to deal
@@ -80,15 +80,15 @@ package otlib.utils
                 case 32:
                     data = (new Assets.ALERT_IMAGE32).bitmapData;
                     break;
-            
+
                 case 64:
                     data = (new Assets.ALERT_IMAGE64).bitmapData;
                     break;
-            
+
                 case 128:
                     data = (new Assets.ALERT_IMAGE128).bitmapData;
                     break;
-                
+
                 case 256:
                     data = (new Assets.ALERT_IMAGE256).bitmapData;
                     break;

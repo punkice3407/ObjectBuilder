@@ -1,5 +1,5 @@
 /*
-*  Copyright (c) 2014-2022 Object Builder <https://github.com/ottools/ObjectBuilder>
+*  Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
 *
 *  Permission is hereby granted, free of charge, to any person obtaining a copy
 *  of this software and associated documentation files (the "Software"), to deal
@@ -27,9 +27,9 @@ package otlib.components
     import flash.geom.Point;
     import flash.geom.Rectangle;
     import flash.utils.getTimer;
-    
+
     import mx.core.UIComponent;
-    
+
     import otlib.animation.Animator;
     import otlib.animation.FrameDuration;
     import otlib.animation.FrameGroup;
@@ -83,7 +83,7 @@ package otlib.components
         public function set thingData(value:ThingData):void
         {
             if (_thingData != value) {
-                _proposedThingData = value;			
+                _proposedThingData = value;
                 _thingDataChanged = true;
                 invalidateProperties();
             }
@@ -128,7 +128,7 @@ package otlib.components
                 draw();
             }
         }
-		
+
 		public function get frameGroupType():uint { return _frameGroupType; }
 		public function set frameGroupType(value:uint):void { _frameGroupType = value; }
 
@@ -221,7 +221,7 @@ package otlib.components
 
 					thingData = thingData.clone().colorize(_outfitData);
                 }
-				
+
 				var frameGroup:FrameGroup = thingData.thing.getFrameGroup(frameGroupType);
                 _textureIndex = new Vector.<Rect>();
                 _spriteSheet = thingData.getSpriteSheet(frameGroup, _textureIndex, 0);
@@ -234,15 +234,15 @@ package otlib.components
 
                 width = _bitmap.width;
                 height = _bitmap.height;
-				
+
 				var durations:Vector.<FrameDuration> = frameGroup.frameDurations;
 				if(durations && frameGroup.type == FrameGroupType.WALKING && frameGroup.frames > 2)
-				{					
+				{
 					var duration:uint = 1000 / frameGroup.frames;
 					for (var i:uint = 0; i < frameGroup.frames; i++)
 						durations[i] = new FrameDuration(duration, duration);
 				}
-				
+
 				if (frameGroup.isAnimation) {
 					_animator = new Animator(frameGroup.animationMode, frameGroup.loopCount, frameGroup.startFrame, durations, frameGroup.frames);
 					_animator.skipFirstFrame = (thingData.category == ThingCategory.OUTFIT && !thingData.thing.animateAlways && frameGroup.type != FrameGroupType.WALKING);
@@ -258,7 +258,7 @@ package otlib.components
             }
 
             _thingData = thingData;
-			
+
             draw();
         }
 
