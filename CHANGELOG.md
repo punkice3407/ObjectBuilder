@@ -1,3 +1,16 @@
+### 0.5.5
+
+Features:
+
+* New versions 12.31+
+* A window to change frame durations for all objects at once.
+* Support for negative offsets.
+
+Bug Fixes:
+
+* Fixes related to duration settings and frame groups.
+* Fixed sort order when adding, replacing, or drag-dropping sprites and objects.
+
 ### 0.5.4
 
 Features:

@@ -24,13 +24,13 @@ Downloads
 #### Windows
 
 Latest Adobe AIR [AdobeAIR 33.1.1.502](https://mega.nz/file/VA8wCQYY#n6WVUTz8E-awaXrwvCPzosvrDehWiVOoT927TG_ihtA).
-Download the .zip file in [releases](https://github.com/whiteblXK/ObjectBuilder/releases).
+Download the .zip file in [releases](https://github.com/punkice3407/ObjectBuilder/releases).
 
 
 Compiling in Windows
 ----
 
-Follow tutorials in [wiki](https://github.com/whiteblXK/ObjectBuilder/wiki)
+Follow tutorials in [wiki](https://github.com/punkice3407/ObjectBuilder/wiki)
 
 
 Donate
