@@ -406,7 +406,7 @@ THE SOFTWARE.
                             var spriteData:SpriteData = new SpriteData();
                             spriteData.id = id;
                             spriteData.pixels = bmp.getPixels(rect);
-                            sprites[index] = spriteData;
+                            sprites[FrameGroupType.DEFAULT][index] = spriteData;
                             spriteIndices[index] = id;
                         }
                     }
