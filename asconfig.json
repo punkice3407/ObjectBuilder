@@ -33,7 +33,8 @@
 
 		"signingOptions": {
 			"keystore": "object_builder.p12",
-			"storetype": "pkcs12"
+			"storetype": "pkcs12",
+			"tsa": "http://timestamp.digicert.com"
 		}
 	},
 	"config": "air",
