@@ -228,6 +228,7 @@ THE SOFTWARE.
             private var _filesName:String;
             private var _selectThingIndex:int;
             private var _findThingWindow:FindWindow;
+            private var _bulkEditWindow:BulkEditWindow;
             private var _lookGenerator:LookGenerator;
             private var _animationWindow:AnimationEditor;
             private var _assetStoreWindow:AssetStore;
@@ -2146,6 +2147,8 @@ THE SOFTWARE.
                 closeSlicer();
                 closeAnimationEditor();
                 closeAssetStore();
+                if (_bulkEditWindow && !_bulkEditWindow.closed)
+                    _bulkEditWindow.close();
                 saveWindowState();
                 saveSettings();
                 saveVersions();
@@ -2462,36 +2465,44 @@ THE SOFTWARE.
             
             protected function bulkEditHandler(event:Event):void
             {
-                if (!clientLoaded || _locked)
+                if (!clientLoaded)
                     return;
-            
+
                 var selectedIds:Vector.<uint> = thingList.selectedIds;
                 if (!selectedIds || selectedIds.length < 2)
                     return;
-            
-                _locked = true;
-            
-                var window:BulkEditWindow = new BulkEditWindow();
-                window.selectedIds = selectedIds;
-                window.category = currentCategory;
-                window.settings = _settings;
-                window.otbLoaded = _otbLoaded;
-                window.addEventListener(Event.CLOSE, closeHandler);
-                window.open(this);
-            
-                function closeHandler(event:Event):void
+
+                if (_bulkEditWindow)
                 {
-                    _locked = false;
-            
-                    if (window.detail == DialogDetail.OK)
+                    _bulkEditWindow.selectedIds = selectedIds;
+                    _bulkEditWindow.category = currentCategory;
+                    _bulkEditWindow.activate();
+                }
+                else
+                {
+                    _bulkEditWindow = new BulkEditWindow();
+                    _bulkEditWindow.selectedIds = selectedIds;
+                    _bulkEditWindow.category = currentCategory;
+                    _bulkEditWindow.settings = _settings;
+                    _bulkEditWindow.otbLoaded = _otbLoaded;
+                    _bulkEditWindow.addEventListener(Event.CLOSE, bulkEditCloseHandler);
+                    _bulkEditWindow.open();
+                    WindowUtil.centralizeWindowOnScreen(_bulkEditWindow);
+                }
+            }
+
+            protected function bulkEditCloseHandler(event:Event):void
+            {
+                if (_bulkEditWindow.detail == DialogDetail.OK)
+                {
+                    var properties:Array = _bulkEditWindow.changedProperties;
+                    var ids:Vector.<uint> = _bulkEditWindow.selectedIds;
+                    if (properties && properties.length > 0 && ids && ids.length > 0)
                     {
-                        var properties:Array = window.changedProperties;
-                        if (properties && properties.length > 0)
-                        {
-                            sendCommand(new BulkUpdateThingsCommand(selectedIds, currentCategory, properties));
-                        }
+                        sendCommand(new BulkUpdateThingsCommand(ids, currentCategory, properties));
                     }
                 }
+                _bulkEditWindow = null;
             }
             
             protected function copyObjectHandler(event:Event):void

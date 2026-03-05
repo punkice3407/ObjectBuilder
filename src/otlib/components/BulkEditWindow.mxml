@@ -21,10 +21,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 
-<mg:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
     xmlns:s="library://ns.adobe.com/flex/spark"
     xmlns:mx="library://ns.adobe.com/flex/mx"
-    xmlns:mg="library://ns.mignari.com/mg"
     xmlns:nail="library://ns.nail.com/naillib"
     xmlns:otlib="otlib.components.*"
     title="@Resource(key='bulkPropertyEditor', bundle='strings')"
@@ -32,7 +31,11 @@ THE SOFTWARE.
     height="700"
     minWidth="625"
     minHeight="400"
-    creationComplete="creationCompleteHandler(event)">
+    backgroundColor="0x494949"
+    showStatusBar="false"
+    fontSize="11"
+    creationComplete="creationCompleteHandler(event)"
+    closing="closingHandler(event)">
 
     <fx:Metadata>
         [ResourceBundle("strings")]
@@ -101,8 +104,12 @@ THE SOFTWARE.
             public function set selectedIds(value:Vector.<uint>):void
             {
                 _selectedIds = value;
+                if (_selectedIds)
+                    _selectedIds.sort(Array.NUMERIC);
                 if (selectedCountLabel)
                     selectedCountLabel.text = resourceManager.getString("strings", "itemsSelected", [value ? value.length : 0]);
+                if (selectedIdsText && value)
+                    selectedIdsText.text = "IDs: " + value.join(", ");
             }
             
             public function get category():String
@@ -176,17 +183,18 @@ THE SOFTWARE.
                 if (_attributesEditor)
                 {
                     var collectedAttrs:Dictionary = _attributesEditor.collectedAttributes;
+                    var plainAttrs:Object = {};
                     var hasAttrs:Boolean = false;
                     for (var key:String in collectedAttrs)
                     {
+                        plainAttrs[key] = collectedAttrs[key];
                         hasAttrs = true;
-                        break;
                     }
                     if (hasAttrs)
                     {
                         result.push({
                                     property: "_bulkAttributes",
-                                    value: collectedAttrs
+                                    value: plainAttrs
                                 });
                     }
                 }
@@ -234,8 +242,12 @@ THE SOFTWARE.
             protected function creationCompleteHandler(event:FlexEvent):void
             {
                 if (_selectedIds)
+                {
                     selectedCountLabel.text = resourceManager.getString("strings", "itemsSelected", [_selectedIds.length]);
-            
+                    if (selectedIdsText)
+                        selectedIdsText.text = "IDs: " + _selectedIds.join(", ");
+                }
+
                 if (currentState != _category && _category)
                     currentState = _category;
             }
@@ -252,6 +264,12 @@ THE SOFTWARE.
                 close();
             }
             
+            protected function closingHandler(event:Event):void
+            {
+                if (_detail != DialogDetail.OK)
+                    _detail = DialogDetail.CANCEL;
+            }
+
             protected function onAttributesEditorReady(event:FlexEvent):void
             {
                 _attributesEditor = attributesEditorComponent;
@@ -278,16 +296,12 @@ THE SOFTWARE.
         ]]>
     </fx:Script>
 
-    <mg:states>
+    <s:states>
         <s:State name="item"/>
         <s:State name="outfit"/>
         <s:State name="effect"/>
         <s:State name="missile"/>
-    </mg:states>
-
-    <mg:layout>
-        <s:BasicLayout/>
-    </mg:layout>
+    </s:states>
 
     <s:Group width="100%" height="100%">
         <s:VGroup width="100%" height="100%" paddingLeft="10" paddingRight="10" paddingTop="10" paddingBottom="10" gap="10">
@@ -299,6 +313,13 @@ THE SOFTWARE.
                     fontSize="12" fontWeight="bold"/>
                 <s:Label text="@Resource(key='bulkEditDescription', bundle='strings')"
                     fontSize="11" color="0x999999"/>
+                <s:Scroller maxHeight="60" width="100%">
+                    <s:RichEditableText id="selectedIdsText"
+                        editable="false" selectable="true"
+                        width="100%"
+                        fontSize="10" color="0xAAAAAA"
+                        text=""/>
+                </s:Scroller>
             </s:VGroup>
 
             <nail:ShadowLine width="100%"/>
@@ -542,7 +563,6 @@ THE SOFTWARE.
             </s:HGroup>
         </s:VGroup>
 
-        <otlib:ResizeHandler right="1" bottom="1"/>
     </s:Group>
 
-</mg:TitleWindow>
+</s:Window>

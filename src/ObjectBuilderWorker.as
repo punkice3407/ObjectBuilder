@@ -1798,7 +1798,7 @@ package
                         case "_bulkAttributes":
                             if (category == ThingCategory.ITEM)
                             {
-                                applyBulkAttributes(thing.id, propValue as flash.utils.Dictionary);
+                                applyBulkAttributes(thing.id, propValue as Object);
                             }
                             break;
 
@@ -1814,7 +1814,11 @@ package
                 // Replace the thing with updated properties
                 var result:ChangeResult = _things.replaceThing(thing, category, thing.id);
                 if (result.done)
+                {
                     updatedCount++;
+                    // Sync ThingType flags to ServerItem (OTB)
+                    syncOrCreateItem(ids[i], category);
+                }
             }
 
             // ============================================================================
@@ -1822,7 +1826,7 @@ package
 
             if (updatedCount > 0)
             {
-                // If we updated any items, mark items storage as changed
+                // Fallback: ensure OTB storage is marked changed if category is ITEM
                 if (category == ThingCategory.ITEM && otbLoaded)
                 {
                     _items.invalidate();
@@ -1908,7 +1912,7 @@ package
             }
         }
 
-        private function applyBulkAttributes(id:uint, attributes:flash.utils.Dictionary):void
+        private function applyBulkAttributes(id:uint, attributes:Object):void
         {
             if (otbLoaded && attributes)
             {
