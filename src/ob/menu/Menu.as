@@ -22,8 +22,13 @@
 
 package ob.menu
 {
+    import flash.display.InteractiveObject;
     import flash.events.KeyboardEvent;
+    import flash.text.TextField;
+    import flash.text.TextFieldType;
     import flash.ui.Keyboard;
+
+    import spark.components.RichEditableText;
 
     import mx.controls.FlexNativeMenu;
     import mx.core.FlexGlobals;
@@ -353,6 +358,13 @@ package ob.menu
         {
             event.stopImmediatePropagation();
 
+            // Don't trigger menu shortcuts when typing in text fields
+            var focus:InteractiveObject = m_application.systemManager.stage.focus;
+            if (focus is TextField && TextField(focus).type == TextFieldType.INPUT)
+                return;
+            if (focus is RichEditableText && RichEditableText(focus).editable)
+                return;
+
             var data:String = String(event.item.@data);
             dispatchEvent(new MenuEvent(MenuEvent.SELECTED, data));
         }
@@ -427,6 +439,13 @@ package ob.menu
 
         protected function keyDownHandler(event:KeyboardEvent):void
         {
+            // Don't trigger shortcuts when typing in text fields
+            var focus:InteractiveObject = m_application.systemManager.stage.focus;
+            if (focus is TextField && TextField(focus).type == TextFieldType.INPUT)
+                return;
+            if (focus is RichEditableText && RichEditableText(focus).editable)
+                return;
+
             var ev:MenuEvent;
             var code:uint = event.keyCode;
 
