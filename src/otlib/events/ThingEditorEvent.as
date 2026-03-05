@@ -89,5 +89,6 @@ package otlib.events
         public static const COPY_FRAME:String = "copyFrame";
         public static const PASTE_FRAME:String = "pasteFrame";
         public static const CLEAR_FRAME:String = "clearFrame";
+        public static const REPLACE_FROM_PNG:String = "replaceFromPng";
     }
 }

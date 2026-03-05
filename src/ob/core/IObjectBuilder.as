@@ -36,6 +36,7 @@ package ob.core
     import otlib.things.ThingType;
     import otlib.sprites.SpriteData;
     import otlib.loaders.PathHelper;
+    import otlib.utils.ThingListItem;
 
     public interface IObjectBuilder extends IUIComponent, IWindow
     {
@@ -104,5 +105,8 @@ package ob.core
         function pastePatternsFromClipboard(targets:Vector.<ThingType>):void;
         function exportSpriteList(sprites:Vector.<SpriteData>):void;
         function sendCommand(command:WorkerCommand):void;
+
+        function populateFoundTab(items:Vector.<ThingListItem>):void;
+        function openBulkReplace():void;
     }
 }

@@ -222,13 +222,26 @@ THE SOFTWARE.
                 {
                     thingsList.setListObjects(list);
                     thingsList.selectedIndex = 0;
+
+                    // Also populate Found tab in main application
+                    var app:IObjectBuilder = FlexGlobals.topLevelApplication as IObjectBuilder;
+                    if (app && list)
+                    {
+                        var items:Vector.<ThingListItem> = new Vector.<ThingListItem>();
+                        for (var i:uint = 0; i < list.length; i++)
+                        {
+                            if (list[i] is ThingListItem)
+                                items.push(list[i] as ThingListItem);
+                        }
+                        app.populateFoundTab(items);
+                    }
                 }
                 else if (type == FindResultCommand.SPRITES)
                 {
                     spritesList.setListObjects(list);
                     spritesList.selectedIndex = 0;
                 }
-            
+
                 progressBar.visible = false;
             
                 var category:String;

@@ -308,17 +308,30 @@ package otlib.items
                     keys.push(k);
             }
 
-            // Sort keys by priority then alphabetically
-            keys.sort(function(a:String, b:String):int
-                {
-                    var pA:int = (_attributePriority && _attributePriority[a] !== undefined) ? _attributePriority[a] : int.MAX_VALUE;
-                    var pB:int = (_attributePriority && _attributePriority[b] !== undefined) ? _attributePriority[b] : int.MAX_VALUE;
+            // Deterministic base order: sort alphabetically first
+            keys.sort(Array.CASEINSENSITIVE);
 
-                    if (pA != pB)
-                        return pA - pB;
+            // Stable sort by priority using RETURNINDEXEDARRAY
+            if (_attributePriority)
+            {
+                var indexed:Array = keys.sort(function(a:String, b:String):int
+                    {
+                        var pA:int = (_attributePriority[a] !== undefined) ? _attributePriority[a] : int.MAX_VALUE;
+                        var pB:int = (_attributePriority[b] !== undefined) ? _attributePriority[b] : int.MAX_VALUE;
+                        if (pA != pB) return pA - pB;
+                        // Stable fallback: preserve alphabetical order for equal priorities
+                        var aLow:String = a.toLowerCase();
+                        var bLow:String = b.toLowerCase();
+                        if (aLow < bLow) return -1;
+                        if (aLow > bLow) return 1;
+                        return 0;
+                    }, Array.RETURNINDEXEDARRAY);
 
-                    return a.localeCompare(b);
-                });
+                var sorted:Array = [];
+                for (var j:int = 0; j < indexed.length; j++)
+                    sorted.push(keys[indexed[j]]);
+                keys = sorted;
+            }
 
             var indent:String = "";
             for (var i:int = 0; i < indentLevel; i++)

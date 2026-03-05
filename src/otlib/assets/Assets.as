@@ -155,5 +155,14 @@ package otlib.assets
 
         [Embed(source="/../assets/icons/flip_horizontal.png", mimeType="image/png")]
         public static const FLIP_HORIZONTAL:Class;
+
+        [Embed(source="/../assets/icons/zoom_in.png", mimeType="image/png")]
+        public static const ZOOM_IN:Class;
+
+        [Embed(source="/../assets/icons/zoom_out.png", mimeType="image/png")]
+        public static const ZOOM_OUT:Class;
+
+        [Embed(source="/../assets/icons/zoom_reset.png", mimeType="image/png")]
+        public static const ZOOM_RESET:Class;
     }
 }

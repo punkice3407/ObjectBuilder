@@ -39,6 +39,7 @@ package otlib.components
     [Event(name="fill", type="otlib.events.SpriteListEvent")]
     [Event(name="replace", type="otlib.events.SpriteListEvent")]
     [Event(name="export", type="otlib.events.SpriteListEvent")]
+    [Event(name="exportAll", type="otlib.events.SpriteListEvent")]
     [Event(name="remove", type="otlib.events.SpriteListEvent")]
 
     public class SpriteList extends ListBase
@@ -113,6 +114,13 @@ package otlib.components
         {
             if (index != -1 && dataProvider)
             {
+                // Export All doesn't require a sprite selection
+                if (type == SpriteListEvent.EXPORT_ALL)
+                {
+                    dispatchEvent(new SpriteListEvent(SpriteListEvent.EXPORT_ALL));
+                    return;
+                }
+
                 var spriteData:SpriteData = dataProvider.getItemAt(index) as SpriteData;
                 var event:Event;
                 if (spriteData)

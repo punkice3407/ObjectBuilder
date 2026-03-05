@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<mg:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+    xmlns:s="library://ns.adobe.com/flex/spark"
+    xmlns:mx="library://ns.adobe.com/flex/mx"
+    xmlns:mg="library://ns.mignari.com/mg"
+    xmlns:otlib="otlib.components.*"
+    width="550"
+    height="500"
+    fontSize="11"
+    title="Bulk Replace Objects"
+    creationComplete="creationCompleteHandler(event)">
+
+    <fx:Metadata>
+        [ResourceBundle("strings")]
+    </fx:Metadata>
+
+    <fx:Script>
+        <![CDATA[
+            import com.mignari.utils.DialogDetail;
+
+            import flash.filesystem.File;
+            import flash.net.FileFilter;
+            import flash.utils.setTimeout;
+
+            import mx.events.FlexEvent;
+
+            import nail.components.controls.Alert;
+            import nail.utils.isNullOrEmpty;
+
+            import ob.commands.things.BulkReplaceCommand;
+            import ob.core.IObjectBuilder;
+            import ob.utils.RangeParser;
+
+            import otlib.things.ThingCategory;
+
+            // --------------------------------------------------------------------------
+            // PROPERTIES
+            // --------------------------------------------------------------------------
+
+            private var _application:IObjectBuilder;
+            private var _datFile:File;
+            private var _sprFile:File;
+
+            [Bindable]
+            private var _datPath:String = "";
+
+            [Bindable]
+            private var _sprPath:String = "";
+
+            [Bindable]
+            private var _rangeText:String = "";
+
+            [Bindable]
+            private var _rangeValid:Boolean = false;
+
+            [Bindable]
+            private var _rangeSummary:String = "";
+
+            // --------------------------------------------------------------------------
+            // GETTERS / SETTERS
+            // --------------------------------------------------------------------------
+
+            public function set application(value:IObjectBuilder):void
+            {
+                _application = value;
+            }
+
+            // --------------------------------------------------------------------------
+            // METHODS
+            // --------------------------------------------------------------------------
+
+            protected function creationCompleteHandler(event:FlexEvent):void
+            {
+                // Copy current features from loaded client
+                if (_application && _application.settings)
+                {
+                    extendedCheckBox.selected = _application.settings.extended;
+                    transparencyCheckBox.selected = _application.settings.transparency;
+                    improvedAnimationsCheckBox.selected = _application.settings.improvedAnimations;
+                    frameGroupsCheckBox.selected = _application.settings.frameGroups;
+                }
+            }
+
+            protected function browseDatClickHandler(event:MouseEvent):void
+            {
+                var filter:FileFilter = new FileFilter("DAT Files (*.dat)", "*.dat");
+                var file:File = File.documentsDirectory;
+                file.addEventListener(Event.SELECT, function(e:Event):void
+                    {
+                        _datFile = file;
+                        _datPath = file.nativePath;
+                        autoDetectSpr(file);
+                        updateConfirmState();
+                    });
+                file.browseForOpen("Select source DAT file", [filter]);
+            }
+
+            protected function browseSprClickHandler(event:MouseEvent):void
+            {
+                var filter:FileFilter = new FileFilter("SPR Files (*.spr)", "*.spr");
+                var file:File = File.documentsDirectory;
+                file.addEventListener(Event.SELECT, function(e:Event):void
+                    {
+                        _sprFile = file;
+                        _sprPath = file.nativePath;
+                        updateConfirmState();
+                    });
+                file.browseForOpen("Select source SPR file", [filter]);
+            }
+
+            private function autoDetectSpr(datFile:File):void
+            {
+                var sprPath:String = datFile.nativePath.replace(/\.dat$/i, ".spr");
+                var sprFile:File = new File(sprPath);
+                if (sprFile.exists)
+                {
+                    _sprFile = sprFile;
+                    _sprPath = sprFile.nativePath;
+                }
+            }
+
+            protected function rangeTextChangeHandler(event:Event):void
+            {
+                _rangeText = rangeInput.text;
+                _rangeValid = RangeParser.validateRange(_rangeText);
+                _rangeSummary = _rangeValid ? RangeParser.getRangeSummary(_rangeText) : "Invalid range";
+                updateConfirmState();
+            }
+
+            protected function copyFromCurrentClickHandler(event:MouseEvent):void
+            {
+                if (_application && _application.settings)
+                {
+                    extendedCheckBox.selected = _application.settings.extended;
+                    transparencyCheckBox.selected = _application.settings.transparency;
+                    improvedAnimationsCheckBox.selected = _application.settings.improvedAnimations;
+                    frameGroupsCheckBox.selected = _application.settings.frameGroups;
+                    copyFromCurrentButton.label = "Copied!";
+                    setTimeout(function():void { copyFromCurrentButton.label = "Copy from current client"; }, 1500);
+                }
+                else
+                {
+                    Alert.show("No client loaded. Please load a client first.", "Info");
+                }
+            }
+
+            private function updateConfirmState():void
+            {
+                confirmButton.enabled = (_datFile != null && _sprFile != null && _rangeValid);
+            }
+
+            private function getCategory():String
+            {
+                switch (categoryDropDown.selectedIndex)
+                {
+                    case 0: return ThingCategory.ITEM;
+                    case 1: return ThingCategory.OUTFIT;
+                    case 2: return ThingCategory.EFFECT;
+                    case 3: return ThingCategory.MISSILE;
+                }
+                return ThingCategory.ITEM;
+            }
+
+            protected function confirmButtonClickHandler(event:MouseEvent):void
+            {
+                var ids:Vector.<uint> = RangeParser.parseRange(_rangeText);
+                if (ids.length == 0)
+                    return;
+
+                // Convert to Array for AMF
+                var idsArray:Array = [];
+                for (var i:uint = 0; i < ids.length; i++)
+                    idsArray.push(ids[i]);
+
+                var command:BulkReplaceCommand = new BulkReplaceCommand(
+                    _datFile.nativePath,
+                    _sprFile.nativePath,
+                    idsArray,
+                    getCategory(),
+                    extendedCheckBox.selected,
+                    transparencyCheckBox.selected,
+                    improvedAnimationsCheckBox.selected,
+                    frameGroupsCheckBox.selected,
+                );
+
+                _application.sendCommand(command);
+                close();
+            }
+        ]]>
+    </fx:Script>
+
+    <mg:layout>
+        <s:VerticalLayout/>
+    </mg:layout>
+
+    <s:VGroup width="100%" height="100%" gap="10" padding="10">
+
+        <!-- Source Files -->
+        <mg:GroupBox label="Source Files" width="100%">
+            <mg:layout>
+                <s:VerticalLayout gap="8" padding="10"/>
+            </mg:layout>
+
+            <s:HGroup width="100%" verticalAlign="middle">
+                <s:Label text="DAT:" width="30"/>
+                <s:TextInput text="{_datPath}" width="100%" editable="false"/>
+                <s:Button label="Browse..." click="browseDatClickHandler(event)"/>
+            </s:HGroup>
+
+            <s:HGroup width="100%" verticalAlign="middle">
+                <s:Label text="SPR:" width="30"/>
+                <s:TextInput text="{_sprPath}" width="100%" editable="false"/>
+                <s:Button label="Browse..." click="browseSprClickHandler(event)"/>
+            </s:HGroup>
+        </mg:GroupBox>
+
+        <!-- ID Range -->
+        <mg:GroupBox label="ID Range" width="100%">
+            <mg:layout>
+                <s:VerticalLayout gap="8" padding="10"/>
+            </mg:layout>
+
+            <s:HGroup width="100%" verticalAlign="middle">
+                <s:Label text="Range:"/>
+                <s:TextInput id="rangeInput"
+                    width="100%"
+                    prompt="e.g. 100-200;350;500-600"
+                    change="rangeTextChangeHandler(event)"/>
+            </s:HGroup>
+
+            <s:Label text="Format: start-end separated by ; or , (e.g. 100-200;350;500-600)"
+                fontSize="10" color="0xAAAAAA"/>
+
+            <s:Label text="{_rangeSummary}"
+                color="{_rangeValid ? 0x80FF80 : 0xFF8080}"/>
+        </mg:GroupBox>
+
+        <!-- Category -->
+        <s:HGroup width="100%" verticalAlign="middle">
+            <s:Label text="Category:"/>
+            <s:DropDownList id="categoryDropDown"
+                selectedIndex="0" width="150">
+                <s:dataProvider>
+                    <s:ArrayList>
+                        <fx:String>Items</fx:String>
+                        <fx:String>Outfits</fx:String>
+                        <fx:String>Effects</fx:String>
+                        <fx:String>Missiles</fx:String>
+                    </s:ArrayList>
+                </s:dataProvider>
+            </s:DropDownList>
+        </s:HGroup>
+
+        <!-- Source Features -->
+        <mg:GroupBox label="Source Client Features" width="100%">
+            <mg:layout>
+                <s:VerticalLayout gap="5" padding="10"/>
+            </mg:layout>
+
+            <s:HGroup gap="15">
+                <s:CheckBox id="extendedCheckBox" label="Extended"/>
+                <s:CheckBox id="transparencyCheckBox" label="Transparency"/>
+                <s:CheckBox id="improvedAnimationsCheckBox" label="Improved Animations"/>
+            </s:HGroup>
+            <s:HGroup gap="15">
+                <s:CheckBox id="frameGroupsCheckBox" label="Frame Groups"/>
+            </s:HGroup>
+
+            <s:Button id="copyFromCurrentButton"
+                label="Copy from current client"
+                click="copyFromCurrentClickHandler(event)"/>
+        </mg:GroupBox>
+    </s:VGroup>
+
+    <s:BorderContainer width="100%" skinClass="com.mignari.skins.PixeledBorderContainerSkin">
+        <s:layout>
+            <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle" horizontalAlign="right"/>
+        </s:layout>
+
+        <s:Button id="confirmButton"
+            label="Replace"
+            minWidth="70"
+            enabled="false"
+            click="confirmButtonClickHandler(event)"/>
+
+        <s:Button id="cancelButton"
+            label="@Resource(key='cancel', bundle='strings')"
+            minWidth="70"
+            click="close()"/>
+    </s:BorderContainer>
+</mg:TitleWindow>

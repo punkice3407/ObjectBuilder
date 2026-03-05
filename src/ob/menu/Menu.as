@@ -120,6 +120,12 @@ package ob.menu
             fileOpenMenu.controlKey = true;
             fileMenu.addMenuItem(fileOpenMenu);
 
+            // File > New Window
+            var fileNewWindowMenu:MenuItem = new MenuItem();
+            fileNewWindowMenu.label = "New Window";
+            fileNewWindowMenu.data = FILE_NEW_WINDOW;
+            fileMenu.addMenuItem(fileNewWindowMenu);
+
             // File > Compile
             var fileCompileMenu:MenuItem = new MenuItem();
             fileCompileMenu.label = Resources.getString("menu.compile");
@@ -206,6 +212,13 @@ package ob.menu
             viewShowSpritesMenu.toggled = m_application.showSpritesPanel;
             viewMenu.addMenuItem(viewShowSpritesMenu);
 
+            // View > Show Objects Grid
+            var viewShowObjectsGrid:MenuItem = new MenuItem();
+            viewShowObjectsGrid.label = "Show Objects Grid";
+            viewShowObjectsGrid.data = VIEW_SHOW_OBJECTS_GRID;
+            viewShowObjectsGrid.keyEquivalent = "F5";
+            viewMenu.addMenuItem(viewShowObjectsGrid);
+
             // Tools
             var toolsMenu:MenuItem = new MenuItem();
             toolsMenu.label = Resources.getString("menu.tools");
@@ -260,6 +273,19 @@ package ob.menu
             toolsFrameGroupsConverter.label = Resources.getString("frameGroupsConverter");
             toolsFrameGroupsConverter.data = TOOLS_FRAME_GROUPS_CONVERTER;
             toolsMenu.addMenuItem(toolsFrameGroupsConverter);
+
+            // Tools > Bulk Replace Objects
+            var toolsBulkReplace:MenuItem = new MenuItem();
+            toolsBulkReplace.label = "Bulk Replace Objects";
+            toolsBulkReplace.data = TOOLS_BULK_REPLACE;
+            toolsMenu.addMenuItem(toolsBulkReplace);
+
+            // Tools > Quick Save
+            var toolsQuickSave:MenuItem = new MenuItem();
+            toolsQuickSave.label = "Quick Save";
+            toolsQuickSave.data = TOOLS_QUICK_SAVE;
+            toolsQuickSave.keyEquivalent = "F6";
+            toolsMenu.addMenuItem(toolsQuickSave);
 
             // Separator
             toolsMenu.addMenuItem(separator);
@@ -374,16 +400,16 @@ package ob.menu
             if (m_isMac)
             {
                 // menu File > Compile
-                nativeMenu.items[1].submenu.items[2].enabled = (m_application.clientChanged && !m_application.clientIsTemporary);
+                nativeMenu.items[1].submenu.items[3].enabled = (m_application.clientChanged && !m_application.clientIsTemporary);
 
                 // menu File > Compile As
-                nativeMenu.items[1].submenu.items[3].enabled = m_application.clientLoaded;
+                nativeMenu.items[1].submenu.items[4].enabled = m_application.clientLoaded;
 
                 // menu File > Close
-                nativeMenu.items[1].submenu.items[5].enabled = m_application.clientLoaded;
+                nativeMenu.items[1].submenu.items[6].enabled = m_application.clientLoaded;
 
                 // menu File > Merge
-                nativeMenu.items[1].submenu.items[7].enabled = m_application.clientLoaded;
+                nativeMenu.items[1].submenu.items[8].enabled = m_application.clientLoaded;
 
                 // menu View > Show Preview Panel
                 nativeMenu.items[2].submenu.items[0].checked = m_application.showPreviewPanel;
@@ -397,25 +423,31 @@ package ob.menu
                 // menu Tools > Find
                 nativeMenu.items[3].submenu.items[0].enabled = m_application.clientLoaded;
 
+                // menu Tools > Bulk Replace
+                nativeMenu.items[3].submenu.items[8].enabled = m_application.clientLoaded;
+
+                // menu Tools > Quick Save
+                nativeMenu.items[3].submenu.items[9].enabled = m_application.clientLoaded;
+
                 // menu Tools > Create Missing OTB Items
-                nativeMenu.items[3].submenu.items[9].enabled = m_application.otbLoaded;
+                nativeMenu.items[3].submenu.items[11].enabled = m_application.otbLoaded;
 
                 // menu Tools > Reload Item Attributes
-                nativeMenu.items[3].submenu.items[10].enabled = m_application.otbLoaded;
+                nativeMenu.items[3].submenu.items[12].enabled = m_application.otbLoaded;
             }
             else
             {
                 // menu File > Compile
-                nativeMenu.items[0].submenu.items[2].enabled = (m_application.clientChanged && !m_application.clientIsTemporary);
+                nativeMenu.items[0].submenu.items[3].enabled = (m_application.clientChanged && !m_application.clientIsTemporary);
 
                 // menu File > Compile As
-                nativeMenu.items[0].submenu.items[3].enabled = m_application.clientLoaded;
+                nativeMenu.items[0].submenu.items[4].enabled = m_application.clientLoaded;
 
                 // menu File > Close
-                nativeMenu.items[0].submenu.items[5].enabled = m_application.clientLoaded;
+                nativeMenu.items[0].submenu.items[6].enabled = m_application.clientLoaded;
 
                 // menu File > Merge
-                nativeMenu.items[0].submenu.items[7].enabled = m_application.clientLoaded;
+                nativeMenu.items[0].submenu.items[8].enabled = m_application.clientLoaded;
 
                 // menu View > Show Preview Panel
                 nativeMenu.items[1].submenu.items[0].checked = m_application.showPreviewPanel;
@@ -429,11 +461,17 @@ package ob.menu
                 // menu Tools > Find
                 nativeMenu.items[2].submenu.items[0].enabled = m_application.clientLoaded;
 
+                // menu Tools > Bulk Replace
+                nativeMenu.items[2].submenu.items[8].enabled = m_application.clientLoaded;
+
+                // menu Tools > Quick Save
+                nativeMenu.items[2].submenu.items[9].enabled = m_application.clientLoaded;
+
                 // menu Tools > Create Missing OTB Items
-                nativeMenu.items[2].submenu.items[9].enabled = m_application.otbLoaded;
+                nativeMenu.items[2].submenu.items[11].enabled = m_application.otbLoaded;
 
                 // menu Tools > Reload Item Attributes
-                nativeMenu.items[2].submenu.items[10].enabled = m_application.otbLoaded;
+                nativeMenu.items[2].submenu.items[12].enabled = m_application.otbLoaded;
             }
         }
 
@@ -517,6 +555,14 @@ package ob.menu
                     case Keyboard.F4:
                         ev = new MenuEvent(MenuEvent.SELECTED, VIEW_SHOW_SPRITES);
                         break;
+
+                    case Keyboard.F5:
+                        ev = new MenuEvent(MenuEvent.SELECTED, VIEW_SHOW_OBJECTS_GRID);
+                        break;
+
+                    case Keyboard.F6:
+                        ev = new MenuEvent(MenuEvent.SELECTED, TOOLS_QUICK_SAVE);
+                        break;
                 }
             }
 
@@ -552,7 +598,11 @@ package ob.menu
         public static const HELP_CONTENTS:String = "helpContents";
         public static const HELP_CHECK_FOR_UPDATES:String = "helpCheckForUpdates";
         public static const HELP_ABOUT:String = "helpAbount";
+        public static const TOOLS_QUICK_SAVE:String = "toolsQuickSave";
+        public static const TOOLS_BULK_REPLACE:String = "toolsBulkReplace";
+        public static const VIEW_SHOW_OBJECTS_GRID:String = "viewShowObjectsGrid";
         public static const TOOLS_CREATE_MISSING_ITEMS:String = "toolsCreateMissingItems";
         public static const TOOLS_RELOAD_ITEM_ATTRIBUTES:String = "toolsReloadItemAttributes";
+        public static const FILE_NEW_WINDOW:String = "fileNewWindow";
     }
 }

@@ -135,6 +135,7 @@ THE SOFTWARE.
                 clipboardActionDropDown.selectedIndex = settings.thingListClipboardAction;
                 deleteAfterPasteCheckBox.selected = settings.deleteAfterPaste;
                 syncOtbOnAddCheckBox.selected = settings.syncOtbOnAdd;
+                largerWindowsFor4KCheckBox.selected = settings.largerWindowsFor4K;
             }
             
             private function setLanguage(language:String):void
@@ -221,6 +222,7 @@ THE SOFTWARE.
                 _settings.thingListClipboardAction = clipboardActionDropDown.selectedIndex;
                 _settings.deleteAfterPaste = deleteAfterPasteCheckBox.selected;
                 _settings.syncOtbOnAdd = syncOtbOnAddCheckBox.selected;
+                _settings.largerWindowsFor4K = largerWindowsFor4KCheckBox.selected;
                 close();
             }
         ]]>
@@ -256,6 +258,14 @@ THE SOFTWARE.
                 </mg:layout>
                 <s:CheckBox id="autosaveChangesCheckBox"
                     label="@Resource(key='autosaveChanges', bundle='strings')"/>
+            </mg:GroupBox>
+
+            <mg:GroupBox width="100%" label="Display">
+                <mg:layout>
+                    <s:VerticalLayout gap="10" padding="10"/>
+                </mg:layout>
+                <s:CheckBox id="largerWindowsFor4KCheckBox"
+                    label="Larger windows for 4K displays (requires restart)"/>
             </mg:GroupBox>
 
             <mg:GroupBox width="100%"

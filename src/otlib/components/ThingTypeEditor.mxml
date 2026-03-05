@@ -42,6 +42,7 @@ THE SOFTWARE.
         [Event(name="thingChange", type="otlib.events.ThingEditorEvent")]
         [Event(name="thingPropertyChange", type="otlib.events.ThingEditorEvent")]
         [Event(name="spriteDoubleClick", type="otlib.events.ThingEditorEvent")]
+        [Event(name="replaceFromPng", type="otlib.events.ThingEditorEvent")]
         [ResourceBundle("strings")]
     </fx:Metadata>
 
@@ -1502,8 +1503,11 @@ THE SOFTWARE.
                 var clearFrameMenu:ContextMenuItem = new ContextMenuItem("Clear Frame");
                 clearFrameMenu.data = ThingEditorEvent.CLEAR_FRAME;
             
+                var replaceFromPngMenu:ContextMenuItem = new ContextMenuItem("Replace from PNG", true);
+                replaceFromPngMenu.data = ThingEditorEvent.REPLACE_FROM_PNG;
+
                 _spriteContextMenu = new ContextMenu();
-                _spriteContextMenu.customItems = [clearSpriteMenu, copyFrameMenu, pasteFrameMenu, clearFrameMenu];
+                _spriteContextMenu.customItems = [clearSpriteMenu, copyFrameMenu, pasteFrameMenu, clearFrameMenu, replaceFromPngMenu];
                 _spriteContextMenu.addEventListener(Event.DISPLAYING, spriteContextMenuDisplayingHandler);
                 _spriteContextMenu.addEventListener(Event.SELECT, spriteContextMenuSelectHandler);
             }
@@ -1560,6 +1564,10 @@ THE SOFTWARE.
             
                         case ThingEditorEvent.CLEAR_FRAME:
                             this.clearFrame(this.currentFrame);
+                            break;
+
+                        case ThingEditorEvent.REPLACE_FROM_PNG:
+                            dispatchEvent(new ThingEditorEvent(ThingEditorEvent.REPLACE_FROM_PNG, this.thingData));
                             break;
                     }
                 }

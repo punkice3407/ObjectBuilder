@@ -87,6 +87,13 @@ package ob.settings
         public var lastAttributeServer:String = "tfs1.4";
         public var syncOtbOnAdd:Boolean = true;
         public var showLogPanel:Boolean = true;
+        public var largerWindowsFor4K:Boolean = false;
+        public var previewZoom:Number = 1.0;
+        public var objectsGridColumns:uint = 4;
+        public var objectsActiveTab:uint = 0;
+        public var spritesGridColumns:uint = 5;
+        public var spritesActiveTab:uint = 0;
+        public var exportBatchSize:uint = 50;
 
         // Get features as a single object for unified access
         public function get features():ClientFeatures

@@ -49,10 +49,14 @@ package otlib.components.renders
     use namespace otlib_internal;
 
     [ResourceBundle("strings")]
-    public class SpriteListRenderer extends ItemRenderer
+    public class SpriteGridRenderer extends ItemRenderer
     {
+        // --------------------------------------------------------------------------
+        // PROPERTIES
+        // --------------------------------------------------------------------------
+
         private var _imageDisplay:BitmapImage;
-        private var _labelDisplay:Label;
+        private var _idLabel:Label;
         private var _hovered:Boolean = false;
 
         // Background elements
@@ -67,19 +71,28 @@ package otlib.components.renders
         private static const COLOR_BORDER:uint = 0x272727;
         private static const COLOR_IMAGE_BG:uint = 0x636363;
 
-        public function SpriteListRenderer()
+        // --------------------------------------------------------------------------
+        // CONSTRUCTOR
+        // --------------------------------------------------------------------------
+
+        public function SpriteGridRenderer()
         {
             super();
-            this.height = 41;
-            this.setStyle("fontSize", 11);
+            this.width = 42;
+            this.height = 52;
             this.autoDrawBackground = false;
+            this.setStyle("fontSize", 9);
         }
+
+        // --------------------------------------------------------------------------
+        // METHODS
+        // --------------------------------------------------------------------------
 
         override protected function createChildren():void
         {
             super.createChildren();
 
-            // 1. Fill
+            // 1. Fill (Background)
             _fill = new Rect();
             _fill.left = 1;
             _fill.right = 1;
@@ -91,7 +104,7 @@ package otlib.components.renders
             // 2. Border
             _border = new Rect();
             _border.left = 0;
-            _border.right = 1; // MXML had right=1
+            _border.right = 1;
             _border.top = 0;
             _border.bottom = 0;
             _border.stroke = new SolidColorStroke(COLOR_BORDER, 0.1);
@@ -99,30 +112,32 @@ package otlib.components.renders
 
             // 3. Image Background
             _imageBackground = new Rect();
-            _imageBackground.left = 5;
-            _imageBackground.verticalCenter = 0;
-            _imageBackground.width = 33;
-            _imageBackground.height = 33;
+            _imageBackground.horizontalCenter = 0;
+            _imageBackground.top = 2;
+            _imageBackground.width = 35;
+            _imageBackground.height = 35;
             _imageBackground.fill = new SolidColor(COLOR_IMAGE_BG);
             _imageBackground.stroke = new SolidColorStroke(COLOR_BORDER);
             addElement(_imageBackground);
 
-            // 4. Image
+            // 4. Bitmap Image
             _imageDisplay = new BitmapImage();
-            _imageDisplay.left = 6;
-            _imageDisplay.width = 32;
-            _imageDisplay.height = 32;
-            _imageDisplay.verticalCenter = 0;
+            _imageDisplay.horizontalCenter = 0;
+            _imageDisplay.top = 3;
+            _imageDisplay.width = 33;
+            _imageDisplay.height = 33;
+            _imageDisplay.fillMode = "scale";
+            _imageDisplay.scaleMode = "letterbox";
             addElement(_imageDisplay);
 
-            // 5. Label
-            _labelDisplay = new Label();
-            _labelDisplay.left = 42;
-            _labelDisplay.right = 5;
-            _labelDisplay.verticalCenter = 0;
-            _labelDisplay.mouseChildren = false;
-            _labelDisplay.mouseEnabled = false;
-            addElement(_labelDisplay);
+            // 5. ID Label
+            _idLabel = new Label();
+            _idLabel.horizontalCenter = 0;
+            _idLabel.bottom = 1;
+            _idLabel.setStyle("textAlign", "center");
+            _idLabel.mouseChildren = false;
+            _idLabel.mouseEnabled = false;
+            addElement(_idLabel);
 
             this.addEventListener(FlexEvent.CREATION_COMPLETE, creationCompleteHandler);
             this.addEventListener(MouseEvent.ROLL_OVER, rollOverHandler);
@@ -162,9 +177,6 @@ package otlib.components.renders
         {
             super.updateDisplayList(unscaledWidth, unscaledHeight);
 
-            var isDragging:Boolean = (currentState == "dragging");
-
-            // Update Colors
             var color:uint = COLOR_NORMAL;
             if (selected)
                 color = COLOR_SELECTED;
@@ -175,47 +187,25 @@ package otlib.components.renders
             {
                 SolidColor(_fill.fill).color = color;
             }
-
-            // Visibility based on dragging state
-            if (isDragging)
-            {
-                if (_fill)
-                    _fill.visible = false;
-                if (_border)
-                    _border.visible = false;
-                // MXML: <s:Label alpha.dragging="0" />
-                if (_labelDisplay)
-                    _labelDisplay.alpha = 0;
-            }
-            else
-            {
-                if (_fill)
-                    _fill.visible = true;
-                if (_border)
-                    _border.visible = true;
-                if (_labelDisplay)
-                    _labelDisplay.alpha = 1;
-            }
         }
 
         override public function set data(value:Object):void
         {
             super.data = value;
 
-            // Guard against null during drag proxy creation
-            if (!_imageDisplay || !_labelDisplay)
+            if (!_imageDisplay || !_idLabel)
                 return;
 
             var sprite:SpriteData = value as SpriteData;
             if (sprite)
             {
                 _imageDisplay.source = sprite.getBitmap();
-                _labelDisplay.text = sprite.id.toString();
+                _idLabel.text = sprite.id.toString();
             }
             else
             {
                 _imageDisplay.source = null;
-                _labelDisplay.text = "";
+                _idLabel.text = "";
             }
         }
 

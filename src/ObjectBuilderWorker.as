@@ -31,6 +31,9 @@ package
     import flash.events.ErrorEvent;
     import flash.events.Event;
     import flash.filesystem.File;
+    import flash.filesystem.FileMode;
+    import flash.filesystem.FileStream;
+    import flash.system.System;
     import flash.geom.Rectangle;
     import flash.utils.ByteArray;
     import flash.utils.Dictionary;
@@ -94,6 +97,7 @@ package
     import ob.commands.things.SetThingListCommand;
     import ob.commands.things.UpdateThingCommand;
     import ob.commands.things.BulkUpdateThingsCommand;
+    import ob.commands.things.BulkReplaceCommand;
     import ob.commands.things.PasteThingDataCommand;
     import ob.commands.things.UpdateThingPropertiesCommand;
     import ob.commands.things.OptimizeFrameDurationsCommand;
@@ -175,7 +179,7 @@ package
         private var _items:ServerItemStorage;
         private var _attributeRegistry:ItemAttributeStorage;
 
-        private static const BATCH_SIZE:uint = 50;
+        private var _batchSize:uint = 50;
 
         // Reusable render buffer to avoid BitmapData allocation churn
         private static var _renderBuffer:BitmapData;
@@ -372,6 +376,7 @@ package
             _communicator.registerCallback(ReplaceThingsFromFilesCommand, replaceThingsFromFilesCallback);
             _communicator.registerCallback(DuplicateThingCommand, duplicateThingCallback);
             _communicator.registerCallback(BulkUpdateThingsCommand, bulkUpdateThingsCallback);
+            _communicator.registerCallback(BulkReplaceCommand, bulkReplaceCallback);
             _communicator.registerCallback(RemoveThingCommand, removeThingsCallback);
             _communicator.registerCallback(GetThingCommand, getThingCallback);
             _communicator.registerCallback(GetThingListCommand, getThingListCallback);
@@ -444,6 +449,7 @@ package
             Resources.locale = settings.getLanguage()[0];
             _thingListAmount = settings.objectsListAmount;
             _spriteListAmount = settings.spritesListAmount;
+            _batchSize = settings.exportBatchSize > 0 ? settings.exportBatchSize : 50;
 
             _settings = settings;
         }
@@ -1169,7 +1175,7 @@ package
                 return;
 
             // For large exports, use batched processing
-            if (length > BATCH_SIZE)
+            if (length > _batchSize)
             {
                 exportThingsBatched(list, category, obdVersion, clientVersion, spriteSheetFlag, transparentBackground, jpegQuality);
             }
@@ -1231,7 +1237,7 @@ package
                 jpegQuality:uint):void
         {
             var length:uint = list.length;
-            var totalBatches:uint = Math.ceil(length / BATCH_SIZE);
+            var totalBatches:uint = Math.ceil(length / _batchSize);
             var currentBatch:uint = 0;
             var allExportedIds:Vector.<uint> = new Vector.<uint>();
 
@@ -1242,8 +1248,8 @@ package
 
             function processNextBatch():void
             {
-                var startIdx:uint = currentBatch * BATCH_SIZE;
-                var endIdx:uint = Math.min(startIdx + BATCH_SIZE, length);
+                var startIdx:uint = currentBatch * _batchSize;
+                var endIdx:uint = Math.min(startIdx + _batchSize, length);
 
                 var encoder:OBDEncoder = new OBDEncoder(_settings);
                 var helper:SaveHelper = new SaveHelper();
@@ -1267,6 +1273,7 @@ package
 
                     if (currentBatch < totalBatches)
                     {
+                        System.gc();
                         setTimeout(processNextBatch, 50);
                     }
                     else
@@ -1425,7 +1432,7 @@ package
                 return;
 
             // For large imports, use batched processing to prevent memory crashes
-            if (length > BATCH_SIZE)
+            if (length > _batchSize)
             {
                 importThingsBatched(list);
             }
@@ -1439,7 +1446,7 @@ package
         {
             var length:uint = list.length;
             var category:String = list[0].thing.category;
-            var totalBatches:uint = Math.ceil(length / BATCH_SIZE);
+            var totalBatches:uint = Math.ceil(length / _batchSize);
             var currentBatch:uint = 0;
             var allAddedThingIds:Vector.<uint> = new Vector.<uint>();
             var allSpritesIds:Vector.<uint> = new Vector.<uint>();
@@ -1452,8 +1459,8 @@ package
 
             function processNextBatch():void
             {
-                var startIdx:uint = currentBatch * BATCH_SIZE;
-                var endIdx:uint = Math.min(startIdx + BATCH_SIZE, length);
+                var startIdx:uint = currentBatch * _batchSize;
+                var endIdx:uint = Math.min(startIdx + _batchSize, length);
 
                 // Process sprites for this batch
                 var result:ChangeResult;
@@ -1498,12 +1505,11 @@ package
 
                 if (currentBatch < totalBatches)
                 {
-                    // Schedule next batch with a small delay to allow garbage collection
+                    System.gc();
                     setTimeout(processNextBatch, 50);
                 }
                 else
                 {
-                    // All batches complete - finalize
                     finalizeBatchedImport();
                 }
             }
@@ -1842,6 +1848,174 @@ package
 
                 Log.info(message);
             }
+        }
+
+        private function bulkReplaceCallback(sourceDatPath:String,
+                                               sourceSprPath:String,
+                                               thingIds:Array,
+                                               category:String,
+                                               sourceExtended:Boolean,
+                                               sourceTransparency:Boolean,
+                                               sourceImprovedAnimations:Boolean,
+                                               sourceFrameGroups:Boolean):void
+        {
+            if (!sourceDatPath || !sourceSprPath || !thingIds || thingIds.length == 0)
+                return;
+
+            if (!ThingCategory.getCategory(category))
+                return;
+
+            var total:uint = thingIds.length;
+            sendCommand(new ProgressCommand(ProgressBarID.DEFAULT, 0, total, "Preparing bulk replace..."));
+
+            var sourceDatFile:File = new File(sourceDatPath);
+            var sourceSprFile:File = new File(sourceSprPath);
+
+            if (!sourceDatFile.exists || !sourceSprFile.exists)
+            {
+                Log.error("Source files not found: " + sourceDatPath);
+                sendCommand(new HideProgressBarCommand(ProgressBarID.DEFAULT));
+                return;
+            }
+
+            // Read signatures from source file headers to determine version
+            var datStream:FileStream = new FileStream();
+            datStream.open(sourceDatFile, FileMode.READ);
+            var datSignature:uint = datStream.readUnsignedInt();
+            datStream.close();
+
+            var sprStream:FileStream = new FileStream();
+            sprStream.open(sourceSprFile, FileMode.READ);
+            var sprSignature:uint = sprStream.readUnsignedInt();
+            sprStream.close();
+
+            var sourceVersion:Version = VersionStorage.getInstance().getBySignatures(datSignature, sprSignature);
+            if (!sourceVersion)
+            {
+                Log.error("Unknown source client version (DAT sig: " + datSignature + ", SPR sig: " + sprSignature + ")");
+                sendCommand(new HideProgressBarCommand(ProgressBarID.DEFAULT));
+                return;
+            }
+
+            var sourceFeatures:ClientFeatures = new ClientFeatures(
+                sourceExtended, sourceTransparency,
+                sourceImprovedAnimations, sourceFrameGroups);
+
+            // Open source files
+            var sourceThings:ThingTypeStorage = new ThingTypeStorage(_settings);
+            var sourceSprites:SpriteStorage = new SpriteStorage();
+
+            try
+            {
+                sourceThings.load(sourceDatFile, sourceVersion, sourceFeatures);
+                sourceSprites.load(sourceSprFile, sourceVersion, sourceFeatures);
+            }
+            catch (error:Error)
+            {
+                Log.error("Failed to load source files: " + error.message);
+                sendCommand(new HideProgressBarCommand(ProgressBarID.DEFAULT));
+                return;
+            }
+
+            if (!sourceThings.loaded || !sourceSprites.loaded)
+            {
+                Log.error("Source files could not be loaded.");
+                sendCommand(new HideProgressBarCommand(ProgressBarID.DEFAULT));
+                return;
+            }
+
+            var replacedCount:uint = 0;
+
+            for (var i:uint = 0; i < total; i++)
+            {
+                var id:uint = uint(thingIds[i]);
+                sendCommand(new ProgressCommand(ProgressBarID.DEFAULT, i, total, "Replacing " + id + "..."));
+
+                // Get source thing
+                var sourceThing:ThingType = sourceThings.getThingType(id, category);
+                if (!sourceThing)
+                    continue;
+
+                // Collect sprite IDs from source thing and import them
+                var spriteMap:Object = {};
+                for (var groupType:uint = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+                {
+                    var fg:FrameGroup = sourceThing.getFrameGroup(groupType);
+                    if (!fg || !fg.spriteIndex)
+                        continue;
+
+                    for (var s:uint = 0; s < fg.spriteIndex.length; s++)
+                    {
+                        var srcSpriteId:uint = fg.spriteIndex[s];
+                        if (srcSpriteId == 0 || spriteMap.hasOwnProperty(srcSpriteId.toString()))
+                            continue;
+
+                        var srcPixels:ByteArray = sourceSprites.getPixels(srcSpriteId);
+                        if (srcPixels)
+                        {
+                            var addResult:ChangeResult = _sprites.addSprite(srcPixels);
+                            if (addResult.done && addResult.list && addResult.list.length > 0)
+                            {
+                                spriteMap[srcSpriteId.toString()] = addResult.list[0].id;
+                            }
+                        }
+                    }
+                }
+
+                // Clone the thing and remap sprite indices
+                var clonedThing:ThingType = sourceThing.clone();
+                clonedThing.id = id;
+
+                for (groupType = FrameGroupType.DEFAULT; groupType <= FrameGroupType.WALKING; groupType++)
+                {
+                    fg = clonedThing.getFrameGroup(groupType);
+                    if (!fg || !fg.spriteIndex)
+                        continue;
+
+                    for (s = 0; s < fg.spriteIndex.length; s++)
+                    {
+                        var oldId:uint = fg.spriteIndex[s];
+                        if (oldId != 0 && spriteMap.hasOwnProperty(oldId.toString()))
+                        {
+                            fg.spriteIndex[s] = spriteMap[oldId.toString()];
+                        }
+                    }
+                }
+
+                // Replace in current storage
+                var result:ChangeResult = _things.replaceThing(clonedThing, category, id);
+                if (result.done)
+                {
+                    replacedCount++;
+                    syncOrCreateItem(id, category);
+                }
+            }
+
+            // Unload source storage
+            sourceSprites.unload();
+            sourceThings.unload();
+
+            // Force GC hint
+            System.gc();
+
+            if (replacedCount > 0)
+            {
+                if (category == ThingCategory.ITEM && otbLoaded)
+                {
+                    _items.invalidate();
+                }
+
+                sendClientInfo();
+
+                var ids:Vector.<uint> = new Vector.<uint>();
+                for (i = 0; i < thingIds.length; i++)
+                    ids.push(uint(thingIds[i]));
+
+                setSelectedThingIds(ids, category, true);
+                Log.info("Bulk replaced " + replacedCount + " objects from external source.");
+            }
+
+            sendCommand(new HideProgressBarCommand(ProgressBarID.DEFAULT));
         }
 
         private function applyBulkDuration(thing:ThingType, min:uint, max:uint, targetGroup:int):void

@@ -20,43 +20,41 @@
 *  THE SOFTWARE.
 */
 
-package otlib.events
+package ob.commands.things
 {
-    import flash.events.Event;
+    import com.mignari.workers.WorkerCommand;
 
-    public class SpriteListEvent extends Event
+    /**
+     * Command to bulk replace objects from an external DAT/SPR source.
+     *
+     * Parameters (unpacked as primitives for AMF serialization):
+     * - sourceDatPath:String
+     * - sourceSprPath:String
+     * - thingIds:Array (of uint)
+     * - category:String
+     * - sourceExtended:Boolean
+     * - sourceTransparency:Boolean
+     * - sourceImprovedAnimations:Boolean
+     * - sourceFrameGroups:Boolean
+     */
+    public class BulkReplaceCommand extends WorkerCommand
     {
         // --------------------------------------------------------------------------
         // CONSTRUCTOR
         // --------------------------------------------------------------------------
 
-        public function SpriteListEvent(type:String)
+        public function BulkReplaceCommand(sourceDatPath:String,
+                                           sourceSprPath:String,
+                                           thingIds:Array,
+                                           category:String,
+                                           sourceExtended:Boolean,
+                                           sourceTransparency:Boolean,
+                                           sourceImprovedAnimations:Boolean,
+                                           sourceFrameGroups:Boolean)
         {
-            super(type);
+            super(sourceDatPath, sourceSprPath, thingIds, category,
+                  sourceExtended, sourceTransparency, sourceImprovedAnimations,
+                  sourceFrameGroups);
         }
-
-        // --------------------------------------------------------------------------
-        // METHODS
-        // --------------------------------------------------------------------------
-
-        // --------------------------------------
-        // Override Public
-        // --------------------------------------
-
-        override public function clone():Event
-        {
-            return new SpriteListEvent(this.type);
-        }
-
-        // --------------------------------------------------------------------------
-        // STATIC
-        // --------------------------------------------------------------------------
-
-        public static const FILL:String = "fill";
-        public static const REPLACE:String = "replace";
-        public static const EXPORT:String = "export";
-        public static const REMOVE:String = "remove";
-        public static const EXPORT_ALL:String = "exportAll";
-        public static const DISPLAYING_CONTEXT_MENU:String = "displayingContextMenu";
     }
 }

@@ -27,7 +27,7 @@ THE SOFTWARE.
     xmlns:mg="library://ns.mignari.com/mg"
     xmlns:otlib="otlib.components.*"
     width="400"
-    height="270"
+    height="340"
     fontSize="11"
     title="@Resource(key='export', bundle='strings')"
     preinitialize="preinitializeHandler(event)"
@@ -74,6 +74,18 @@ THE SOFTWARE.
             
             [Bindable]
             public var obdV3:Boolean = false;
+
+            [Bindable]
+            public var useRange:Boolean = false;
+
+            [Bindable]
+            public var rangeFrom:uint = 0;
+
+            [Bindable]
+            public var rangeTo:uint = 0;
+
+            [Bindable]
+            public var maxId:uint = 0;
             
             [Bindable]
             private var _versionCollection:ArrayCollection;
@@ -375,6 +387,33 @@ THE SOFTWARE.
                 height="22" top="15" right="0"
                 click="browseButtonClickHandler(event)"/>
         </s:Group>
+
+        <mg:GroupBox label="Export Range" width="100%"
+            visible="{maxId > 0}" includeInLayout="{maxId > 0}">
+            <mg:layout>
+                <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle"/>
+            </mg:layout>
+
+            <s:CheckBox id="useRangeCheckBox"
+                label="Use Range"
+                selected="{useRange}"
+                change="{useRange = useRangeCheckBox.selected}"/>
+
+            <s:Label text="From:" enabled="{useRange}"/>
+            <s:NumericStepper id="rangeFromStepper"
+                minimum="0" maximum="{maxId}" value="{rangeFrom}"
+                width="80" enabled="{useRange}"
+                change="{rangeFrom = rangeFromStepper.value}"/>
+
+            <s:Label text="To:" enabled="{useRange}"/>
+            <s:NumericStepper id="rangeToStepper"
+                minimum="0" maximum="{maxId}" value="{rangeTo}"
+                width="80" enabled="{useRange}"
+                change="{rangeTo = rangeToStepper.value}"/>
+
+            <s:Button label="MAX" height="20" enabled="{useRange}"
+                click="{rangeToStepper.value = maxId; rangeTo = maxId;}"/>
+        </mg:GroupBox>
 
         <mg:GroupBox label="@Resource(key='format', bundle='strings')" width="100%">
             <mg:layout>

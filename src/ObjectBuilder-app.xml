@@ -10,12 +10,16 @@
 		<![CDATA[Copyright (c) 2014-2023 <a href="https://github.com/Mignari/ObjectBuilder/graphs/contributors">Contributors</a>]]>
 	</copyright>
 
+	<allowMultipleInstances>true</allowMultipleInstances>
+
+	<supportedProfiles>extendedDesktop</supportedProfiles>
+
 	<initialWindow>
 		<content>[This value will be overwritten by Flash Builder in the output app.xml]</content>
 		<autoOrients>false</autoOrients>
 		<fullScreen>false</fullScreen>
 		<visible>false</visible>
-		<requestedDisplayResolution>standard</requestedDisplayResolution>
+		<requestedDisplayResolution>high</requestedDisplayResolution>
 	</initialWindow>
 
 	<supportedLanguages>en es pt</supportedLanguages>

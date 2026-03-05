@@ -57,7 +57,11 @@ THE SOFTWARE.
             import com.mignari.workers.WorkerCommand;
             import com.mignari.workers.WorkerCommunicator;
             
+            import flash.display.Bitmap;
+            import flash.display.BitmapData;
+            import flash.display.Loader;
             import flash.net.registerClassAlias;
+            import flash.utils.ByteArray;
             import flash.utils.Dictionary;
             import flash.desktop.Clipboard;
             import flash.desktop.ClipboardFormats;
@@ -65,6 +69,7 @@ THE SOFTWARE.
             import mx.core.UIComponent;
             import mx.events.CloseEvent;
             import mx.events.FlexEvent;
+
             import mx.logging.ILogger;
             import mx.logging.LogEventLevel;
             import mx.managers.DragManager;
@@ -141,6 +146,7 @@ THE SOFTWARE.
             import ob.components.ErrorWindow;
             import ob.components.MergeAssetsWindow;
             import ob.components.OpenAssetsWindow;
+            import ob.components.ImportSelectionWindow;
             import ob.components.PreferencesWindow;
             import ob.components.SplashScreen;
             import ob.components.SpritesOptimizerWindow;
@@ -164,6 +170,8 @@ THE SOFTWARE.
             import otlib.components.LookGenerator;
             import otlib.components.renders.ThingListRenderer;
             import otlib.components.renders.ThingGridRenderer;
+            import otlib.components.ThingList;
+            import ob.components.BulkReplaceWindow;
             import otlib.core.IVersionStorage;
             import otlib.core.Version;
             import otlib.core.VersionStorage;
@@ -179,6 +187,7 @@ THE SOFTWARE.
             import otlib.settings.ISettingsManager;
             import otlib.settings.SettingsManager;
             import otlib.sprites.SpriteData;
+            import otlib.things.BindableThingType;
             import otlib.things.FrameGroupType;
             import otlib.things.ThingCategory;
             import otlib.things.ThingData;
@@ -201,7 +210,9 @@ THE SOFTWARE.
             import ob.commands.SetSpriteDimensionCommand;
             
             import flash.filesystem.File;
-            
+            import flash.desktop.NativeProcess;
+            import flash.desktop.NativeProcessStartupInfo;
+
             use namespace nail_internal;
             
             // --------------------------------------------------------------------------
@@ -264,6 +275,8 @@ THE SOFTWARE.
             private var _pendingCopyObject:Boolean = false;
             private var _pendingEditId:uint = 0; // ID to select after category change
             private var _ignoringPropertyChange:Boolean = false; // Suppress button re-enable during worker updates
+            [Bindable]
+            private var _previewZoom:Number = 1.0;
             
             [Bindable]
             private var _logs:ArrayCollection = new ArrayCollection();
@@ -524,6 +537,29 @@ THE SOFTWARE.
                 // unused
             }
             
+            public function openNewWindow():void
+            {
+                try {
+                    if (!NativeProcess.isSupported)
+                    {
+                        appendLog("NativeProcess not supported on this platform");
+                        return;
+                    }
+                    var info:NativeProcessStartupInfo = new NativeProcessStartupInfo();
+                    info.executable = File.applicationDirectory.resolvePath("ObjectBuilder.exe");
+                    if (!info.executable.exists)
+                    {
+                        appendLog("Cannot find ObjectBuilder.exe");
+                        return;
+                    }
+                    var process:NativeProcess = new NativeProcess();
+                    process.start(info);
+                    appendLog("New instance launched");
+                } catch (error:Error) {
+                    appendLog("Failed to open new instance: " + error.message);
+                }
+            }
+
             public function createNewProject():void
             {
                 if (_locked)
@@ -773,7 +809,9 @@ THE SOFTWARE.
                         thingStepper.amount = _settings.objectsListAmount;
                         spriteStepper.amount = _settings.spritesListAmount;
                         thingList.clipboardAction = _settings.thingListClipboardAction;
-            
+                        thingGridList.clipboardAction = _settings.thingListClipboardAction;
+                        foundThingsList.clipboardAction = _settings.thingListClipboardAction;
+
                         sendCommand(new SettingsCommand(_settings));
                     }
                 }
@@ -1220,8 +1258,10 @@ THE SOFTWARE.
                 _selectThingIndex = -1;
             
                 thingList.removeAll();
+                thingGridList.removeAll();
+                foundThingsList.removeAll();
                 spritesList.removeAll();
-            
+
                 editThing(null);
                 thingView.thingData = null;
                 thingView.frameGroupType = FrameGroupType.DEFAULT;
@@ -1329,16 +1369,39 @@ THE SOFTWARE.
             
                 if (_settings.maximized)
                     maximize();
-            
+
                 previewPanel.width = Math.max(previewPanel.minWidth, _settings.previewContainerWidth);
                 thingsPanel.width = Math.max(thingsPanel.minWidth, _settings.thingListContainerWidth);
                 spritesPanel.width = Math.max(spritesPanel.minWidth, _settings.spritesContainerWidth);
+
+                if (_settings.largerWindowsFor4K)
+                {
+                    var scaleFactor:Number = 1.5;
+                    if (previewPanel.width == previewPanel.minWidth)
+                        previewPanel.width = Math.round(previewPanel.minWidth * scaleFactor);
+                    if (thingsPanel.width == thingsPanel.minWidth)
+                        thingsPanel.width = Math.round(thingsPanel.minWidth * scaleFactor);
+                    if (spritesPanel.width == spritesPanel.minWidth)
+                        spritesPanel.width = Math.round(spritesPanel.minWidth * scaleFactor);
+                    thingsPanel.maxWidth = Math.round(thingsPanel.maxWidth * scaleFactor);
+                    spritesPanel.maxWidth = Math.round(spritesPanel.maxWidth * scaleFactor);
+                }
                 showPreviewPanel = _settings.showPreviewPanel;
                 showThingsPanel = _settings.showThingsPanel;
                 showSpritesPanel = _settings.showSpritesPanel;
                 thingStepper.amount = _settings.objectsListAmount;
                 spriteStepper.amount = _settings.spritesListAmount;
                 hideEmptyObjectsCheckbox.selected = _settings.hideEmptyObjects;
+                if (_settings.objectsActiveTab < objectsViewStack.numChildren)
+                    setObjectsView(_settings.objectsActiveTab);
+                if (_settings.objectsGridColumns >= 2)
+                    gridColumnsStepper.value = _settings.objectsGridColumns;
+                if (_settings.spritesActiveTab < spritesViewStack.numChildren)
+                    setSpritesView(_settings.spritesActiveTab);
+                if (_settings.spritesGridColumns >= 2)
+                    spriteGridColumnsStepper.value = _settings.spritesGridColumns;
+                if (_settings.previewZoom > 0)
+                    setPreviewZoom(_settings.previewZoom);
                 thingStepper.lastDisplayedIdCallback = getLastDisplayedThingId;
             
                 if (_invokeArgs)
@@ -1576,15 +1639,21 @@ THE SOFTWARE.
                 if (forceUpdate)
                 {
                     thingList.removeAll();
+                    thingGridList.removeAll();
                 }
-            
+
                 thingList.setListObjects(things);
                 thingList.selectedIds = selectedIds;
                 if (selectedIds && selectedIds.length > 0)
                 {
                     thingList.ensureIdIsVisible(selectedIds[0]);
                 }
-                thingList.setFocus();
+
+                // Sync grid tab data
+                thingGridList.setListObjects(things);
+                thingGridList.selectedIds = selectedIds;
+
+                getActiveThingList().setFocus();
             
                 // Synchronize stepper with actual selected ID from worker
                 if (selectedIds.length > 0 && thingStepper.value != selectedIds[0])
@@ -1622,8 +1691,14 @@ THE SOFTWARE.
                     spritesList.ensureIdIsVisible(selectedIds[0]);
                 }
                 spritesList.selectedIds = selectedIds;
+
+                // Sync sprite grid data
+                if (spritesGridList)
+                {
+                    spritesGridList.dataProvider = spritesList.dataProvider;
+                }
             }
-            
+
             private function needToReloadCallback(features:ClientFeatures):void
             {
                 Alert.show(
@@ -1945,6 +2020,9 @@ THE SOFTWARE.
                 _settings.showPreviewPanel = showPreviewPanel;
                 _settings.showThingsPanel = showThingsPanel;
                 _settings.showSpritesPanel = showSpritesPanel;
+                _settings.previewZoom = _previewZoom;
+                if (spritesViewStack)
+                    _settings.spritesActiveTab = spritesViewStack.selectedIndex;
             }
             
             private function hideProgressBarCallback(id:String):void
@@ -2034,9 +2112,12 @@ THE SOFTWARE.
                     _pendingEditId = 0; // Clear after use
             
                     thingStepper.value = targetId;
-                    objectListGroupBox.label = resourceManager.getString("strings", category + "s");
                     requestThingWithDebounce(targetId, category);
                     sendCommand(new GetThingListCommand(targetId, category));
+
+                    // Update GroupBox label to reflect current category
+                    if (objectListGroupBox)
+                        objectListGroupBox.label = resourceManager.getString("strings", category + "s");
                 }
             }
             
@@ -2119,6 +2200,11 @@ THE SOFTWARE.
                 thingTypeEditor.settings = _settings;
                 thingTypeEditor.bindableThingType.settings = _settings;
                 thingList.clipboardAction = _settings.thingListClipboardAction;
+                thingGridList.clipboardAction = _settings.thingListClipboardAction;
+                foundThingsList.clipboardAction = _settings.thingListClipboardAction;
+
+                // Initialize grid view mode
+                thingGridList.viewMode = ThingList.VIEW_MODE_GRID;
             
                 // Refresh attributes UI now that settings and registry are loaded
                 thingTypeEditor.refreshAttributeServer();
@@ -2208,7 +2294,188 @@ THE SOFTWARE.
             {
                 editThing(null);
             }
-            
+
+            protected function quickSaveThing():void
+            {
+                if (!clientLoaded || !thingTypeEditor.changed)
+                    return;
+
+                if (thingTypeEditor.saveChanges())
+                {
+                    var data:ThingData = thingTypeEditor.thingData;
+                    var replaceSprites:Boolean = false;
+                    if (data.sprites && data.sprites[0] && data.sprites[0].length > 0 && data.sprites[0][0].id == uint.MAX_VALUE)
+                        replaceSprites = true;
+
+                    sendCommand(new UpdateThingCommand(data, replaceSprites));
+                }
+            }
+
+            protected function replaceThingFromPNGHandler(event:ThingEditorEvent):void
+            {
+                if (!clientLoaded || !thingTypeEditor.visible || !thingTypeEditor.bindableThingType)
+                    return;
+
+                var filter:FileFilter = new FileFilter("PNG Images (*.png)", "*.png");
+                var file:File = _settings.getIODirectory() || File.userDirectory;
+                file.addEventListener(Event.SELECT, function(e:Event):void
+                    {
+                        _settings.setIODirectory(file);
+                        loadPNGAndReplaceThing(file);
+                    });
+                file.browseForOpen("Select PNG image", [filter]);
+            }
+
+            private function loadPNGAndReplaceThing(file:File):void
+            {
+                var loader:Loader = new Loader();
+                loader.contentLoaderInfo.addEventListener(Event.COMPLETE, function(e:Event):void
+                    {
+                        var bmp:Bitmap = loader.content as Bitmap;
+                        if (!bmp || !bmp.bitmapData)
+                            return;
+
+                        applyPNGToThing(bmp.bitmapData);
+                        bmp.bitmapData.dispose();
+                    });
+                loader.contentLoaderInfo.addEventListener(IOErrorEvent.IO_ERROR, function(e:IOErrorEvent):void
+                    {
+                        Log.error("Failed to load PNG: " + e.text);
+                    });
+                loader.load(new flash.net.URLRequest(file.url));
+            }
+
+            private function applyPNGToThing(source:BitmapData):void
+            {
+                var bt:BindableThingType = thingTypeEditor.bindableThingType;
+                var groupType:uint = thingTypeEditor.frameGroupSlider.value;
+                var fg:FrameGroup = bt.getFrameGroup(groupType);
+                if (!fg)
+                    return;
+
+                var spriteSize:uint = SpriteExtent.DEFAULT_SIZE;
+                var cellW:uint = fg.width * spriteSize;
+                var cellH:uint = fg.height * spriteSize;
+
+                if (cellW == 0) cellW = spriteSize;
+                if (cellH == 0) cellH = spriteSize;
+
+                var totalSprites:uint = fg.spriteIndex.length;
+                var spritesPerCell:uint = fg.width * fg.height;
+                if (spritesPerCell == 0) spritesPerCell = 1;
+
+                // Calculate how many cells fit in the PNG
+                var cols:uint = Math.max(1, Math.floor(source.width / cellW));
+                var rows:uint = Math.max(1, Math.floor(source.height / cellH));
+                var totalCells:uint = cols * rows;
+
+                // Number of frames we can replace
+                var framesToReplace:uint = Math.min(totalCells, Math.ceil(totalSprites / spritesPerCell));
+
+                var rect:Rectangle = new Rectangle(0, 0, spriteSize, spriteSize);
+                var pt:Point = new Point(0, 0);
+                var spriteIndex:uint = 0;
+
+                for (var cell:uint = 0; cell < framesToReplace; cell++)
+                {
+                    var cellCol:uint = cell % cols;
+                    var cellRow:uint = Math.floor(cell / cols);
+                    var cellX:uint = cellCol * cellW;
+                    var cellY:uint = cellRow * cellH;
+
+                    // Each cell contains fg.width * fg.height sprite slots
+                    for (var sy:uint = 0; sy < fg.height; sy++)
+                    {
+                        for (var sx:uint = 0; sx < fg.width; sx++)
+                        {
+                            if (spriteIndex >= totalSprites)
+                                break;
+
+                            // Extract 32x32 sprite from the cell
+                            var sprX:uint = cellX + sx * spriteSize;
+                            var sprY:uint = cellY + sy * spriteSize;
+
+                            var spriteBmp:BitmapData = new BitmapData(spriteSize, spriteSize, true, 0);
+                            rect.x = sprX;
+                            rect.y = sprY;
+                            rect.width = spriteSize;
+                            rect.height = spriteSize;
+                            spriteBmp.copyPixels(source, rect, pt);
+
+                            var pixels:ByteArray = spriteBmp.getPixels(spriteBmp.rect);
+                            var sd:SpriteData = SpriteData.createSpriteData(uint.MAX_VALUE, pixels);
+                            bt.setSprite(groupType, spriteIndex, sd);
+
+                            spriteBmp.dispose();
+                            spriteIndex++;
+                        }
+                    }
+                }
+
+                thingTypeEditor.updatePreview();
+                saveThingChanges();
+            }
+
+            public function openBulkReplace():void
+            {
+                if (!clientLoaded)
+                    return;
+
+                var window:BulkReplaceWindow = new BulkReplaceWindow();
+                window.application = this;
+                window.addEventListener(Event.CLOSE, function(event:Event):void
+                    {
+                        _locked = false;
+                    });
+                window.open(this);
+                _locked = true;
+            }
+
+            protected function setPreviewZoom(zoom:Number):void
+            {
+                zoom = Math.max(0.25, Math.min(5.0, zoom));
+                _previewZoom = zoom;
+                thingView.scaleX = zoom;
+                thingView.scaleY = zoom;
+            }
+
+            protected function zoomInButtonClickHandler(event:MouseEvent):void
+            {
+                setPreviewZoom(_previewZoom + 0.25);
+            }
+
+            protected function zoomOutButtonClickHandler(event:MouseEvent):void
+            {
+                setPreviewZoom(_previewZoom - 0.25);
+            }
+
+            protected function zoomResetButtonClickHandler(event:MouseEvent):void
+            {
+                setPreviewZoom(1.0);
+            }
+
+            protected function previewMouseWheelHandler(event:MouseEvent):void
+            {
+                if (event.ctrlKey)
+                {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    var delta:Number = event.delta > 0 ? 0.1 : -0.1;
+                    setPreviewZoom(_previewZoom + delta);
+                }
+            }
+
+            protected function toggleObjectsGridView():void
+            {
+                if (objectsViewStack)
+                {
+                    if (objectsViewStack.selectedIndex == 1)
+                        setObjectsView(0);
+                    else
+                        setObjectsView(1);
+                }
+            }
+
             protected function thingListChangeHandler(event:IndexChangeEvent):void
             {
                 if (!clientLoaded)
@@ -2369,31 +2636,26 @@ THE SOFTWARE.
             
             protected function importThingHandler(event:Event):void
             {
-                if (!clientLoaded)
+                if (!clientLoaded || _locked)
                     return;
-            
-                var filter:FileFilter = new FileFilter("Object Builder Data", "*.obd;");
-                var file:File = _settings.getIODirectory() || File.userDirectory;
-                file.addEventListener(FileListEvent.SELECT_MULTIPLE, selectMultipleHandler);
-                file.browseForOpenMultiple(resourceManager.getString("strings", "selectFiles"), [filter]);
-            
-                function selectMultipleHandler(event:FileListEvent):void
+
+                _locked = true;
+
+                var window:ImportSelectionWindow = new ImportSelectionWindow();
+                window.addEventListener(Event.CLOSE, windowCloseHandler);
+                window.open(this);
+
+                function windowCloseHandler(event:Event):void
                 {
-                    var selectedIds:Vector.<uint> = thingList.selectedIds;
-                    var files:Array = event.files;
-                    var length:uint = files.length;
-                    var list:Vector.<PathHelper> = new Vector.<PathHelper>(length, true);
-            
-                    OtlibUtils.sortFiles(files, Array.NUMERIC);
-            
-                    for (var i:uint = 0; i < length; i++)
+                    _locked = false;
+
+                    if (window.detail == DialogDetail.OK && window.selectedFiles && window.selectedFiles.length > 0)
                     {
-                        list[i] = new PathHelper(files[i].nativePath, i);
-                    }
-            
-                    if (list.length != 0)
-                    {
-                        importThingsFromFiles(list);
+                        var list:Vector.<PathHelper> = window.selectedFiles;
+                        if (list.length != 0)
+                        {
+                            importThingsFromFiles(list);
+                        }
                     }
                 }
             }
@@ -2664,24 +2926,79 @@ THE SOFTWARE.
                 openFinder();
             }
             
-            protected function setThingListViewMode(mode:String):void
+            protected function getActiveThingList():ThingList
             {
-                import otlib.components.ThingList;
-            
-                if (mode == ThingList.VIEW_MODE_LIST)
+                if (!objectsViewStack)
+                    return thingList;
+
+                switch (objectsViewStack.selectedIndex)
                 {
-                    listViewButton.selected = true;
-                    gridViewButton.selected = false;
-                    thingList.viewMode = ThingList.VIEW_MODE_LIST;
-                }
-                else if (mode == ThingList.VIEW_MODE_GRID)
-                {
-                    listViewButton.selected = false;
-                    gridViewButton.selected = true;
-                    thingList.viewMode = ThingList.VIEW_MODE_GRID;
+                    case 1: return thingGridList;
+                    case 2: return foundThingsList;
+                    default: return thingList;
                 }
             }
-            
+
+            protected function setObjectsView(index:int):void
+            {
+                objectsViewStack.selectedIndex = index;
+                listViewButton.selected = (index == 0);
+                gridViewButton.selected = (index == 1);
+                foundViewButton.selected = (index == 2);
+
+                var active:ThingList = getActiveThingList();
+                if (active && active.selectedId != 0)
+                    requestThingWithDebounce(active.selectedId, currentCategory);
+
+                _settings.objectsActiveTab = index;
+            }
+
+            protected function gridColumnsChangeHandler(event:Event):void
+            {
+                import spark.layouts.TileLayout;
+
+                var cols:uint = gridColumnsStepper.value;
+                _settings.objectsGridColumns = cols;
+                if (thingGridList && thingGridList.dataGroup && thingGridList.dataGroup.layout is TileLayout)
+                {
+                    TileLayout(thingGridList.dataGroup.layout).requestedColumnCount = cols;
+                }
+            }
+
+            protected function thingGridListChangeHandler(event:IndexChangeEvent):void
+            {
+                if (!clientLoaded)
+                    return;
+
+                if (thingGridList.selectedId != 0)
+                {
+                    requestThingWithDebounce(thingGridList.selectedId, currentCategory);
+                }
+                editThingButton.enabled = !thingGridList.multipleSelected;
+            }
+
+            protected function foundThingsListChangeHandler(event:IndexChangeEvent):void
+            {
+                if (!clientLoaded)
+                    return;
+
+                if (foundThingsList.selectedId != 0)
+                {
+                    requestThingWithDebounce(foundThingsList.selectedId, currentCategory);
+                }
+                editThingButton.enabled = !foundThingsList.multipleSelected;
+            }
+
+            public function populateFoundTab(items:Vector.<ThingListItem>):void
+            {
+                if (!foundThingsList || !objectsViewStack)
+                    return;
+
+                foundThingsList.removeAll();
+                foundThingsList.setListObjects(items);
+                setObjectsView(2); // Switch to Found tab (updates toggle buttons too)
+            }
+
             protected function hideEmptyObjectsChangeHandler(event:Event):void
             {
                 var selected:Boolean = CheckBox(event.target).selected;
@@ -2693,7 +3010,26 @@ THE SOFTWARE.
                     sendCommand(new GetThingListCommand(thingList.selectedId, _category));
                 }
             }
-            
+
+            protected function setSpritesView(index:int):void
+            {
+                spritesViewStack.selectedIndex = index;
+                spriteListViewButton.selected = (index == 0);
+                spriteGridViewButton.selected = (index == 1);
+                _settings.spritesActiveTab = index;
+            }
+
+            protected function spriteGridColumnsChangeHandler(event:Event):void
+            {
+                import spark.layouts.TileLayout;
+                var cols:uint = spriteGridColumnsStepper.value;
+                _settings.spritesGridColumns = cols;
+                if (spritesGridList && spritesGridList.dataGroup && spritesGridList.dataGroup.layout is TileLayout)
+                {
+                    TileLayout(spritesGridList.dataGroup.layout).requestedColumnCount = cols;
+                }
+            }
+
             protected function getLastDisplayedThingId():uint
             {
                 if (thingList && !thingList.isEmpty)
@@ -3064,6 +3400,62 @@ THE SOFTWARE.
                 }
             }
             
+            protected function exportAllSpritesHandler(event:Event):void
+            {
+                if (!clientLoaded || _locked)
+                    return;
+
+                _locked = true;
+
+                var window:ExportWindow = new ExportWindow();
+                window.fileName = "sprite";
+                window.format = _settings.getLastExportSpriteFormat();
+                window.directory = _settings.getIODirectory();
+                window.enableObdFormat = false;
+                window.transparentBackground = _settings.exportWithTransparentBackground;
+                window.jpegQuality = _settings.jpegQuality;
+                window.maxId = _clientInfo.maxSpriteId;
+                window.rangeTo = _clientInfo.maxSpriteId;
+                window.addEventListener(Event.CLOSE, windowCloseHandler);
+                window.open(this);
+
+                function windowCloseHandler(event:Event):void
+                {
+                    _locked = false;
+
+                    if (window.detail == DialogDetail.OK && window.fileName != null && window.format != null && window.directory)
+                    {
+                        _settings.setIODirectory(window.directory);
+                        _settings.setLastExportSpriteFormat(window.format);
+                        _settings.exportWithTransparentBackground = window.transparentBackground;
+                        _settings.jpegQuality = window.jpegQuality;
+
+                        var fromId:uint = window.useRange ? window.rangeFrom : 1;
+                        var toId:uint = window.useRange ? window.rangeTo : _clientInfo.maxSpriteId;
+
+                        var queue:FileQueueHelper = new FileQueueHelper();
+                        queue.parent = this;
+                        queue.addEventListener(Event.COMPLETE, completeHandler);
+
+                        for (var id:uint = fromId; id <= toId; id++)
+                        {
+                            queue.addFile(id, window.fileName + "_" + id.toString(), window.format, window.directory);
+                        }
+                        queue.start();
+
+                        function completeHandler(event:Event):void
+                        {
+                            if (queue.result && queue.result.length > 0)
+                            {
+                                exportSprites(queue.result,
+                                    _settings.exportWithTransparentBackground,
+                                    _settings.jpegQuality);
+                            }
+                        }
+                    }
+                }
+            }
+
             protected function newSpriteButtonClickHandler(event:MouseEvent):void
             {
                 if (clientLoaded)
@@ -3179,6 +3571,10 @@ THE SOFTWARE.
                     case Menu.FILE_OPEN:
                         openProject();
                         break;
+
+                    case Menu.FILE_NEW_WINDOW:
+                        openNewWindow();
+                        break;
             
                     case Menu.FILE_COMPILE:
                         compileProject();
@@ -3248,10 +3644,22 @@ THE SOFTWARE.
                         openFrameGroupsConverter();
                         break;
             
+                    case Menu.TOOLS_QUICK_SAVE:
+                        quickSaveThing();
+                        break;
+
+                    case Menu.TOOLS_BULK_REPLACE:
+                        openBulkReplace();
+                        break;
+
+                    case Menu.VIEW_SHOW_OBJECTS_GRID:
+                        toggleObjectsGridView();
+                        break;
+
                     case Menu.TOOLS_CREATE_MISSING_ITEMS:
                         createMissingOtbItems();
                         break;
-            
+
                     case Menu.TOOLS_RELOAD_ITEM_ATTRIBUTES:
                         reloadItemAttributes();
                         break;
@@ -3347,6 +3755,7 @@ THE SOFTWARE.
                 // Force a clear to ensure the list refreshes when the new data arrives
                 // This helps when performing quick actions like Remove from FindWindow
                 thingList.removeAll();
+                thingGridList.removeAll();
             
                 // If requested, load the list
                 if (requestList)
@@ -3616,20 +4025,41 @@ THE SOFTWARE.
                         change="{showThingsPanel = showThingsPanelButton.selected;}"/>
                 </s:HGroup>
 
-                <s:CheckBox id="zoomPreviewCheckbox"
-                    label="@Resource(key='zoom', bundle='strings')"
-                    selected="true"
-                    change="{thingView.minSize = zoomPreviewCheckbox.selected ? 160 : 0;}"/>
+                <s:HGroup width="100%" horizontalAlign="center" verticalAlign="middle" gap="4" paddingLeft="3" paddingRight="3">
+                    <s:Button id="zoomOutButton"
+                        toolTip="Zoom Out"
+                        width="24" height="24"
+                        icon="{Assets.ZOOM_OUT}"
+                        click="zoomOutButtonClickHandler(event)"/>
+                    <s:Label id="zoomLabel" text="{Math.round(_previewZoom * 100) + '%'}"
+                        textAlign="center" width="40"/>
+                    <s:Button id="zoomInButton"
+                        toolTip="Zoom In"
+                        width="24" height="24"
+                        icon="{Assets.ZOOM_IN}"
+                        click="zoomInButtonClickHandler(event)"/>
+                    <s:Button id="zoomResetButton"
+                        toolTip="Reset Zoom (1:1)"
+                        width="24" height="24"
+                        icon="{Assets.ZOOM_RESET}"
+                        click="zoomResetButtonClickHandler(event)"/>
+                </s:HGroup>
 
                 <nail:GroupBox id="thingViewGroup"
                     label="@Resource(key='preview', bundle='strings')"
                     width="100%" height="100%"
                     nativeDragEnter="thingDataNativeDragEnterHandler(event)"
                     nativeDragDrop="thingDataNativeDragDropHandler(event)">
-                    <otlib:ThingDataView id="thingView"
-                        horizontalCenter="0"
-                        verticalCenter="0"
-                        minSize="160"/>
+                    <s:Scroller id="previewScroller"
+                        width="100%" height="100%"
+                        mouseWheel="previewMouseWheelHandler(event)">
+                        <s:Group>
+                            <otlib:ThingDataView id="thingView"
+                                horizontalCenter="0"
+                                verticalCenter="0"
+                                minSize="160"/>
+                        </s:Group>
+                    </s:Scroller>
                 </nail:GroupBox>
 
                 <mg:GroupCheckBox id="colorizeGroupCheckBox"
@@ -3689,7 +4119,7 @@ THE SOFTWARE.
 
             <!-- thing list container -->
             <s:BorderContainer id="thingsPanel"
-                minWidth="190" maxWidth="290" width="290" height="100%"
+                minWidth="190" maxWidth="400" width="290" height="100%"
                 fontSize="11"
                 skinClass="nail.components.skins.BorderContainerSkin">
                 <s:layout>
@@ -3700,28 +4130,26 @@ THE SOFTWARE.
                     label="@Resource(key='objects', bundle='strings')"
                     width="100%" height="100%">
                     <nail:layout>
-                        <s:VerticalLayout paddingRight="0"
-                            paddingLeft="0"
-                            paddingTop="5"
-                            paddingBottom="0"
-                            gap="3"/>
+                        <s:VerticalLayout paddingRight="0" paddingLeft="0" paddingTop="5" paddingBottom="0" gap="3"/>
                     </nail:layout>
 
-                    <!-- List/Grid Toggle Buttons -->
+                    <!-- List/Grid/Found toggle -->
                     <s:HGroup width="100%" horizontalAlign="left" verticalAlign="middle" paddingLeft="5" paddingRight="5">
                         <s:ToggleButton id="listViewButton"
                             label="{resourceManager.getString('strings', 'list')}"
-                            width="50%" height="20"
-                            selected="true"
-                            click="setThingListViewMode('list')"/>
+                            width="33%" height="22" selected="true"
+                            click="setObjectsView(0)"/>
                         <s:ToggleButton id="gridViewButton"
                             label="{resourceManager.getString('strings', 'grid')}"
-                            width="50%" height="20"
-                            selected="false"
-                            click="setThingListViewMode('grid')"/>
+                            width="33%" height="22" selected="false"
+                            click="setObjectsView(1)"/>
+                        <s:ToggleButton id="foundViewButton"
+                            label="Found"
+                            width="34%" height="22" selected="false"
+                            click="setObjectsView(2)"/>
                     </s:HGroup>
 
-                    <!-- Hide Empty Objects Checkbox -->
+                    <!-- Hide empty checkbox -->
                     <s:HGroup width="100%" paddingLeft="5">
                         <s:CheckBox id="hideEmptyObjectsCheckbox"
                             label="@Resource(key='hideEmptyObjects', bundle='strings')"
@@ -3729,32 +4157,106 @@ THE SOFTWARE.
                             change="hideEmptyObjectsChangeHandler(event)"/>
                     </s:HGroup>
 
-                    <otlib:ThingList id="thingList"
-                        width="100%"
-                        height="100%"
-                        fontSize="11"
-                        borderAlpha="0"
-                        contentBackgroundColor="0x494949"
-                        horizontalScrollPolicy="off"
-                        doubleClickEnabled="true"
-                        allowMultipleSelection="true"
-                        requireSelection="true"
-                        replace="replaceThingHandler(event)"
-                        export="exportThingHandler(event)"
-                        duplicate="duplicateThingHandler(event)"
-                        bulkEdit="bulkEditHandler(event)"
-                        edit="editThingHandler(event)"
-                        copyObject="copyObjectHandler(event)"
-                        pasteObject="pasteObjectHandler(event)"
-                        copyProperties="copyPropertiesHandler(event)"
-                        pasteProperties="pastePropertiesHandler(event)"
-                        copyPatterns="copyPatternsHandler(event)"
-                        pastePatterns="pastePatternsHandler(event)"
-                        remove="removeThingHandler(event)"
-                        doubleClick="thingListDoubleClickHandler(event)"
-                        change="thingListChangeHandler(event)"
-                        nativeDragEnter="thingDataNativeDragEnterHandler(event)"
-                        nativeDragDrop="thingDataNativeDragDropHandler(event)"/>
+                    <!-- ViewStack switches between List/Grid/Found -->
+                    <mx:ViewStack id="objectsViewStack" width="100%" height="100%" selectedIndex="0"
+                        creationPolicy="all">
+                        <s:NavigatorContent width="100%" height="100%">
+                            <otlib:ThingList id="thingList"
+                                width="100%"
+                                height="100%"
+                                fontSize="11"
+                                borderAlpha="0"
+                                contentBackgroundColor="0x494949"
+                                horizontalScrollPolicy="off"
+                                doubleClickEnabled="true"
+                                allowMultipleSelection="true"
+                                requireSelection="true"
+                                replace="replaceThingHandler(event)"
+                                export="exportThingHandler(event)"
+                                duplicate="duplicateThingHandler(event)"
+                                bulkEdit="bulkEditHandler(event)"
+                                edit="editThingHandler(event)"
+                                copyObject="copyObjectHandler(event)"
+                                pasteObject="pasteObjectHandler(event)"
+                                copyProperties="copyPropertiesHandler(event)"
+                                pasteProperties="pastePropertiesHandler(event)"
+                                copyPatterns="copyPatternsHandler(event)"
+                                pastePatterns="pastePatternsHandler(event)"
+                                remove="removeThingHandler(event)"
+                                doubleClick="thingListDoubleClickHandler(event)"
+                                change="thingListChangeHandler(event)"
+                                nativeDragEnter="thingDataNativeDragEnterHandler(event)"
+                                nativeDragDrop="thingDataNativeDragDropHandler(event)"/>
+                        </s:NavigatorContent>
+
+                        <s:NavigatorContent width="100%" height="100%">
+                            <s:VGroup width="100%" height="100%" gap="3">
+                                <s:HGroup width="100%" verticalAlign="middle" paddingLeft="5" paddingRight="5">
+                                    <s:Label text="Columns:"/>
+                                    <s:NumericStepper id="gridColumnsStepper"
+                                        minimum="2" maximum="8" value="4"
+                                        width="50" height="20"
+                                        change="gridColumnsChangeHandler(event)"/>
+                                </s:HGroup>
+
+                                <otlib:ThingList id="thingGridList"
+                                    width="100%"
+                                    height="100%"
+                                    fontSize="11"
+                                    borderAlpha="0"
+                                    contentBackgroundColor="0x494949"
+                                    horizontalScrollPolicy="off"
+                                    doubleClickEnabled="true"
+                                    allowMultipleSelection="true"
+                                    requireSelection="true"
+                                    replace="replaceThingHandler(event)"
+                                    export="exportThingHandler(event)"
+                                    duplicate="duplicateThingHandler(event)"
+                                    bulkEdit="bulkEditHandler(event)"
+                                    edit="editThingHandler(event)"
+                                    copyObject="copyObjectHandler(event)"
+                                    pasteObject="pasteObjectHandler(event)"
+                                    copyProperties="copyPropertiesHandler(event)"
+                                    pasteProperties="pastePropertiesHandler(event)"
+                                    copyPatterns="copyPatternsHandler(event)"
+                                    pastePatterns="pastePatternsHandler(event)"
+                                    remove="removeThingHandler(event)"
+                                    doubleClick="thingListDoubleClickHandler(event)"
+                                    change="thingGridListChangeHandler(event)"
+                                    nativeDragEnter="thingDataNativeDragEnterHandler(event)"
+                                    nativeDragDrop="thingDataNativeDragDropHandler(event)"/>
+                            </s:VGroup>
+                        </s:NavigatorContent>
+
+                        <s:NavigatorContent width="100%" height="100%">
+                            <otlib:ThingList id="foundThingsList"
+                                width="100%"
+                                height="100%"
+                                fontSize="11"
+                                borderAlpha="0"
+                                contentBackgroundColor="0x494949"
+                                horizontalScrollPolicy="off"
+                                doubleClickEnabled="true"
+                                allowMultipleSelection="true"
+                                requireSelection="true"
+                                replace="replaceThingHandler(event)"
+                                export="exportThingHandler(event)"
+                                duplicate="duplicateThingHandler(event)"
+                                bulkEdit="bulkEditHandler(event)"
+                                edit="editThingHandler(event)"
+                                copyObject="copyObjectHandler(event)"
+                                pasteObject="pasteObjectHandler(event)"
+                                copyProperties="copyPropertiesHandler(event)"
+                                pasteProperties="pastePropertiesHandler(event)"
+                                copyPatterns="copyPatternsHandler(event)"
+                                pastePatterns="pastePatternsHandler(event)"
+                                remove="removeThingHandler(event)"
+                                doubleClick="thingListDoubleClickHandler(event)"
+                                change="foundThingsListChangeHandler(event)"
+                                nativeDragEnter="thingDataNativeDragEnterHandler(event)"
+                                nativeDragDrop="thingDataNativeDragDropHandler(event)"/>
+                        </s:NavigatorContent>
+                    </mx:ViewStack>
                 </nail:GroupBox>
 
                 <otlib:AmountNumericStepper id="thingStepper"
@@ -3833,6 +4335,7 @@ THE SOFTWARE.
                         thingChange="thingChangedHandler(event)"
                         thingPropertyChange="thingPropertyChangedHandler(event)"
                         spriteDoubleClick="thingSpriteDoubleClickHandler(event)"
+                        replaceFromPng="replaceThingFromPNGHandler(event)"
                         nativeDragEnter="thingEditorDragEnterHandler(event)"
                         nativeDragDrop="thingEditorDragDropHandler(event)"/>
                 </s:BorderContainer>
@@ -3866,7 +4369,7 @@ THE SOFTWARE.
             <!-- sprites container -->
             <s:BorderContainer id="spritesPanel"
                 minWidth="190"
-                maxWidth="250"
+                maxWidth="400"
                 width="190"
                 height="100%"
                 skinClass="nail.components.skins.BorderContainerSkin">
@@ -3875,33 +4378,72 @@ THE SOFTWARE.
                 </s:layout>
 
                 <nail:GroupBox label="@Resource(key='sprites', bundle='strings')"
-                    width="100%"
-                    height="100%">
+                    width="100%" height="100%">
                     <nail:layout>
-                        <s:VerticalLayout paddingRight="0"
-                            paddingLeft="0"
-                            paddingTop="10"
-                            paddingBottom="0"/>
+                        <s:VerticalLayout paddingRight="0" paddingLeft="0" paddingTop="5" paddingBottom="0" gap="3"/>
                     </nail:layout>
 
-                    <otlib:SpriteList id="spritesList"
-                        width="100%"
-                        height="100%"
-                        allowMultipleSelection="true"
-                        dragEnabled="true"
-                        fontSize="11"
-                        borderAlpha="0"
-                        contentBackgroundColor="0x494949"
-                        requireSelection="true"
-                        change="spritesListChangeHandler(event)"
-                        copy="onCopySprite()"
-                        paste="onPasteSprite()"
-                        fill="fillThingHandler(event)"
-                        replace="replaceSpriteHandler(event)"
-                        export="exportSpriteHandler(event)"
-                        remove="removeSpriteHandler(event)"
-                        nativeDragEnter="spritesListNativeDragEnterHandler(event)"
-                        nativeDragDrop="spritesListNativeDragDropHandler(event)"/>
+                    <!-- List/Grid toggle -->
+                    <s:HGroup width="100%" horizontalAlign="left" verticalAlign="middle" paddingLeft="5" paddingRight="5">
+                        <s:ToggleButton id="spriteListViewButton"
+                            label="{resourceManager.getString('strings', 'list')}"
+                            width="50%" height="22" selected="true"
+                            click="setSpritesView(0)"/>
+                        <s:ToggleButton id="spriteGridViewButton"
+                            label="{resourceManager.getString('strings', 'grid')}"
+                            width="50%" height="22" selected="false"
+                            click="setSpritesView(1)"/>
+                    </s:HGroup>
+
+                    <mx:ViewStack id="spritesViewStack" width="100%" height="100%" selectedIndex="0"
+                        creationPolicy="all">
+                        <!-- Index 0: List -->
+                        <s:NavigatorContent width="100%" height="100%">
+                            <otlib:SpriteList id="spritesList"
+                                width="100%"
+                                height="100%"
+                                allowMultipleSelection="true"
+                                dragEnabled="true"
+                                fontSize="11"
+                                borderAlpha="0"
+                                contentBackgroundColor="0x494949"
+                                requireSelection="true"
+                                change="spritesListChangeHandler(event)"
+                                copy="onCopySprite()"
+                                paste="onPasteSprite()"
+                                fill="fillThingHandler(event)"
+                                replace="replaceSpriteHandler(event)"
+                                export="exportSpriteHandler(event)"
+                                exportAll="exportAllSpritesHandler(event)"
+                                remove="removeSpriteHandler(event)"
+                                nativeDragEnter="spritesListNativeDragEnterHandler(event)"
+                                nativeDragDrop="spritesListNativeDragDropHandler(event)"/>
+                        </s:NavigatorContent>
+                        <!-- Index 1: Grid -->
+                        <s:NavigatorContent width="100%" height="100%">
+                            <s:VGroup width="100%" height="100%" gap="3">
+                                <s:HGroup width="100%" verticalAlign="middle" paddingLeft="5" paddingRight="5">
+                                    <s:Label text="Columns:"/>
+                                    <s:NumericStepper id="spriteGridColumnsStepper"
+                                        minimum="2" maximum="8" value="5"
+                                        width="50" height="20"
+                                        change="spriteGridColumnsChangeHandler(event)"/>
+                                </s:HGroup>
+                                <otlib:SpriteList id="spritesGridList"
+                                    width="100%"
+                                    height="100%"
+                                    borderAlpha="0"
+                                    contentBackgroundColor="0x494949"
+                                    itemRenderer="otlib.components.renders.SpriteGridRenderer"
+                                    exportAll="exportAllSpritesHandler(event)">
+                                    <otlib:layout>
+                                        <s:TileLayout horizontalGap="1" verticalGap="1"
+                                            requestedColumnCount="5" useVirtualLayout="true"/>
+                                    </otlib:layout>
+                                </otlib:SpriteList>
+                            </s:VGroup>
+                        </s:NavigatorContent>
+                    </mx:ViewStack>
                 </nail:GroupBox>
 
                 <otlib:AmountNumericStepper id="spriteStepper"
