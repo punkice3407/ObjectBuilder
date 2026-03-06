@@ -60,6 +60,7 @@ THE SOFTWARE.
             import flash.display.Bitmap;
             import flash.display.BitmapData;
             import flash.display.Loader;
+            import flash.net.FileFilter;
             import flash.net.registerClassAlias;
             import flash.utils.ByteArray;
             import flash.utils.Dictionary;
@@ -170,6 +171,7 @@ THE SOFTWARE.
             import otlib.components.LookGenerator;
             import otlib.components.renders.ThingListRenderer;
             import otlib.components.renders.ThingGridRenderer;
+            import otlib.components.SpriteList;
             import otlib.components.ThingList;
             import ob.components.BulkReplaceWindow;
             import otlib.core.IVersionStorage;
@@ -210,8 +212,11 @@ THE SOFTWARE.
             import ob.commands.SetSpriteDimensionCommand;
             
             import flash.filesystem.File;
+            import flash.filesystem.FileMode;
+            import flash.filesystem.FileStream;
             import flash.desktop.NativeProcess;
             import flash.desktop.NativeProcessStartupInfo;
+            import flash.utils.Endian;
 
             use namespace nail_internal;
             
@@ -616,10 +621,11 @@ THE SOFTWARE.
             
                     if (window.detail == DialogDetail.OK)
                     {
-                        _settings.setLastDirectory(window.datFile);
+                        var mainFile:File = window.datFile || window.sprFile;
+                        _settings.setLastDirectory(mainFile);
                         _settings.setServerItemsDirectory(window.serverItemsDirectory);
                         _settings.lastAttributeServer = window.attributeServer;
-                        _filesName = FileUtil.getName(window.datFile);
+                        _filesName = FileUtil.getName(mainFile);
             
                         // Build server items path: check for OTB, then tibia.dat, then assets.dat
                         var serverItemsPath:String = null;
@@ -1401,7 +1407,7 @@ THE SOFTWARE.
                 if (_settings.spritesGridColumns >= 2)
                     spriteGridColumnsStepper.value = _settings.spritesGridColumns;
                 if (_settings.previewZoom > 0)
-                    setPreviewZoom(_settings.previewZoom);
+                    callLater(setPreviewZoom, [_settings.previewZoom]);
                 thingStepper.lastDisplayedIdCallback = getLastDisplayedThingId;
             
                 if (_invokeArgs)
@@ -1802,12 +1808,17 @@ THE SOFTWARE.
                 }
             }
             
+            private function get activeSpriteList():SpriteList
+            {
+                return (spritesViewStack && spritesViewStack.selectedIndex == 1) ? spritesGridList : spritesList;
+            }
+
             private function onCopySprite():void
             {
                 if (!clientLoaded)
                     return;
             
-                var data:SpriteData = spritesList.selectedSprite;
+                var data:SpriteData = activeSpriteList.selectedSprite;
                 if (data)
                 {
                     var bitmap:BitmapData = data.getBitmap(0xFFFF00FF);
@@ -1828,10 +1839,10 @@ THE SOFTWARE.
             
                     if (bitmap.width == SpriteExtent.DEFAULT_SIZE && bitmap.height == SpriteExtent.DEFAULT_SIZE)
                     {
-                        if (!spritesList.multipleSelected && spritesList.selectedId != 0)
+                        if (!activeSpriteList.multipleSelected && activeSpriteList.selectedId != 0)
                         {
                             var pixels:ByteArray = bitmap.getPixels(bitmap.rect);
-                            var spriteData:SpriteData = SpriteData.createSpriteData(spritesList.selectedId, pixels);
+                            var spriteData:SpriteData = SpriteData.createSpriteData(activeSpriteList.selectedId, pixels);
                             sendCommand(new ReplaceSpritesCommand(Vector.<SpriteData>([spriteData])));
                         }
                     }
@@ -3258,14 +3269,14 @@ THE SOFTWARE.
             
                 function multipleSelectHandler(event:FileListEvent):void
                 {
-                    var selectedIds:Vector.<uint> = spritesList.selectedIds;
+                    var selectedIds:Vector.<uint> = activeSpriteList.selectedIds;
                     var files:Array = event.files;
                     var length:uint = files.length;
                     var list:Vector.<PathHelper> = new Vector.<PathHelper>(length, true);
-            
+
                     if (length > 0)
                         _settings.setIODirectory(files[0]);
-            
+
                     if (selectedIds.length != files.length)
                     {
                         Alert.show(
@@ -3293,10 +3304,10 @@ THE SOFTWARE.
             
             protected function fillThingHandler(event:Event):void
             {
-                if (!clientLoaded || !thingTypeEditor.visible || !thingTypeEditor.bindableThingType || spritesList.selectedSprites.length == 0)
+                if (!clientLoaded || !thingTypeEditor.visible || !thingTypeEditor.bindableThingType || activeSpriteList.selectedSprites.length == 0)
                     return;
-            
-                fillSpritesInThing(spritesList.selectedSprites);
+
+                fillSpritesInThing(activeSpriteList.selectedSprites);
             }
             
             public function fillSpritesInThing(sprites:Vector.<SpriteData>):void
@@ -3364,10 +3375,10 @@ THE SOFTWARE.
                 if (!clientLoaded || _locked)
                     return;
             
-                var sprites:Vector.<SpriteData> = spritesList.selectedSprites;
+                var sprites:Vector.<SpriteData> = activeSpriteList.selectedSprites;
                 if (sprites.length == 0)
                     return;
-            
+
                 _locked = false;
             
                 var window:ExportWindow = new ExportWindow();
@@ -3466,15 +3477,15 @@ THE SOFTWARE.
             
             protected function removeSpriteHandler(event:Event):void
             {
-                removeSpritesIds(spritesList.selectedIds);
+                removeSpritesIds(activeSpriteList.selectedIds);
             }
             
             protected function spritesListChangeHandler(event:IndexChangeEvent):void
             {
                 if (clientLoaded)
                 {
-                    spriteStepper.value = spritesList.selectedId;
-                    var enable:Boolean = !spritesList.multipleSelected;
+                    spriteStepper.value = activeSpriteList.selectedId;
+                    var enable:Boolean = !activeSpriteList.multipleSelected;
                     copySpriteButton.enabled = enable;
                     pasteSpriteButton.enabled = enable;
                 }
@@ -3575,7 +3586,7 @@ THE SOFTWARE.
                     case Menu.FILE_NEW_WINDOW:
                         openNewWindow();
                         break;
-            
+
                     case Menu.FILE_COMPILE:
                         compileProject();
                         break;
@@ -4432,10 +4443,18 @@ THE SOFTWARE.
                                 <otlib:SpriteList id="spritesGridList"
                                     width="100%"
                                     height="100%"
+                                    allowMultipleSelection="true"
                                     borderAlpha="0"
                                     contentBackgroundColor="0x494949"
                                     itemRenderer="otlib.components.renders.SpriteGridRenderer"
-                                    exportAll="exportAllSpritesHandler(event)">
+                                    change="spritesListChangeHandler(event)"
+                                    copy="onCopySprite()"
+                                    paste="onPasteSprite()"
+                                    fill="fillThingHandler(event)"
+                                    replace="replaceSpriteHandler(event)"
+                                    export="exportSpriteHandler(event)"
+                                    exportAll="exportAllSpritesHandler(event)"
+                                    remove="removeSpriteHandler(event)">
                                     <otlib:layout>
                                         <s:TileLayout horizontalGap="1" verticalGap="1"
                                             requestedColumnCount="5" useVirtualLayout="true"/>

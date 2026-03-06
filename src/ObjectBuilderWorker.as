@@ -256,6 +256,12 @@ package
 
         public function compileCallback():void
         {
+            if (!_datFile)
+            {
+                Log.warn("Cannot compile in SPR-only mode. Use Compile As instead.");
+                return;
+            }
+
             var serverItemsPath:String = null;
             var serverItemsFormat:String = OTFormat.XML;
             var serverItemsBinaryPeer:String = null;
@@ -510,9 +516,6 @@ package
                 features:ClientFeatures,
                 knownAttributes:Array = null):void
         {
-            if (isNullOrEmpty(datPath))
-                throw new NullOrEmptyArgumentError("datPath");
-
             if (isNullOrEmpty(sprPath))
                 throw new NullOrEmptyArgumentError("sprPath");
 
@@ -521,7 +524,7 @@ package
 
             unloadFilesCallback();
 
-            _datFile = new File(datPath);
+            _datFile = isNullOrEmpty(datPath) ? null : new File(datPath);
             _sprFile = new File(sprPath);
             _version = version;
             _features = features.clone();
@@ -535,9 +538,16 @@ package
 
             createStorage();
 
-            // 1/3 Loading DAT
+            // 1/3 Loading DAT (or creating empty if SPR-only)
             sendCommand(new ProgressCommand(ProgressBarID.METADATA, 0, 3, "Loading DAT"));
-            _things.load(_datFile, _version, _features);
+            if (_datFile)
+            {
+                _things.load(_datFile, _version, _features);
+            }
+            else
+            {
+                _things.createNew(_version, _features);
+            }
 
             // 2/3 Loading Server Items (if path was provided)
             if (!isNullOrEmpty(serverItemsPath))
@@ -2878,7 +2888,7 @@ package
         private function needToReloadCallback(features:ClientFeatures):void
         {
             var currentOtbPath:String = _items && _items.file ? _items.file.nativePath : null;
-            loadFilesCallback(_datFile.nativePath,
+            loadFilesCallback(_datFile ? _datFile.nativePath : null,
                     _sprFile.nativePath,
                     _version,
                     currentOtbPath,
@@ -2988,11 +2998,11 @@ package
 
         private function clientLoadComplete():void
         {
+            sendCommand(new HideProgressBarCommand(ProgressBarID.DEFAULT));
             sendClientInfo();
             sendThingList(Vector.<uint>([ThingTypeStorage.MIN_ITEM_ID]), ThingCategory.ITEM);
             sendThingData(ThingTypeStorage.MIN_ITEM_ID, ThingCategory.ITEM);
             sendSpriteList(Vector.<uint>([0]));
-            sendCommand(new HideProgressBarCommand(ProgressBarID.DEFAULT));
             Log.info(Resources.getString("loadComplete"));
         }
 
@@ -3473,7 +3483,7 @@ package
                 var retryFeatures:ClientFeatures = _features ? _features.clone() : new ClientFeatures();
                 retryFeatures.extended = true;
                 var currentOtbPath2:String = _items && _items.file ? _items.file.nativePath : null;
-                loadFilesCallback(_datFile.nativePath,
+                loadFilesCallback(_datFile ? _datFile.nativePath : null,
                         _sprFile.nativePath,
                         _version,
                         currentOtbPath2,

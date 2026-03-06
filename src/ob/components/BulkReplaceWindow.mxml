@@ -107,27 +107,53 @@ THE SOFTWARE.
             {
                 var filter:FileFilter = new FileFilter("DAT Files (*.dat)", "*.dat");
                 var file:File = File.documentsDirectory;
-                file.addEventListener(Event.SELECT, function(e:Event):void
-                    {
-                        _datFile = file;
-                        _datPath = file.nativePath;
-                        autoDetectSpr(file);
-                        updateConfirmState();
-                    });
+                file.addEventListener(Event.SELECT, datSelectHandler);
+                file.addEventListener(Event.CANCEL, datCancelHandler);
                 file.browseForOpen("Select source DAT file", [filter]);
+            }
+
+            private function datSelectHandler(event:Event):void
+            {
+                var file:File = File(event.target);
+                file.removeEventListener(Event.SELECT, datSelectHandler);
+                file.removeEventListener(Event.CANCEL, datCancelHandler);
+                _datFile = file;
+                _datPath = file.nativePath;
+                autoDetectSpr(file);
+                updateConfirmState();
+            }
+
+            private function datCancelHandler(event:Event):void
+            {
+                var file:File = File(event.target);
+                file.removeEventListener(Event.SELECT, datSelectHandler);
+                file.removeEventListener(Event.CANCEL, datCancelHandler);
             }
 
             protected function browseSprClickHandler(event:MouseEvent):void
             {
                 var filter:FileFilter = new FileFilter("SPR Files (*.spr)", "*.spr");
                 var file:File = File.documentsDirectory;
-                file.addEventListener(Event.SELECT, function(e:Event):void
-                    {
-                        _sprFile = file;
-                        _sprPath = file.nativePath;
-                        updateConfirmState();
-                    });
+                file.addEventListener(Event.SELECT, sprSelectHandler);
+                file.addEventListener(Event.CANCEL, sprCancelHandler);
                 file.browseForOpen("Select source SPR file", [filter]);
+            }
+
+            private function sprSelectHandler(event:Event):void
+            {
+                var file:File = File(event.target);
+                file.removeEventListener(Event.SELECT, sprSelectHandler);
+                file.removeEventListener(Event.CANCEL, sprCancelHandler);
+                _sprFile = file;
+                _sprPath = file.nativePath;
+                updateConfirmState();
+            }
+
+            private function sprCancelHandler(event:Event):void
+            {
+                var file:File = File(event.target);
+                file.removeEventListener(Event.SELECT, sprSelectHandler);
+                file.removeEventListener(Event.CANCEL, sprCancelHandler);
             }
 
             private function autoDetectSpr(datFile:File):void

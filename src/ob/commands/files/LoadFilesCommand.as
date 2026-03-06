@@ -42,7 +42,7 @@ package ob.commands.files
                 features:ClientFeatures,
                 knownAttributes:Array = null)
         {
-            super(datFile.nativePath,
+            super(datFile ? datFile.nativePath : null,
                     sprFile.nativePath,
                     version,
                     serverItemsPath,

@@ -346,6 +346,13 @@ THE SOFTWARE.
             
             protected function confirmButtonClickHandler(event:MouseEvent):void
             {
+                if (useRange && rangeFrom > rangeTo)
+                {
+                    var temp:uint = rangeFrom;
+                    rangeFrom = rangeTo;
+                    rangeTo = temp;
+                }
+
                 _detail = DialogDetail.OK;
                 close();
             }

@@ -293,6 +293,16 @@ package otlib.core
             return null;
         }
 
+        public function getBySprSignature(sprSignature:uint):Version
+        {
+            for each (var version:Version in _versions)
+            {
+                if (version.sprSignature == sprSignature)
+                    return version;
+            }
+            return null;
+        }
+
         public function getByOtbVersion(otb:uint):Vector.<Version>
         {
             var list:Vector.<Version> = new Vector.<Version>();

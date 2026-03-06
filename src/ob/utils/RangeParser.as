@@ -123,7 +123,7 @@ package ob.utils
             if (rangeString.length == 0)
                 return false;
 
-            var pattern:RegExp = /^(\d+(-\d+)?)([\s]*[;,][\s]*(\d+(-\d+)?))*$/;
+            var pattern:RegExp = /^(\d+(-\d+)?)([;,](\d+(-\d+)?))*$/;
             return pattern.test(rangeString);
         }
 

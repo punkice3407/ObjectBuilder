@@ -81,40 +81,67 @@ THE SOFTWARE.
             {
                 var filter:FileFilter = new FileFilter("OBD Files (*.obd)", "*.obd");
                 var file:File = File.documentsDirectory;
+                file.addEventListener("selectMultiple", filesSelectMultipleHandler);
+                file.addEventListener(Event.CANCEL, filesCancelHandler);
                 file.browseForOpenMultiple("Select OBD Files", [filter]);
-                file.addEventListener("selectMultiple", function(e:Event):void
+            }
+
+            private function filesSelectMultipleHandler(event:Event):void
+            {
+                var file:File = File(event.target);
+                file.removeEventListener("selectMultiple", filesSelectMultipleHandler);
+                file.removeEventListener(Event.CANCEL, filesCancelHandler);
+
+                var fileList:Array = event.target["files"] as Array;
+                if (fileList && fileList.length > 0)
+                {
+                    _selectedFiles = new Vector.<PathHelper>();
+                    var idx:uint = 0;
+                    for each (var f:File in fileList)
                     {
-                        var fileList:Array = e.target["files"] as Array;
-                        if (fileList && fileList.length > 0)
+                        if (f.extension && f.extension.toLowerCase() == "obd")
                         {
-                            _selectedFiles = new Vector.<PathHelper>();
-                            var idx:uint = 0;
-                            for each (var f:File in fileList)
-                            {
-                                if (f.extension && f.extension.toLowerCase() == "obd")
-                                {
-                                    _selectedFiles.push(new PathHelper(f.nativePath, idx));
-                                    idx++;
-                                }
-                            }
-                            if (_selectedFiles.length > 0)
-                            {
-                                _detail = DialogDetail.OK;
-                                close();
-                            }
+                            _selectedFiles.push(new PathHelper(f.nativePath, idx));
+                            idx++;
                         }
-                    });
+                    }
+                    if (_selectedFiles.length > 0)
+                    {
+                        _detail = DialogDetail.OK;
+                        close();
+                    }
+                }
+            }
+
+            private function filesCancelHandler(event:Event):void
+            {
+                var file:File = File(event.target);
+                file.removeEventListener("selectMultiple", filesSelectMultipleHandler);
+                file.removeEventListener(Event.CANCEL, filesCancelHandler);
             }
 
             protected function importFolderButtonClickHandler(event:MouseEvent):void
             {
                 var dir:File = File.documentsDirectory;
-                dir.addEventListener(Event.SELECT, function(e:Event):void
-                    {
-                        _folder = dir;
-                        scanFolder(dir);
-                    });
+                dir.addEventListener(Event.SELECT, folderSelectHandler);
+                dir.addEventListener(Event.CANCEL, folderCancelHandler);
                 dir.browseForDirectory("Select folder with OBD files");
+            }
+
+            private function folderSelectHandler(event:Event):void
+            {
+                var dir:File = File(event.target);
+                dir.removeEventListener(Event.SELECT, folderSelectHandler);
+                dir.removeEventListener(Event.CANCEL, folderCancelHandler);
+                _folder = dir;
+                scanFolder(dir);
+            }
+
+            private function folderCancelHandler(event:Event):void
+            {
+                var dir:File = File(event.target);
+                dir.removeEventListener(Event.SELECT, folderSelectHandler);
+                dir.removeEventListener(Event.CANCEL, folderCancelHandler);
             }
 
             private function scanFolder(folder:File):void

@@ -56,6 +56,9 @@ THE SOFTWARE.
             import otlib.core.SpriteDimensionStorage;
             import otlib.core.SpriteDimension;
             import flash.events.Event;
+            import flash.filesystem.FileMode;
+            import flash.filesystem.FileStream;
+            import flash.utils.Endian;
             import otlib.items.ItemAttributeStorage;
             
             // --------------------------------------------------------------------------
@@ -327,6 +330,10 @@ THE SOFTWARE.
                 {
                     loadFiles(dat, spr);
                 }
+                else if (spr)
+                {
+                    loadSprOnly(spr);
+                }
                 else
                 {
                     setErrorText(resourceManager.getString("strings", "clientFilesNotFound"));
@@ -394,6 +401,62 @@ THE SOFTWARE.
                 }
             }
             
+            private function loadSprOnly(spr:File):void
+            {
+                var stream:FileStream = new FileStream();
+                var sprSignature:uint;
+                var spritesCount:uint;
+                try
+                {
+                    stream.open(spr, FileMode.READ);
+                    stream.endian = Endian.LITTLE_ENDIAN;
+                    sprSignature = stream.readUnsignedInt();
+
+                    var version:Version = VersionStorage.getInstance().getBySprSignature(sprSignature);
+                    if (!version)
+                    {
+                        stream.close();
+                        setErrorText("Unknown SPR signature: 0x" + sprSignature.toString(16).toUpperCase());
+                        updateProperties();
+                        return;
+                    }
+
+                    var isExtended:Boolean = (m_extended || version.value >= 960);
+                    if (isExtended)
+                        spritesCount = stream.readUnsignedInt();
+                    else
+                        spritesCount = stream.readUnsignedShort();
+
+                    stream.close();
+                }
+                catch (error:Error)
+                {
+                    try { stream.close(); } catch (e:Error) {}
+                    setErrorText("Failed to read SPR file: " + error.message);
+                    updateProperties();
+                    return;
+                }
+
+                m_sprFile = spr;
+                m_datFile = null;
+                m_version = version;
+
+                sprSignatureLabel.text = sprSignature.toString(16).toUpperCase();
+                spritesCountLabel.text = spritesCount.toString();
+                clientVersionLabel.text = version.toString();
+                datSignatureLabel.text = "N/A";
+                itemsCountLabel.text = "N/A";
+                outfitsCountLabel.text = "N/A";
+                effectsCountLabel.text = "N/A";
+                missilesCountLabel.text = "N/A";
+
+                errorIcon.visible = true;
+                errorLabel.visible = true;
+                errorLabel.text = "No DAT file found — loading sprites only";
+
+                updateProperties();
+            }
+
             private function resetInfo():void
             {
                 var empty:String = "";
@@ -430,7 +493,7 @@ THE SOFTWARE.
             
             private function updateProperties():void
             {
-                var done:Boolean = (m_datFile && m_sprFile && m_version);
+                var done:Boolean = (m_sprFile != null && m_version != null);
             
                 spriteDimensionsDropDownList.selectedItem = spriteDimension;
             
