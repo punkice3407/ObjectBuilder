@@ -42,6 +42,9 @@ package otlib.assets
         [Embed(source="/../assets/icons/export.png", mimeType="image/png")]
         public static const EXPORT:Class;
 
+        [Embed(source="/../assets/icons/export_all.png", mimeType="image/png")]
+        public static const EXPORT_ALL:Class;
+
         [Embed(source="/../assets/icons/import.png", mimeType="image/png")]
         public static const IMPORT:Class;
 

@@ -1171,18 +1171,14 @@ package
                 transparentBackground:Boolean,
                 jpegQuality:uint):void
         {
-            if (!list)
-                throw new NullArgumentError("list");
-
-            if (!ThingCategory.getCategory(category))
-                throw new ArgumentError(Resources.getString("invalidCategory"));
-
-            if (!clientVersion)
-                throw new NullArgumentError("version");
+            if (!list || list.length == 0 || !ThingCategory.getCategory(category) || !clientVersion)
+            {
+                sendCommand(new HideProgressBarCommand(ProgressBarID.DEFAULT));
+                Log.error("Export things: invalid arguments");
+                return;
+            }
 
             var length:uint = list.length;
-            if (length == 0)
-                return;
 
             // For large exports, use batched processing
             if (length > _batchSize)
@@ -1208,9 +1204,23 @@ package
             var encoder:OBDEncoder = new OBDEncoder(_settings);
             var helper:SaveHelper = new SaveHelper();
             var backgoundColor:uint = (_features.transparency || transparentBackground) ? 0x00FF00FF : 0xFFFF00FF;
+            var exportedCount:uint = 0;
             for (var i:uint = 0; i < length; i++)
             {
-                addFileToSaveHelper(helper, encoder, list[i], category, obdVersion, clientVersion, spriteSheetFlag, backgoundColor, jpegQuality);
+                try
+                {
+                    addFileToSaveHelper(helper, encoder, list[i], category, obdVersion, clientVersion, spriteSheetFlag, backgoundColor, jpegQuality);
+                    exportedCount++;
+                }
+                catch (error:Error)
+                {
+                    Log.error("Failed to export thing " + list[i].id.toString() + ": " + error.message);
+                }
+            }
+            if (exportedCount == 0)
+            {
+                sendCommand(new HideProgressBarCommand(ProgressBarID.DEFAULT));
+                return;
             }
             helper.addEventListener(flash.events.ProgressEvent.PROGRESS, progressHandler);
             helper.addEventListener(Event.COMPLETE, completeHandler);
@@ -1265,13 +1275,37 @@ package
                 var helper:SaveHelper = new SaveHelper();
                 var backgoundColor:uint = (_features.transparency || transparentBackground) ? 0x00FF00FF : 0xFFFF00FF;
 
+                var batchExportedCount:uint = 0;
                 for (var i:uint = startIdx; i < endIdx; i++)
                 {
                     var pathHelper:PathHelper = list[i];
-                    addFileToSaveHelper(helper, encoder, pathHelper, category, obdVersion, clientVersion, spriteSheetFlag, backgoundColor, jpegQuality);
-                    allExportedIds.push(pathHelper.id);
+                    try
+                    {
+                        addFileToSaveHelper(helper, encoder, pathHelper, category, obdVersion, clientVersion, spriteSheetFlag, backgoundColor, jpegQuality);
+                        allExportedIds.push(pathHelper.id);
+                        batchExportedCount++;
+                    }
+                    catch (error:Error)
+                    {
+                        Log.error("Failed to export thing " + pathHelper.id.toString() + ": " + error.message);
+                    }
                 }
 
+                if (batchExportedCount == 0)
+                {
+                    sendCommand(new ProgressCommand(ProgressBarID.DEFAULT, endIdx, length, label));
+                    currentBatch++;
+                    if (currentBatch < totalBatches)
+                    {
+                        System.gc();
+                        setTimeout(processNextBatch, 50);
+                    }
+                    else
+                    {
+                        finalizeBatchedExport();
+                    }
+                    return;
+                }
                 helper.addEventListener(Event.COMPLETE, batchCompleteHandler);
                 helper.save();
 

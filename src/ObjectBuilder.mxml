@@ -1968,7 +1968,45 @@ THE SOFTWARE.
             
                 return 0;
             }
-            
+
+            private function getCategoryMaxId(category:String):uint
+            {
+                if (clientLoaded)
+                {
+                    switch (category)
+                    {
+                        case ThingCategory.ITEM:
+                            return _clientInfo.maxItemId;
+                        case ThingCategory.OUTFIT:
+                            return _clientInfo.maxOutfitId;
+                        case ThingCategory.EFFECT:
+                            return _clientInfo.maxEffectId;
+                        case ThingCategory.MISSILE:
+                            return _clientInfo.maxMissileId;
+                    }
+                }
+                return 0;
+            }
+
+            private function getMinThingIdForCategory(category:String):uint
+            {
+                if (clientLoaded)
+                {
+                    switch (category)
+                    {
+                        case ThingCategory.ITEM:
+                            return _clientInfo.minItemId;
+                        case ThingCategory.OUTFIT:
+                            return _clientInfo.minOutfitId;
+                        case ThingCategory.EFFECT:
+                            return _clientInfo.minEffectId;
+                        case ThingCategory.MISSILE:
+                            return _clientInfo.minMissileId;
+                    }
+                }
+                return 0;
+            }
+
             private function setThingData(thingData:ThingData):void
             {
                 _thingData = thingData;
@@ -2724,6 +2762,78 @@ THE SOFTWARE.
                 }
             }
             
+            protected function exportAllThingsHandler(event:Event):void
+            {
+                if (!clientLoaded || _locked)
+                    return;
+
+                var version:Version = _settings.getLastExportThingVersion();
+                if (!version)
+                    version = _versionStorage.getFromClientInfo(_clientInfo);
+
+                _locked = true;
+
+                var window:ExportWindow = new ExportWindow();
+                window.enableObdFormat = true;
+                window.fileName = currentCategory;
+                window.directory = _settings.getIODirectory();
+                window.format = _settings.getLastExportThingFormat();
+                window.version = version;
+                window.transparentBackground = _settings.exportWithTransparentBackground;
+                window.jpegQuality = _settings.jpegQuality;
+                window.obdV3 = currentCategory == ThingCategory.OUTFIT && _clientInfo.frameGroups;
+                window.showCategorySelector = true;
+                window.selectedCategory = currentCategory;
+                window.categoryMaxIds = {
+                    item: _clientInfo.maxItemId,
+                    outfit: _clientInfo.maxOutfitId,
+                    effect: _clientInfo.maxEffectId,
+                    missile: _clientInfo.maxMissileId
+                };
+                window.maxId = getMaxThingId();
+                window.rangeTo = getMaxThingId();
+                window.addEventListener(Event.CLOSE, windowCloseHandler);
+                window.open(this);
+
+                function windowCloseHandler(event:Event):void
+                {
+                    _locked = false;
+
+                    if (window.detail == DialogDetail.OK && window.fileName != null && window.directory && window.format != null && window.version)
+                    {
+                        _settings.setIODirectory(window.directory);
+                        _settings.setLastExportThingFormat(window.format);
+                        _settings.setLastExportThingVersion(window.version);
+                        _settings.exportWithTransparentBackground = window.transparentBackground;
+                        _settings.jpegQuality = window.jpegQuality;
+
+                        var category:String = window.selectedCategory ? window.selectedCategory : currentCategory;
+                        var fromId:uint = window.useRange ? window.rangeFrom : getMinThingIdForCategory(category);
+                        var toId:uint = window.useRange ? window.rangeTo : getCategoryMaxId(category);
+
+                        var things:Vector.<ThingType> = new Vector.<ThingType>();
+                        for (var id:uint = fromId; id <= toId; id++)
+                        {
+                            var thing:ThingType = new ThingType();
+                            thing.id = id;
+                            thing.category = category;
+                            things.push(thing);
+                        }
+
+                        onExportThingData(window.fileName,
+                                window.format,
+                                window.directory,
+                                window.version,
+                                window.obdVersion,
+                                things,
+                                category,
+                                _settings.savingSpriteSheet,
+                                _settings.exportWithTransparentBackground,
+                                _settings.jpegQuality);
+                    }
+                }
+            }
+
             protected function duplicateThingHandler(event:Event):void
             {
                 if (!clientLoaded)
@@ -3429,6 +3539,7 @@ THE SOFTWARE.
                 window.rangeTo = _clientInfo.maxSpriteId;
                 window.addEventListener(Event.CLOSE, windowCloseHandler);
                 window.open(this);
+                var app:ObjectBuilder = this;
 
                 function windowCloseHandler(event:Event):void
                 {
@@ -3445,7 +3556,7 @@ THE SOFTWARE.
                         var toId:uint = window.useRange ? window.rangeTo : _clientInfo.maxSpriteId;
 
                         var queue:FileQueueHelper = new FileQueueHelper();
-                        queue.parent = this;
+                        queue.parent = app;
                         queue.addEventListener(Event.COMPLETE, completeHandler);
 
                         for (var id:uint = fromId; id <= toId; id++)
@@ -4294,6 +4405,12 @@ THE SOFTWARE.
                             height="22"
                             icon="{Assets.EXPORT}"
                             click="exportThingHandler(event)"/>
+                        <s:Button id="exportAllThingButton"
+                            toolTip="@Resource(key='exportAll', bundle='strings')"
+                            width="22"
+                            height="22"
+                            icon="{Assets.EXPORT_ALL}"
+                            click="exportAllThingsHandler(event)"/>
                         <s:Button id="editThingButton"
                             toolTip="@Resource(key='edit', bundle='strings')"
                             width="22"
@@ -4489,6 +4606,12 @@ THE SOFTWARE.
                         height="22"
                         icon="{Assets.EXPORT}"
                         click="exportSpriteHandler(event)"/>
+                    <s:Button id="exportAllSpriteButton"
+                        toolTip="@Resource(key='exportAll', bundle='strings')"
+                        width="22"
+                        height="22"
+                        icon="{Assets.EXPORT_ALL}"
+                        click="exportAllSpritesHandler(event)"/>
                     <s:Button id="copySpriteButton"
                         toolTip="@Resource(key='copy', bundle='strings')"
                         width="22"

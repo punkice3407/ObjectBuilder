@@ -243,12 +243,10 @@ package otlib.components.renders
             replaceMenu.data = SpriteListEvent.REPLACE;
             var exportMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "export"));
             exportMenu.data = SpriteListEvent.EXPORT;
-            var exportAllMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "exportAll"));
-            exportAllMenu.data = SpriteListEvent.EXPORT_ALL;
             var removeMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "remove"));
             removeMenu.data = SpriteListEvent.REMOVE;
             var menu:ContextMenu = new ContextMenu();
-            menu.customItems = [copyMenu, pasteMenu, fillMenu, replaceMenu, exportMenu, exportAllMenu, removeMenu];
+            menu.customItems = [copyMenu, pasteMenu, fillMenu, replaceMenu, exportMenu, removeMenu];
             return menu;
         }
     }

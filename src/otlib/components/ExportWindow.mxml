@@ -27,7 +27,7 @@ THE SOFTWARE.
     xmlns:mg="library://ns.mignari.com/mg"
     xmlns:otlib="otlib.components.*"
     width="400"
-    height="340"
+    height="400"
     fontSize="11"
     title="@Resource(key='export', bundle='strings')"
     preinitialize="preinitializeHandler(event)"
@@ -86,6 +86,14 @@ THE SOFTWARE.
 
             [Bindable]
             public var maxId:uint = 0;
+
+            [Bindable]
+            public var showCategorySelector:Boolean = false;
+
+            [Bindable]
+            public var selectedCategory:String;
+
+            public var categoryMaxIds:Object;
             
             [Bindable]
             private var _versionCollection:ArrayCollection;
@@ -304,6 +312,19 @@ THE SOFTWARE.
             
                 obdVersionDropDownList.dataProvider = _obdVersionCollection;
                 obdVersion = obdV3 ? OBDVersions.OBD_VERSION_3 : OBDVersions.OBD_VERSION_2;
+
+                if (showCategorySelector && selectedCategory && categoryDropDownList)
+                {
+                    var dp:* = categoryDropDownList.dataProvider;
+                    for (var i:int = 0; i < dp.length; i++)
+                    {
+                        if (dp.getItemAt(i).value == selectedCategory)
+                        {
+                            categoryDropDownList.selectedIndex = i;
+                            break;
+                        }
+                    }
+                }
             }
             
             protected function nameTextInputChangeHandler(event:TextOperationEvent):void
@@ -344,6 +365,20 @@ THE SOFTWARE.
                 obdVersion = obdVersionDropDownList.selectedItem.version;
             }
             
+            protected function categoryDropDownListChangeHandler(event:IndexChangeEvent):void
+            {
+                if (categoryDropDownList.selectedItem)
+                {
+                    selectedCategory = categoryDropDownList.selectedItem.value;
+                    fileName = selectedCategory;
+                    if (categoryMaxIds && categoryMaxIds.hasOwnProperty(selectedCategory))
+                    {
+                        maxId = categoryMaxIds[selectedCategory];
+                        rangeTo = maxId;
+                    }
+                }
+            }
+
             protected function confirmButtonClickHandler(event:MouseEvent):void
             {
                 if (useRange && rangeFrom > rangeTo)
@@ -395,10 +430,29 @@ THE SOFTWARE.
                 click="browseButtonClickHandler(event)"/>
         </s:Group>
 
+        <s:HGroup width="100%" verticalAlign="middle" gap="10"
+            visible="{showCategorySelector}" includeInLayout="{showCategorySelector}">
+            <s:Label text="{resourceManager.getString('strings', 'category') + ':'}"
+                fontSize="11" color="0xDFDFDF"/>
+            <s:DropDownList id="categoryDropDownList"
+                width="150" requireSelection="true"
+                labelField="label"
+                change="categoryDropDownListChangeHandler(event)">
+                <s:dataProvider>
+                    <s:ArrayList>
+                        <fx:Object label="Items" value="item"/>
+                        <fx:Object label="Outfits" value="outfit"/>
+                        <fx:Object label="Effects" value="effect"/>
+                        <fx:Object label="Missiles" value="missile"/>
+                    </s:ArrayList>
+                </s:dataProvider>
+            </s:DropDownList>
+        </s:HGroup>
+
         <mg:GroupBox label="Export Range" width="100%"
             visible="{maxId > 0}" includeInLayout="{maxId > 0}">
             <mg:layout>
-                <s:HorizontalLayout gap="10" padding="10" verticalAlign="middle"/>
+                <s:VerticalLayout gap="5" padding="10"/>
             </mg:layout>
 
             <s:CheckBox id="useRangeCheckBox"
@@ -406,20 +460,22 @@ THE SOFTWARE.
                 selected="{useRange}"
                 change="{useRange = useRangeCheckBox.selected}"/>
 
-            <s:Label text="From:" enabled="{useRange}"/>
-            <s:NumericStepper id="rangeFromStepper"
-                minimum="0" maximum="{maxId}" value="{rangeFrom}"
-                width="80" enabled="{useRange}"
-                change="{rangeFrom = rangeFromStepper.value}"/>
+            <s:HGroup verticalAlign="middle" gap="8">
+                <s:Label text="From:" enabled="{useRange}"/>
+                <s:NumericStepper id="rangeFromStepper"
+                    minimum="0" maximum="{maxId}" value="{rangeFrom}"
+                    width="80" enabled="{useRange}"
+                    change="{rangeFrom = rangeFromStepper.value}"/>
 
-            <s:Label text="To:" enabled="{useRange}"/>
-            <s:NumericStepper id="rangeToStepper"
-                minimum="0" maximum="{maxId}" value="{rangeTo}"
-                width="80" enabled="{useRange}"
-                change="{rangeTo = rangeToStepper.value}"/>
+                <s:Label text="To:" enabled="{useRange}"/>
+                <s:NumericStepper id="rangeToStepper"
+                    minimum="0" maximum="{maxId}" value="{rangeTo}"
+                    width="80" enabled="{useRange}"
+                    change="{rangeTo = rangeToStepper.value}"/>
 
-            <s:Button label="MAX" height="20" enabled="{useRange}"
-                click="{rangeToStepper.value = maxId; rangeTo = maxId;}"/>
+                <s:Button label="MAX" height="20" enabled="{useRange}"
+                    click="{rangeToStepper.value = maxId; rangeTo = maxId;}"/>
+            </s:HGroup>
         </mg:GroupBox>
 
         <mg:GroupBox label="@Resource(key='format', bundle='strings')" width="100%">
