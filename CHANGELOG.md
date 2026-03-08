@@ -1,3 +1,24 @@
+### 0.5.8
+
+Features:
+
+* Export All button for Objects and Sprites panels - exports all items at once without manual selection.
+* Load SPR feature - allows loading a standalone SPR file directly.
+* More grid view options for the sprite list.
+* Enhanced preview zoom with deferred rendering.
+* File -> New Window support for opening multiple instances.
+* Quick Save shortcut.
+* Bulk replace objects functionality.
+* Export range selection for objects and sprites.
+* PNG replace support - replace sprites directly from PNG files.
+* 4K / high-DPI display support improvements.
+
+Bug Fixes:
+
+* Fixed keyboard shortcuts firing when typing in text fields.
+* Fixed grid sprite renderer event handlers.
+* Fixed bulk edit window serialization and improved its UI.
+
 ### 0.5.7
 
 Features:

@@ -280,13 +280,6 @@ package ob.menu
             toolsBulkReplace.data = TOOLS_BULK_REPLACE;
             toolsMenu.addMenuItem(toolsBulkReplace);
 
-            // Tools > Quick Save
-            var toolsQuickSave:MenuItem = new MenuItem();
-            toolsQuickSave.label = "Quick Save";
-            toolsQuickSave.data = TOOLS_QUICK_SAVE;
-            toolsQuickSave.keyEquivalent = "F6";
-            toolsMenu.addMenuItem(toolsQuickSave);
-
             // Separator
             toolsMenu.addMenuItem(separator);
 
@@ -426,14 +419,11 @@ package ob.menu
                 // menu Tools > Bulk Replace
                 nativeMenu.items[3].submenu.items[8].enabled = m_application.clientLoaded;
 
-                // menu Tools > Quick Save
-                nativeMenu.items[3].submenu.items[9].enabled = m_application.clientLoaded;
-
                 // menu Tools > Create Missing OTB Items
-                nativeMenu.items[3].submenu.items[11].enabled = m_application.otbLoaded;
+                nativeMenu.items[3].submenu.items[10].enabled = m_application.otbLoaded;
 
                 // menu Tools > Reload Item Attributes
-                nativeMenu.items[3].submenu.items[12].enabled = m_application.otbLoaded;
+                nativeMenu.items[3].submenu.items[11].enabled = m_application.otbLoaded;
             }
             else
             {
@@ -464,14 +454,11 @@ package ob.menu
                 // menu Tools > Bulk Replace
                 nativeMenu.items[2].submenu.items[8].enabled = m_application.clientLoaded;
 
-                // menu Tools > Quick Save
-                nativeMenu.items[2].submenu.items[9].enabled = m_application.clientLoaded;
-
                 // menu Tools > Create Missing OTB Items
-                nativeMenu.items[2].submenu.items[11].enabled = m_application.otbLoaded;
+                nativeMenu.items[2].submenu.items[10].enabled = m_application.otbLoaded;
 
                 // menu Tools > Reload Item Attributes
-                nativeMenu.items[2].submenu.items[12].enabled = m_application.otbLoaded;
+                nativeMenu.items[2].submenu.items[11].enabled = m_application.otbLoaded;
             }
         }
 

@@ -8,10 +8,14 @@ Some features:
 * Support frame groups.
 * It's faster to load or compile your projects.
 * Import or export your objects as sprite sheet.
+* Export All objects or sprites at once.
 * Support for transparent sprites.
 * You're able to cut the imported images.
 * Modify server attributes and flags directly.
 * Optimized rendering and memory usage for large projects.
+* 4K / high-DPI display support.
+* Bulk replace objects and sprites.
+* Quick Save and multiple window support.
 
 
 Supported client versions:

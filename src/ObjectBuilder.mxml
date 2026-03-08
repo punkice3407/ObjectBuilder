@@ -78,6 +78,7 @@ THE SOFTWARE.
             import mx.collections.ArrayCollection;
             
             import spark.events.IndexChangeEvent;
+            import spark.layouts.TileLayout;
             
             import air.update.ApplicationUpdaterUI;
             import air.update.events.UpdateEvent;
@@ -1401,11 +1402,18 @@ THE SOFTWARE.
                 if (_settings.objectsActiveTab < objectsViewStack.numChildren)
                     setObjectsView(_settings.objectsActiveTab);
                 if (_settings.objectsGridColumns >= 2)
+                {
                     gridColumnsStepper.value = _settings.objectsGridColumns;
+                    thingGridList.gridColumns = _settings.objectsGridColumns;
+                }
                 if (_settings.spritesActiveTab < spritesViewStack.numChildren)
                     setSpritesView(_settings.spritesActiveTab);
                 if (_settings.spritesGridColumns >= 2)
+                {
                     spriteGridColumnsStepper.value = _settings.spritesGridColumns;
+                    if (spritesGridList && spritesGridList.dataGroup && spritesGridList.dataGroup.layout is TileLayout)
+                        TileLayout(spritesGridList.dataGroup.layout).requestedColumnCount = _settings.spritesGridColumns;
+                }
                 if (_settings.previewZoom > 0)
                     callLater(setPreviewZoom, [_settings.previewZoom]);
                 thingStepper.lastDisplayedIdCallback = getLastDisplayedThingId;
@@ -2253,6 +2261,7 @@ THE SOFTWARE.
                 foundThingsList.clipboardAction = _settings.thingListClipboardAction;
 
                 // Initialize grid view mode
+                thingGridList.gridColumns = gridColumnsStepper.value;
                 thingGridList.viewMode = ThingList.VIEW_MODE_GRID;
             
                 // Refresh attributes UI now that settings and registry are loaded
@@ -3076,14 +3085,9 @@ THE SOFTWARE.
 
             protected function gridColumnsChangeHandler(event:Event):void
             {
-                import spark.layouts.TileLayout;
-
                 var cols:uint = gridColumnsStepper.value;
                 _settings.objectsGridColumns = cols;
-                if (thingGridList && thingGridList.dataGroup && thingGridList.dataGroup.layout is TileLayout)
-                {
-                    TileLayout(thingGridList.dataGroup.layout).requestedColumnCount = cols;
-                }
+                thingGridList.gridColumns = cols;
             }
 
             protected function thingGridListChangeHandler(event:IndexChangeEvent):void
@@ -3142,7 +3146,6 @@ THE SOFTWARE.
 
             protected function spriteGridColumnsChangeHandler(event:Event):void
             {
-                import spark.layouts.TileLayout;
                 var cols:uint = spriteGridColumnsStepper.value;
                 _settings.spritesGridColumns = cols;
                 if (spritesGridList && spritesGridList.dataGroup && spritesGridList.dataGroup.layout is TileLayout)
@@ -3612,12 +3615,13 @@ THE SOFTWARE.
             
             protected function spritesListNativeDragEnterHandler(event:NativeDragEvent):void
             {
-                if (clientLoaded && event.target === spritesList)
+                var target:SpriteList = event.target as SpriteList;
+                if (clientLoaded && target && (target === spritesList || target === spritesGridList))
                 {
                     if (event.clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT))
                     {
                         NativeDragManager.dropAction = NativeDragActions.LINK;
-                        DragManager.acceptDragDrop(spritesList);
+                        DragManager.acceptDragDrop(target);
                     }
                 }
             }
@@ -4316,7 +4320,7 @@ THE SOFTWARE.
                                 <s:HGroup width="100%" verticalAlign="middle" paddingLeft="5" paddingRight="5">
                                     <s:Label text="Columns:"/>
                                     <s:NumericStepper id="gridColumnsStepper"
-                                        minimum="2" maximum="8" value="4"
+                                        minimum="2" maximum="16" value="4"
                                         width="50" height="20"
                                         change="gridColumnsChangeHandler(event)"/>
                                 </s:HGroup>
@@ -4553,7 +4557,7 @@ THE SOFTWARE.
                                 <s:HGroup width="100%" verticalAlign="middle" paddingLeft="5" paddingRight="5">
                                     <s:Label text="Columns:"/>
                                     <s:NumericStepper id="spriteGridColumnsStepper"
-                                        minimum="2" maximum="8" value="5"
+                                        minimum="2" maximum="16" value="5"
                                         width="50" height="20"
                                         change="spriteGridColumnsChangeHandler(event)"/>
                                 </s:HGroup>
@@ -4561,6 +4565,7 @@ THE SOFTWARE.
                                     width="100%"
                                     height="100%"
                                     allowMultipleSelection="true"
+                                    dragEnabled="true"
                                     borderAlpha="0"
                                     contentBackgroundColor="0x494949"
                                     itemRenderer="otlib.components.renders.SpriteGridRenderer"
@@ -4571,7 +4576,9 @@ THE SOFTWARE.
                                     replace="replaceSpriteHandler(event)"
                                     export="exportSpriteHandler(event)"
                                     exportAll="exportAllSpritesHandler(event)"
-                                    remove="removeSpriteHandler(event)">
+                                    remove="removeSpriteHandler(event)"
+                                    nativeDragEnter="spritesListNativeDragEnterHandler(event)"
+                                    nativeDragDrop="spritesListNativeDragDropHandler(event)">
                                     <otlib:layout>
                                         <s:TileLayout horizontalGap="1" verticalGap="1"
                                             requestedColumnCount="5" useVirtualLayout="true"/>

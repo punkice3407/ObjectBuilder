@@ -64,6 +64,7 @@ package otlib.components
         // --------------------------------------------------------------------------
 
         private var _viewMode:String = VIEW_MODE_LIST;
+        private var _gridColumns:uint = 4;
 
         public static const VIEW_MODE_LIST:String = "list";
         public static const VIEW_MODE_GRID:String = "grid";
@@ -103,17 +104,32 @@ package otlib.components
             }
         }
 
+        public function get gridColumns():uint
+        {
+            return _gridColumns;
+        }
+
+        public function set gridColumns(value:uint):void
+        {
+            if (value < 2) value = 2;
+            _gridColumns = value;
+            if (_viewMode == VIEW_MODE_GRID && this.dataGroup && this.dataGroup.layout is TileLayout)
+            {
+                TileLayout(this.dataGroup.layout).requestedColumnCount = value;
+            }
+        }
+
         private function updateViewMode():void
         {
             if (_viewMode == VIEW_MODE_GRID)
             {
-                // Switch to grid view - 3 items per row
+                // Switch to grid view
                 var tileLayout:TileLayout = new TileLayout();
                 tileLayout.horizontalAlign = HorizontalAlign.LEFT;
                 tileLayout.verticalAlign = VerticalAlign.TOP;
                 tileLayout.horizontalGap = 1;
                 tileLayout.verticalGap = 1;
-                tileLayout.requestedColumnCount = 4;
+                tileLayout.requestedColumnCount = _gridColumns;
                 tileLayout.useVirtualLayout = true;
 
                 if (this.dataGroup)

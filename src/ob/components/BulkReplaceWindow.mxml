@@ -94,12 +94,12 @@ THE SOFTWARE.
             protected function creationCompleteHandler(event:FlexEvent):void
             {
                 // Copy current features from loaded client
-                if (_application && _application.settings)
+                if (_application && _application.clientInfo)
                 {
-                    extendedCheckBox.selected = _application.settings.extended;
-                    transparencyCheckBox.selected = _application.settings.transparency;
-                    improvedAnimationsCheckBox.selected = _application.settings.improvedAnimations;
-                    frameGroupsCheckBox.selected = _application.settings.frameGroups;
+                    extendedCheckBox.selected = _application.clientInfo.extended;
+                    transparencyCheckBox.selected = _application.clientInfo.transparency;
+                    improvedAnimationsCheckBox.selected = _application.clientInfo.improvedAnimations;
+                    frameGroupsCheckBox.selected = _application.clientInfo.frameGroups;
                 }
             }
 
@@ -177,12 +177,12 @@ THE SOFTWARE.
 
             protected function copyFromCurrentClickHandler(event:MouseEvent):void
             {
-                if (_application && _application.settings)
+                if (_application && _application.clientInfo)
                 {
-                    extendedCheckBox.selected = _application.settings.extended;
-                    transparencyCheckBox.selected = _application.settings.transparency;
-                    improvedAnimationsCheckBox.selected = _application.settings.improvedAnimations;
-                    frameGroupsCheckBox.selected = _application.settings.frameGroups;
+                    extendedCheckBox.selected = _application.clientInfo.extended;
+                    transparencyCheckBox.selected = _application.clientInfo.transparency;
+                    improvedAnimationsCheckBox.selected = _application.clientInfo.improvedAnimations;
+                    frameGroupsCheckBox.selected = _application.clientInfo.frameGroups;
                     copyFromCurrentButton.label = "Copied!";
                     setTimeout(function():void { copyFromCurrentButton.label = "Copy from current client"; }, 1500);
                 }
@@ -228,7 +228,7 @@ THE SOFTWARE.
                     extendedCheckBox.selected,
                     transparencyCheckBox.selected,
                     improvedAnimationsCheckBox.selected,
-                    frameGroupsCheckBox.selected,
+                    frameGroupsCheckBox.selected
                 );
 
                 _application.sendCommand(command);
