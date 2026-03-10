@@ -217,6 +217,8 @@ THE SOFTWARE.
             import flash.filesystem.FileStream;
             import flash.desktop.NativeProcess;
             import flash.desktop.NativeProcessStartupInfo;
+            import flash.events.UncaughtErrorEvent;
+            import flash.events.ErrorEvent;
             import flash.utils.Endian;
 
             use namespace nail_internal;
@@ -2018,54 +2020,57 @@ THE SOFTWARE.
             private function setThingData(thingData:ThingData):void
             {
                 _thingData = thingData;
-            
-                _thingData.getBitmap(new FrameGroup);
-            
-                thingView.thingData = thingData;
-            
-                if (thingData)
+
+                if (!thingData)
                 {
-                    if (thingData.category == ThingCategory.OUTFIT)
+                    thingView.thingData = null;
+                    return;
+                }
+
+                thingData.getBitmap(new FrameGroup);
+
+                thingView.thingData = thingData;
+
+                if (thingData.category == ThingCategory.OUTFIT)
+                {
+                    thingView.patternX = 2;
+                    thingView.drawBlendLayer = false;
+                }
+                else
+                {
+                    thingView.patternX = 0;
+                    thingView.drawBlendLayer = true;
+                }
+
+                var frameGroupType:uint = FrameGroupType.WALKING;
+                if (thingData.thing && !thingData.thing.getFrameGroup(frameGroupType))
+                    frameGroupType = FrameGroupType.DEFAULT;
+
+                thingView.frameGroupType = frameGroupType;
+                thingView.play();
+                currentCategory = thingData.category;
+
+                var id:uint = thingData.id;
+                thingStepper.minimum = getMinThingId();
+                thingStepper.maximum = getMaxThingId();
+                thingStepper.value = id;
+
+                if (thingTypeEditor.thingData && thingTypeEditor.thingData.id == id)
+                    thingTypeEditor.thingData = thingData;
+
+                // set index if id is in range of loaded thing list.
+                if (id >= thingList.minId && id <= thingList.maxId)
+                {
+                    if (thingList.selectedId != id)
                     {
-                        thingView.patternX = 2;
-                        thingView.drawBlendLayer = false;
+                        thingList.ensureIdIsVisible(id);
+                        thingList.selectedId = id;
                     }
-                    else
-                    {
-                        thingView.patternX = 0;
-                        thingView.drawBlendLayer = true;
-                    }
-            
-                    var frameGroupType:uint = FrameGroupType.WALKING;
-                    if (!thingData.thing.getFrameGroup(frameGroupType))
-                        frameGroupType = FrameGroupType.DEFAULT;
-            
-                    thingView.frameGroupType = frameGroupType;
-                    thingView.play();
-                    currentCategory = thingData.category;
-            
-                    var id:uint = thingData.id;
-                    thingStepper.minimum = getMinThingId();
-                    thingStepper.maximum = getMaxThingId();
-                    thingStepper.value = id;
-            
-                    if (thingTypeEditor.thingData && thingTypeEditor.thingData.id == id)
-                        thingTypeEditor.thingData = thingData;
-            
-                    // set index if id is in range of loaded thing list.
-                    if (id >= thingList.minId && id <= thingList.maxId)
-                    {
-                        if (thingList.selectedId != id)
-                        {
-                            thingList.ensureIdIsVisible(id);
-                            thingList.selectedId = id;
-                        }
-                    }
-                    else
-                    {
-                        // request new thing list by target id.
-                        sendCommand(new GetThingListCommand(id, thingData.category));
-                    }
+                }
+                else
+                {
+                    // request new thing list by target id.
+                    sendCommand(new GetThingListCommand(id, thingData.category));
                 }
             }
             
@@ -2271,6 +2276,10 @@ THE SOFTWARE.
             
                 // Restore log panel state from settings
                 logPanel.expanded = _settings.showLogPanel;
+
+                // Global error handler — prevents silent crashes
+                loaderInfo.uncaughtErrorEvents.addEventListener(
+                    UncaughtErrorEvent.UNCAUGHT_ERROR, uncaughtErrorHandler);
             }
             
             protected function applicationCompleteHandler(event:FlexEvent):void
@@ -2292,7 +2301,11 @@ THE SOFTWARE.
                 closeAnimationEditor();
                 closeAssetStore();
                 if (_bulkEditWindow && !_bulkEditWindow.closed)
+                {
+                    _bulkEditWindow.removeEventListener(Event.CLOSE, bulkEditCloseHandler);
                     _bulkEditWindow.close();
+                    _bulkEditWindow = null;
+                }
                 saveWindowState();
                 saveSettings();
                 saveVersions();
@@ -2319,6 +2332,44 @@ THE SOFTWARE.
                 }
             }
             
+            protected function uncaughtErrorHandler(event:UncaughtErrorEvent):void
+            {
+                event.preventDefault();
+
+                var message:String;
+                var stackTrace:String = "";
+
+                if (event.error is Error)
+                {
+                    var error:Error = event.error as Error;
+                    message = error.message;
+                    stackTrace = error.getStackTrace();
+                }
+                else if (event.error is ErrorEvent)
+                {
+                    var errorEvent:ErrorEvent = event.error as ErrorEvent;
+                    message = errorEvent.text;
+                }
+                else
+                {
+                    message = String(event.error);
+                }
+
+                var fullMessage:String = "Uncaught error: " + message;
+                if (stackTrace)
+                    fullMessage += "\n\n" + stackTrace;
+
+                Log.error(fullMessage);
+
+                var errorWindow:ErrorWindow = new ErrorWindow();
+                errorWindow.message = fullMessage;
+                errorWindow.open();
+                WindowUtil.centralizeWindowOnScreen(errorWindow);
+
+                if (_locked)
+                    _locked = false;
+            }
+
             protected function confirmButtonClickHandler(event:MouseEvent):void
             {
                 if (thingTypeEditor.changed)
@@ -2885,6 +2936,8 @@ THE SOFTWARE.
 
             protected function bulkEditCloseHandler(event:Event):void
             {
+                _bulkEditWindow.removeEventListener(Event.CLOSE, bulkEditCloseHandler);
+
                 if (_bulkEditWindow.detail == DialogDetail.OK)
                 {
                     var properties:Array = _bulkEditWindow.changedProperties;

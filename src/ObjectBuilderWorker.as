@@ -1049,6 +1049,8 @@ package
                 if (!currentFrameGroup)
                     continue;
 
+                if (!sprites[groupType])
+                    continue;
                 var length:uint = sprites[groupType].length;
                 for (var i:uint = 0; i < length; i++)
                 {
@@ -1923,15 +1925,26 @@ package
             }
 
             // Read signatures from source file headers to determine version
-            var datStream:FileStream = new FileStream();
-            datStream.open(sourceDatFile, FileMode.READ);
-            var datSignature:uint = datStream.readUnsignedInt();
-            datStream.close();
+            var datSignature:uint;
+            var sprSignature:uint;
+            try
+            {
+                var datStream:FileStream = new FileStream();
+                datStream.open(sourceDatFile, FileMode.READ);
+                datSignature = datStream.readUnsignedInt();
+                datStream.close();
 
-            var sprStream:FileStream = new FileStream();
-            sprStream.open(sourceSprFile, FileMode.READ);
-            var sprSignature:uint = sprStream.readUnsignedInt();
-            sprStream.close();
+                var sprStream:FileStream = new FileStream();
+                sprStream.open(sourceSprFile, FileMode.READ);
+                sprSignature = sprStream.readUnsignedInt();
+                sprStream.close();
+            }
+            catch (error:Error)
+            {
+                Log.error("Failed to read source file headers: " + error.message);
+                sendCommand(new HideProgressBarCommand(ProgressBarID.DEFAULT));
+                return;
+            }
 
             var sourceVersion:Version = VersionStorage.getInstance().getBySignatures(datSignature, sprSignature);
             if (!sourceVersion)
@@ -3348,6 +3361,8 @@ package
         {
             var size:uint = SpriteExtent.DEFAULT_SIZE;
             var frameGroup:FrameGroup = thing.getFrameGroup(FrameGroupType.DEFAULT);
+            if (!frameGroup)
+                return null;
 
             var width:uint = frameGroup.width;
             var height:uint = frameGroup.height;
@@ -3569,6 +3584,8 @@ package
                     continue;
 
                 var sprites:Vector.<SpriteData> = thingData.sprites[groupType];
+                if (!sprites)
+                    continue;
                 var len:uint = sprites.length;
 
                 for (var k:uint = 0; k < len; k++)
@@ -3616,6 +3633,7 @@ package
             {
                 bitmap = thingData.getTotalSpriteSheet(null, backgoundColor);
                 bytes = ImageCodec.encode(bitmap, format, jpegQuality);
+                bitmap.dispose();
                 if (spriteSheetFlag != 0)
                     helper.addFile(OtlibUtils.getPatternsString(thingData.thing, spriteSheetFlag), name, "txt", file);
             }

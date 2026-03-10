@@ -145,6 +145,8 @@ package otlib.components.renders
 
         protected function creationCompleteHandler(event:FlexEvent):void
         {
+            this.removeEventListener(FlexEvent.CREATION_COMPLETE, creationCompleteHandler);
+
             if (owner is ListBase && ListBase(owner).contextMenuEnabled)
             {
                 var cm:ContextMenu = ThingRendererBase.createContextMenu();

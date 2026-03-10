@@ -94,7 +94,15 @@ package otlib.obd
 
             bytes.position = 0;
             bytes.endian = Endian.LITTLE_ENDIAN;
-            bytes.uncompress(CompressionAlgorithm.LZMA);
+
+            try
+            {
+                bytes.uncompress(CompressionAlgorithm.LZMA);
+            }
+            catch (error:Error)
+            {
+                throw new Error("Failed to decompress OBD data: " + error.message);
+            }
 
             var version:uint = bytes.readUnsignedShort();
             if (version == OBDVersions.OBD_VERSION_3)
@@ -120,9 +128,15 @@ package otlib.obd
 
             var bytes:ByteArray = new ByteArray();
             var stream:FileStream = new FileStream();
-            stream.open(file, FileMode.READ);
-            stream.readBytes(bytes, 0, stream.bytesAvailable);
-            stream.close();
+            try
+            {
+                stream.open(file, FileMode.READ);
+                stream.readBytes(bytes, 0, stream.bytesAvailable);
+            }
+            finally
+            {
+                stream.close();
+            }
 
             return decode(bytes);
         }
@@ -237,6 +251,9 @@ package otlib.obd
 
             if (frameGroup.isAnimation)
             {
+                if (!frameGroup.frameDurations)
+                    throw new Error("Missing frame durations for animated frame group.");
+
                 bytes.writeByte(frameGroup.animationMode); // Write animation type
                 bytes.writeInt(frameGroup.loopCount); // Write loop count
                 bytes.writeByte(frameGroup.startFrame); // Write start frame
@@ -333,6 +350,9 @@ package otlib.obd
 
                 if (frameGroup.isAnimation)
                 {
+                    if (!frameGroup.frameDurations)
+                        throw new Error("Missing frame durations for animated frame group.");
+
                     bytes.writeByte(frameGroup.animationMode); // Write animation type
                     bytes.writeInt(frameGroup.loopCount); // Write loop count
                     bytes.writeByte(frameGroup.startFrame); // Write start frame
@@ -453,6 +473,9 @@ package otlib.obd
                 if (dataSize > SpriteExtent.DEFAULT_DATA_SIZE)
                     throw new Error("Invalid sprite data size.");
 
+                if (bytes.bytesAvailable < dataSize)
+                    throw new Error("Unexpected end of data: expected " + dataSize + " bytes, available " + bytes.bytesAvailable);
+
                 var pixels:ByteArray = new ByteArray();
                 pixels.endian = Endian.BIG_ENDIAN;
 
@@ -540,6 +563,9 @@ package otlib.obd
             {
                 var spriteId:uint = bytes.readUnsignedInt();
                 frameGroup.spriteIndex[i] = spriteId;
+
+                if (bytes.bytesAvailable < SpriteExtent.DEFAULT_DATA_SIZE)
+                    throw new Error("Unexpected end of data: expected " + SpriteExtent.DEFAULT_DATA_SIZE + " bytes, available " + bytes.bytesAvailable);
 
                 var pixels:ByteArray = new ByteArray();
                 pixels.endian = Endian.BIG_ENDIAN;
@@ -639,6 +665,9 @@ package otlib.obd
                     var dataSize:uint = bytes.readUnsignedInt();
                     if (dataSize > SpriteExtent.DEFAULT_DATA_SIZE)
                         throw new Error("Invalid sprite data size.");
+
+                    if (bytes.bytesAvailable < dataSize)
+                        throw new Error("Unexpected end of data: expected " + dataSize + " bytes, available " + bytes.bytesAvailable);
 
                     var pixels:ByteArray = new ByteArray();
                     pixels.endian = Endian.BIG_ENDIAN;

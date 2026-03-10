@@ -169,6 +169,7 @@ package otlib.loaders
             var loader:URLLoader = new URLLoader();
             loader.dataFormat = URLLoaderDataFormat.BINARY;
             loader.addEventListener(Event.COMPLETE, completeHandler);
+            loader.addEventListener(IOErrorEvent.IO_ERROR, errorHandler);
             loader.load(request);
 
             function completeHandler(event:Event):void
@@ -183,14 +184,26 @@ package otlib.loaders
                 }
                 catch (error:Error)
                 {
-
                     _cancel = true;
                     dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, false, false, error.getStackTrace()));
                     return;
                 }
 
+                if (!bitmap)
+                {
+                    _cancel = true;
+                    dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, false, false, "Failed to decode sprite image."));
+                    return;
+                }
+
                 create(id, bitmap);
                 loadNext();
+            }
+
+            function errorHandler(event:IOErrorEvent):void
+            {
+                _spriteDataList = null;
+                dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, false, false, event.text, event.errorID));
             }
         }
 
@@ -204,7 +217,14 @@ package otlib.loaders
 
             function completeHandler(event:Event):void
             {
-                create(id, Bitmap(loader.content).bitmapData);
+                var bitmap:Bitmap = loader.content as Bitmap;
+                if (!bitmap || !bitmap.bitmapData)
+                {
+                    _spriteDataList = null;
+                    dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, false, false, "Invalid image format."));
+                    return;
+                }
+                create(id, bitmap.bitmapData);
                 loadNext();
             }
 

@@ -292,6 +292,8 @@ package otlib.things
         public function setSprite(groupType:uint, index:uint, sprite:SpriteData):void
         {
             var frameGroup:FrameGroup = getFrameGroup(groupType);
+            if (!frameGroup)
+                return;
 
             var oldValue:uint = frameGroup.spriteIndex[index];
             frameGroup.spriteIndex[index] = sprite.id;

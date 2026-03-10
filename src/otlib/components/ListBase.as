@@ -132,7 +132,7 @@ package otlib.components
         }
         public function get multipleSelected():Boolean
         {
-            return (this.selectedIndices.length > 1);
+            return (this.selectedIndices && this.selectedIndices.length > 1);
         }
         public function get isEmpty():Boolean
         {

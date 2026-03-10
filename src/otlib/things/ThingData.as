@@ -702,6 +702,13 @@ package otlib.things
 
             }
 
+            if (m_xmlAttributes)
+            {
+                td.m_xmlAttributes = {};
+                for (var key:String in m_xmlAttributes)
+                    td.m_xmlAttributes[key] = m_xmlAttributes[key];
+            }
+
             return td;
         }
 

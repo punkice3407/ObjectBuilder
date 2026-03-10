@@ -346,7 +346,7 @@ package otlib.things
         {
             var idle:FrameGroup = getFrameGroup(FrameGroupType.DEFAULT);
             var walking:FrameGroup = getFrameGroup(FrameGroupType.WALKING);
-            if (!normal && !walking)
+            if (!idle && !walking)
                 return;
 
             if (removeMounts)
