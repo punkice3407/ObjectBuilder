@@ -1466,7 +1466,7 @@ THE SOFTWARE.
                         selRect.y = -1;
                         selRect.width = frameW + 2;
                         selRect.height = frameH + 2;
-                        selRect.stroke = new SolidColorStroke(borderColor, 2);
+                        selRect.stroke = new SolidColorStroke(borderColor, 1);
                         frameGrp.addElement(selRect);
                     }
                 }
@@ -1639,7 +1639,7 @@ THE SOFTWARE.
                             mdSelRect.y = -1;
                             mdSelRect.width = frameW + 2;
                             mdSelRect.height = frameH + 2;
-                            mdSelRect.stroke = new SolidColorStroke(mdBorderColor, 2);
+                            mdSelRect.stroke = new SolidColorStroke(mdBorderColor, 1);
                             mdFrameGrp.addElement(mdSelRect);
                         }
                     }
@@ -1765,7 +1765,7 @@ THE SOFTWARE.
                                 selRect.y = -1;
                                 selRect.width = fW + 2;
                                 selRect.height = fH + 2;
-                                selRect.stroke = new SolidColorStroke(borderColor, 2);
+                                selRect.stroke = new SolidColorStroke(borderColor, 1);
                                 grp.addElement(selRect);
                             }
                         }
