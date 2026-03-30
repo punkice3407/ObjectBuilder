@@ -279,6 +279,24 @@ THE SOFTWARE.
                 return false;
             }
             
+            /**
+             * Copies properties from the worker response without marking as changed.
+             * Used by updateThingPropertiesCallback to sync after save.
+             */
+            public function applyWorkerProperties(thing:ThingType):void
+            {
+                _loading = true;
+
+                if (_thingData)
+                    _thingData.thing.copyPropertiesFrom(thing);
+
+                if (_thingBinding)
+                    _thingBinding.copyPropertiesFrom(thing);
+
+                _loading = false;
+                _changed = false;
+            }
+
             public function getThingTypeResult():ThingType
             {
                 if (_thingData)

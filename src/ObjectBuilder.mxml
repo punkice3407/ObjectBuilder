@@ -1619,20 +1619,17 @@ THE SOFTWARE.
             {
                 if (!thing)
                     return;
-            
+
                 if (thingTypeEditor && thingTypeEditor.thingData &&
                         thingTypeEditor.thingData.id == thing.id &&
                         thingTypeEditor.thingData.category == thing.category)
                 {
-                    // Suppress button re-enable while copying properties from worker
                     _ignoringPropertyChange = true;
-                    thingTypeEditor.thingData.thing.copyPropertiesFrom(thing);
-            
-                    if (thingTypeEditor.bindableThingType)
-                    {
-                        thingTypeEditor.bindableThingType.copyPropertiesFrom(thing);
-                    }
+                    thingTypeEditor.applyWorkerProperties(thing);
                     _ignoringPropertyChange = false;
+
+                    confirmButton.enabled = false;
+                    updateTitle(OtlibUtils.toLocale(thing.category) + " " + thing.id);
                 }
             }
             
