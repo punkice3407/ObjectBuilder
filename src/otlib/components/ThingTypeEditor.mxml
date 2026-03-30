@@ -497,7 +497,7 @@ THE SOFTWARE.
                 var totalH:uint = fgHeight * size;
                 var rect32:Rectangle = new Rectangle(0, 0, size, size);
                 var pt:Point = new Point();
-                var emptyColor:uint = (_filesInfo && _filesInfo.transparency) ? 0x00000000 : 0xFFFF00FF;
+                var emptyColor:uint = 0x00FF00FF;
 
                 var composite:BitmapData = new BitmapData(totalW, totalH, true, emptyColor);
                 for (var w:uint = 0; w < fgWidth; w++)
@@ -555,7 +555,7 @@ THE SOFTWARE.
                 var index:int;
                 var bmp:BitmapData;
 
-                var emptyColor:uint = (_filesInfo && _filesInfo.transparency) ? 0x00000000 : 0xFFFF00FF;
+                var emptyColor:uint = 0x00FF00FF;
 
                 var cropSize:uint = cropSizeNumericStepper.value;
                 var cropW:uint = (cropSize > 0 && cropSize < totalW) ? Math.min(totalW, cropSize) : totalW;
