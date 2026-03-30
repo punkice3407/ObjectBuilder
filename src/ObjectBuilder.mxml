@@ -2278,8 +2278,11 @@ THE SOFTWARE.
                 logPanel.expanded = _settings.showLogPanel;
 
                 // Global error handler — prevents silent crashes
-                loaderInfo.uncaughtErrorEvents.addEventListener(
-                    UncaughtErrorEvent.UNCAUGHT_ERROR, uncaughtErrorHandler);
+                if (loaderInfo && loaderInfo.uncaughtErrorEvents)
+                {
+                    loaderInfo.uncaughtErrorEvents.addEventListener(
+                        UncaughtErrorEvent.UNCAUGHT_ERROR, uncaughtErrorHandler);
+                }
             }
             
             protected function applicationCompleteHandler(event:FlexEvent):void
@@ -2928,6 +2931,7 @@ THE SOFTWARE.
                     _bulkEditWindow.category = currentCategory;
                     _bulkEditWindow.settings = _settings;
                     _bulkEditWindow.otbLoaded = _otbLoaded;
+                    _bulkEditWindow.clientInfo = _clientInfo;
                     _bulkEditWindow.addEventListener(Event.CLOSE, bulkEditCloseHandler);
                     _bulkEditWindow.open();
                     WindowUtil.centralizeWindowOnScreen(_bulkEditWindow);

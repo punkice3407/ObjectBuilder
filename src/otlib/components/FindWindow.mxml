@@ -897,6 +897,7 @@ THE SOFTWARE.
                 window.selectedIds = selectedIds;
                 window.category = getCurrentCategory();
                 window.settings = m_application.settings;
+                window.clientInfo = m_application.clientInfo;
                 window.addEventListener(Event.CLOSE, closeHandler);
                 // Move FindWindow behind main app so popup appears on top
                 this.orderToBack();

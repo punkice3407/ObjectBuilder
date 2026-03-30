@@ -62,6 +62,7 @@ THE SOFTWARE.
             import otlib.things.ThingType;
             import flash.utils.Dictionary;
             import ob.settings.ObjectBuilderSettings;
+            import otlib.utils.ClientInfo;
             
             // --------------------------------------------------------------------------
             // PROPERTIES
@@ -78,6 +79,10 @@ THE SOFTWARE.
             /** Whether OTB/items.xml is loaded */
             [Bindable]
             public var otbLoaded:Boolean = false;
+
+            /** Client version info for version-dependent property visibility. */
+            [Bindable]
+            public var clientInfo:ClientInfo;
             
             /** Reference to the Attributes Editor for collecting bulk attribute changes. */
             private var _attributesEditor:AttributesEditor;
@@ -139,6 +144,119 @@ THE SOFTWARE.
                     }
                 }
             
+                // Ground Speed
+                if (changeGroundSpeedCheckbox && changeGroundSpeedCheckbox.selected)
+                {
+                    result.push({ property: "groundSpeed", value: groundSpeedStepper.value });
+                }
+
+                // Light
+                if (changeLightCheckbox && changeLightCheckbox.selected)
+                {
+                    result.push({ property: "hasLight", value: lightValueCheckbox.selected });
+                    if (lightValueCheckbox.selected)
+                    {
+                        result.push({ property: "lightColor", value: lightColorStepper.value });
+                        result.push({ property: "lightLevel", value: lightLevelStepper.value });
+                    }
+                }
+
+                // Automap / MiniMap
+                if (changeMinimapCheckbox && changeMinimapCheckbox.selected)
+                {
+                    result.push({ property: "miniMap", value: minimapValueCheckbox.selected });
+                    if (minimapValueCheckbox.selected)
+                    {
+                        result.push({ property: "miniMapColor", value: minimapColorStepper.value });
+                    }
+                }
+
+                // Offset
+                if (changeOffsetCheckbox && changeOffsetCheckbox.selected)
+                {
+                    result.push({ property: "hasOffset", value: offsetValueCheckbox.selected });
+                    if (offsetValueCheckbox.selected)
+                    {
+                        result.push({ property: "offsetX", value: offsetXStepper.value });
+                        result.push({ property: "offsetY", value: offsetYStepper.value });
+                    }
+                }
+
+                // Elevation
+                if (changeElevationCheckbox && changeElevationCheckbox.selected)
+                {
+                    result.push({ property: "hasElevation", value: elevationValueCheckbox.selected });
+                    if (elevationValueCheckbox.selected)
+                    {
+                        result.push({ property: "elevation", value: elevationStepper.value });
+                    }
+                }
+
+                // Cloth
+                if (changeClothCheckbox && changeClothCheckbox.selected)
+                {
+                    result.push({ property: "cloth", value: clothValueCheckbox.selected });
+                    if (clothValueCheckbox.selected)
+                    {
+                        result.push({ property: "clothSlot", value: clothSlotDropDown.selectedIndex });
+                    }
+                }
+
+                // Default Action
+                if (changeDefaultActionCheckbox && changeDefaultActionCheckbox.selected)
+                {
+                    result.push({ property: "hasDefaultAction", value: defaultActionValueCheckbox.selected });
+                    if (defaultActionValueCheckbox.selected)
+                    {
+                        result.push({ property: "defaultAction", value: defaultActionDropDown.selectedIndex });
+                    }
+                }
+
+                // Lens Help
+                if (changeLensHelpCheckbox && changeLensHelpCheckbox.selected)
+                {
+                    result.push({ property: "isLensHelp", value: lensHelpValueCheckbox.selected });
+                    if (lensHelpValueCheckbox.selected)
+                    {
+                        result.push({ property: "lensHelp", value: lensHelpDropDown.selectedIndex + 1100 });
+                    }
+                }
+
+                // Market
+                if (changeMarketCheckbox && changeMarketCheckbox.selected)
+                {
+                    result.push({ property: "isMarketItem", value: marketValueCheckbox.selected });
+                    if (marketValueCheckbox.selected)
+                    {
+                        result.push({ property: "marketName", value: marketNameInput.text });
+                        result.push({ property: "marketCategory", value: marketCategoryDropDown.selectedIndex + 1 });
+                        result.push({ property: "marketTradeAs", value: marketTradeAsStepper.value });
+                        result.push({ property: "marketShowAs", value: marketShowAsStepper.value });
+                        result.push({ property: "marketRestrictProfession", value: marketVocationStepper.value });
+                        result.push({ property: "marketRestrictLevel", value: marketLevelStepper.value });
+                    }
+                }
+
+                // Writable
+                if (changeWritableCheckbox && changeWritableCheckbox.selected)
+                {
+                    result.push({ property: "writable", value: writableValueCheckbox.selected });
+                    if (writableValueCheckbox.selected)
+                    {
+                        result.push({ property: "maxReadWriteChars", value: maxReadWriteCharsStepper.value });
+                    }
+                }
+
+                // Writable Once
+                if (changeWritableOnceCheckbox && changeWritableOnceCheckbox.selected)
+                {
+                    result.push({ property: "writableOnce", value: writableOnceValueCheckbox.selected });
+                    if (writableOnceValueCheckbox.selected)
+                    {
+                        result.push({ property: "maxReadChars", value: maxReadCharsStepper.value });
+                    }
+                }
+
                 // Add duration changes if applicable
                 if (changeDurationCheckbox && changeDurationCheckbox.selected)
                 {
@@ -235,6 +353,67 @@ THE SOFTWARE.
                 applyButton.enabled = (changedProperties.length > 0);
             }
             
+            private function updateVersionVisibility():void
+            {
+                if (!clientInfo) return;
+
+                var v:uint = clientInfo.clientVersion;
+
+                if (_category == ThingCategory.ITEM)
+                {
+                    // Flags - version-dependent BulkPropertyRows
+                    setRowVisible(hangableRow, v >= 755);
+                    setRowVisible(isHorizontalRow, v >= 755);
+                    setRowVisible(isVerticalRow, v >= 755);
+                    setRowVisible(dontHideRow, v >= 780);
+                    setRowVisible(ignoreLookRow, v >= 780);
+                    setRowVisible(hasChargesRow, v >= 780 && v <= 854);
+                    setRowVisible(floorChangeRow, v >= 710 && v <= 854);
+                    setRowVisible(isTranslucentRow, v >= 860);
+                    setRowVisible(noMoveAnimationRow, v >= 1010);
+                    setRowVisible(usableRow, v >= 1021);
+
+                    var wrapVisible:Boolean = (v >= 710 && v <= 792) || (v >= 1092);
+                    setRowVisible(wrappableRow, wrapVisible);
+                    setRowVisible(unwrappableRow, wrapVisible);
+
+                    // GroupBoxes
+                    setRowVisible(clothGroupBox, v >= 900);
+                    setRowVisible(marketGroupBox, v >= 940);
+                    setRowVisible(actionGroupBox, v >= 1021);
+
+                    // Offset stepper ranges
+                    if (v >= 755)
+                    {
+                        offsetXStepper.minimum = -256;
+                        offsetXStepper.maximum = 256;
+                        offsetYStepper.minimum = -256;
+                        offsetYStepper.maximum = 256;
+                    }
+                    else
+                    {
+                        offsetXStepper.minimum = 8;
+                        offsetXStepper.maximum = 8;
+                        offsetYStepper.minimum = 8;
+                        offsetYStepper.maximum = 8;
+                    }
+                }
+                else if (_category == ThingCategory.EFFECT)
+                {
+                    var teVisible:Boolean = (v >= 710 && v <= 792) || (v >= 1092);
+                    setRowVisible(topEffectEffectRow, teVisible);
+                }
+            }
+
+            private function setRowVisible(component:Object, visible:Boolean):void
+            {
+                if (component)
+                {
+                    component.visible = visible;
+                    component.includeInLayout = visible;
+                }
+            }
+
             // --------------------------------------
             // Event Handlers
             // --------------------------------------
@@ -250,6 +429,8 @@ THE SOFTWARE.
 
                 if (currentState != _category && _category)
                     currentState = _category;
+
+                updateVersionVisibility();
             }
             
             protected function applyButtonClickHandler(event:MouseEvent):void
@@ -331,39 +512,283 @@ THE SOFTWARE.
                     <s:Scroller width="100%" height="100%">
                         <s:VGroup id="propertiesContainer"
                             width="100%"
-                            gap="3"
-                            paddingLeft="5" paddingRight="5" paddingTop="3">
+                            gap="10"
+                            paddingLeft="10" paddingRight="10" paddingTop="10">
 
-                            <!-- Ground Properties (ITEM only) -->
-                            <nail:GroupBox label="@Resource(key='groundProperties', bundle='strings')"
-                                width="100%"
-                                includeIn="item">
-                                <nail:layout>
-                                    <s:VerticalLayout paddingLeft="5" paddingRight="5" paddingTop="3" paddingBottom="5" gap="0"/>
-                                </nail:layout>
-                                <s:Group width="100%">
-                                    <s:layout>
-                                        <s:TileLayout columnWidth="220" rowHeight="20" horizontalGap="10" verticalGap="0" columnAlign="justifyUsingWidth"/>
-                                    </s:layout>
-                                    <otlib:BulkPropertyRow propertyName="isGround" labelText="@Resource(key='isGround', bundle='strings')" change="onPropertyChange(event)"/>
+                            <!-- 1. isGround group (ITEM only) -->
+                            <nail:GroupBox label="@Resource(key='isGround', bundle='strings')"
+                                width="100%" includeIn="item">
+                                <nail:layout><s:VerticalLayout padding="10" gap="5"/></nail:layout>
+                                <otlib:BulkPropertyRow propertyName="isGround" labelText="@Resource(key='isGround', bundle='strings')" change="onPropertyChange(event)"/>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right" gap="10" paddingRight="30">
+                                    <s:CheckBox id="changeGroundSpeedCheckbox" label="Change" toolTip="@Resource(key='change', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <s:Label text="{resourceManager.getString('strings', 'groundSpeed') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:NumericStepper id="groundSpeedStepper" width="80" minimum="0" maximum="1000" value="0" enabled="{changeGroundSpeedCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                            </nail:GroupBox>
+
+                            <!-- 2. hasLight group (ITEM only) -->
+                            <nail:GroupBox label="@Resource(key='hasLight', bundle='strings')"
+                                width="100%" includeIn="item">
+                                <nail:layout><s:VerticalLayout padding="10" gap="5"/></nail:layout>
+                                <s:HGroup width="100%" verticalAlign="middle" gap="10">
+                                    <s:CheckBox id="changeLightCheckbox" label="Change" toolTip="@Resource(key='change', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <s:CheckBox id="lightValueCheckbox" label="@Resource(key='hasLight', bundle='strings')" enabled="{changeLightCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right" gap="10" paddingRight="30">
+                                    <s:Label text="{resourceManager.getString('strings', 'lightColor') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:NumericStepper id="lightColorStepper" width="80" minimum="0" maximum="215" value="0"
+                                        enabled="{changeLightCheckbox.selected &amp;&amp; lightValueCheckbox.selected}" change="onPropertyChange(event)"/>
+                                    <otlib:EightBitColorPicker id="bulkLightColorPicker" color="{lightColorStepper.value}"
+                                        enabled="{changeLightCheckbox.selected &amp;&amp; lightValueCheckbox.selected}"
+                                        change="{lightColorStepper.value = bulkLightColorPicker.color; onPropertyChange(event);}"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right" gap="10" paddingRight="30">
+                                    <s:Label text="{resourceManager.getString('strings', 'lightIntensity') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:NumericStepper id="lightLevelStepper" width="80" minimum="0" maximum="255" value="0"
+                                        enabled="{changeLightCheckbox.selected &amp;&amp; lightValueCheckbox.selected}" change="onPropertyChange(event)"/>
+                                    <s:Spacer width="30"/>
+                                </s:HGroup>
+                            </nail:GroupBox>
+
+                            <!-- 3. automap group (ITEM only) -->
+                            <nail:GroupBox label="@Resource(key='automap', bundle='strings')"
+                                width="100%" includeIn="item">
+                                <nail:layout><s:VerticalLayout padding="10" gap="5"/></nail:layout>
+                                <s:HGroup width="100%" verticalAlign="middle" gap="10">
+                                    <s:CheckBox id="changeMinimapCheckbox" label="Change" toolTip="@Resource(key='change', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <s:CheckBox id="minimapValueCheckbox" label="@Resource(key='automap', bundle='strings')" enabled="{changeMinimapCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right" gap="10" paddingRight="30">
+                                    <s:Label text="{resourceManager.getString('strings', 'automapColor') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:NumericStepper id="minimapColorStepper" width="80" minimum="0" maximum="215" value="0"
+                                        enabled="{changeMinimapCheckbox.selected &amp;&amp; minimapValueCheckbox.selected}" change="onPropertyChange(event)"/>
+                                    <otlib:EightBitColorPicker id="bulkMinimapColorPicker" color="{minimapColorStepper.value}"
+                                        enabled="{changeMinimapCheckbox.selected &amp;&amp; minimapValueCheckbox.selected}"
+                                        change="{minimapColorStepper.value = bulkMinimapColorPicker.color; onPropertyChange(event);}"/>
+                                </s:HGroup>
+                            </nail:GroupBox>
+
+                            <!-- 4. hasOffset group (ITEM only) -->
+                            <nail:GroupBox label="@Resource(key='hasOffset', bundle='strings')"
+                                width="100%" includeIn="item">
+                                <nail:layout><s:VerticalLayout padding="10" gap="5"/></nail:layout>
+                                <s:HGroup width="100%" verticalAlign="middle" gap="10">
+                                    <s:CheckBox id="changeOffsetCheckbox" label="Change" toolTip="@Resource(key='change', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <s:CheckBox id="offsetValueCheckbox" label="@Resource(key='hasOffset', bundle='strings')" enabled="{changeOffsetCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right" gap="10" paddingRight="30">
+                                    <s:Label text="{resourceManager.getString('strings', 'offsetX') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:NumericStepper id="offsetXStepper" width="80" minimum="-128" maximum="127" value="0"
+                                        enabled="{changeOffsetCheckbox.selected &amp;&amp; offsetValueCheckbox.selected}" change="onPropertyChange(event)"/>
+                                    <s:Spacer width="30"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right" gap="10" paddingRight="30">
+                                    <s:Label text="{resourceManager.getString('strings', 'offsetY') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:NumericStepper id="offsetYStepper" width="80" minimum="-128" maximum="127" value="0"
+                                        enabled="{changeOffsetCheckbox.selected &amp;&amp; offsetValueCheckbox.selected}" change="onPropertyChange(event)"/>
+                                    <s:Spacer width="30"/>
+                                </s:HGroup>
+                            </nail:GroupBox>
+
+                            <!-- 5. hasElevation group (ITEM only) -->
+                            <nail:GroupBox label="@Resource(key='hasElevation', bundle='strings')"
+                                width="100%" includeIn="item">
+                                <nail:layout><s:VerticalLayout padding="10" gap="5"/></nail:layout>
+                                <s:HGroup width="100%" verticalAlign="middle" gap="10">
+                                    <s:CheckBox id="changeElevationCheckbox" label="Change" toolTip="@Resource(key='change', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <s:CheckBox id="elevationValueCheckbox" label="@Resource(key='hasElevation', bundle='strings')" enabled="{changeElevationCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right" gap="10" paddingRight="30">
+                                    <s:Label text="{resourceManager.getString('strings', 'elevation') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:NumericStepper id="elevationStepper" width="80" minimum="0" maximum="32" value="0"
+                                        enabled="{changeElevationCheckbox.selected &amp;&amp; elevationValueCheckbox.selected}" change="onPropertyChange(event)"/>
+                                    <s:Spacer width="30"/>
+                                </s:HGroup>
+                            </nail:GroupBox>
+
+                            <!-- 6. cloth group (ITEM only) -->
+                            <nail:GroupBox id="clothGroupBox" label="@Resource(key='cloth', bundle='strings')"
+                                width="100%" includeIn="item">
+                                <nail:layout><s:VerticalLayout padding="10" gap="5"/></nail:layout>
+                                <s:HGroup width="100%" verticalAlign="middle" gap="10">
+                                    <s:CheckBox id="changeClothCheckbox" label="Change" toolTip="@Resource(key='change', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <s:CheckBox id="clothValueCheckbox" label="@Resource(key='cloth', bundle='strings')" enabled="{changeClothCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right" gap="10" paddingRight="30">
+                                    <s:Label text="{resourceManager.getString('strings', 'clothSlot') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:DropDownList id="clothSlotDropDown" width="100%" height="20" fontSize="11" requireSelection="true" selectedIndex="0"
+                                        enabled="{changeClothCheckbox.selected &amp;&amp; clothValueCheckbox.selected}">
+                                        <s:dataProvider>
+                                            <s:ArrayList>
+                                                <fx:String>{resourceManager.getString('strings', 'slot.twoHandWeapon')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'slot.helmet')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'slot.amulet')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'slot.backpack')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'slot.armor')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'slot.shield')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'slot.oneHandWeapon')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'slot.legs')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'slot.boots')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'slot.ring')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'slot.arrow')}</fx:String>
+                                            </s:ArrayList>
+                                        </s:dataProvider>
+                                    </s:DropDownList>
+                                </s:HGroup>
+                            </nail:GroupBox>
+
+                            <!-- 7. market group (ITEM only) -->
+                            <nail:GroupBox id="marketGroupBox" label="@Resource(key='market', bundle='strings')"
+                                width="100%" includeIn="item">
+                                <nail:layout><s:VerticalLayout paddingLeft="10" paddingRight="45" paddingTop="10" paddingBottom="10" gap="5"/></nail:layout>
+                                <s:HGroup width="100%" verticalAlign="middle" gap="10">
+                                    <s:CheckBox id="changeMarketCheckbox" label="Change" toolTip="@Resource(key='change', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <s:CheckBox id="marketValueCheckbox" label="@Resource(key='market', bundle='strings')" enabled="{changeMarketCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right">
+                                    <s:Label text="{resourceManager.getString('strings', 'name') + ':'}"/>
+                                    <s:TextInput id="marketNameInput" width="100%" enabled="{changeMarketCheckbox.selected &amp;&amp; marketValueCheckbox.selected}"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right">
+                                    <s:Label text="{resourceManager.getString('strings', 'category') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:DropDownList id="marketCategoryDropDown" width="170" height="20" fontSize="11" requireSelection="true" selectedIndex="0"
+                                        enabled="{changeMarketCheckbox.selected &amp;&amp; marketValueCheckbox.selected}">
+                                        <s:dataProvider>
+                                            <s:ArrayList>
+                                                <fx:String>{resourceManager.getString('strings', 'market.armors')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.amulets')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.boots')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.containers')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.decoration')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.foods')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.helmetsAndHats')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.legs')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.others')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.potions')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.rings')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.runes')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.shields')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.tools')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.valuables')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.ammunition')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.axes')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.clubs')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.distance')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.swords')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.wandsAndRods')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.premiumScrolls')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'market.metaWeapons')}</fx:String>
+                                            </s:ArrayList>
+                                        </s:dataProvider>
+                                    </s:DropDownList>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right">
+                                    <s:Label text="{resourceManager.getString('strings', 'tradeAs') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:NumericStepper id="marketTradeAsStepper" width="80" minimum="0" maximum="16777215" value="0"
+                                        enabled="{changeMarketCheckbox.selected &amp;&amp; marketValueCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right">
+                                    <s:Label text="{resourceManager.getString('strings', 'showAs') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:NumericStepper id="marketShowAsStepper" width="80" minimum="0" maximum="16777215" value="0"
+                                        enabled="{changeMarketCheckbox.selected &amp;&amp; marketValueCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right">
+                                    <s:Label text="{resourceManager.getString('strings', 'vocation') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:NumericStepper id="marketVocationStepper" width="80" minimum="0" maximum="16777215" value="0"
+                                        enabled="{changeMarketCheckbox.selected &amp;&amp; marketValueCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right">
+                                    <s:Label text="{resourceManager.getString('strings', 'level') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:NumericStepper id="marketLevelStepper" width="80" minimum="0" maximum="16777215" value="0"
+                                        enabled="{changeMarketCheckbox.selected &amp;&amp; marketValueCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                            </nail:GroupBox>
+
+                            <!-- 8. writeRead group (ITEM only) -->
+                            <nail:GroupBox label="@Resource(key='writeRead', bundle='strings')"
+                                width="100%" includeIn="item">
+                                <nail:layout><s:VerticalLayout paddingLeft="10" paddingRight="45" paddingTop="10" paddingBottom="10" horizontalAlign="right" gap="5"/></nail:layout>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right">
+                                    <s:CheckBox id="changeWritableCheckbox" label="Change" toolTip="@Resource(key='change', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <s:CheckBox id="writableValueCheckbox" label="@Resource(key='writable', bundle='strings')" minWidth="100" enabled="{changeWritableCheckbox.selected}" change="onPropertyChange(event)"/>
+                                    <s:Label text="@Resource(key='maxLength', bundle='strings')" minWidth="80" textAlign="right" enabled="{changeWritableCheckbox.selected &amp;&amp; writableValueCheckbox.selected}"/>
+                                    <s:NumericStepper id="maxReadWriteCharsStepper" width="80" minimum="0" maximum="65535" value="0" enabled="{changeWritableCheckbox.selected &amp;&amp; writableValueCheckbox.selected}"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right">
+                                    <s:CheckBox id="changeWritableOnceCheckbox" label="Change" toolTip="@Resource(key='change', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <s:CheckBox id="writableOnceValueCheckbox" label="@Resource(key='writableOnce', bundle='strings')" minWidth="100" enabled="{changeWritableOnceCheckbox.selected}" change="onPropertyChange(event)"/>
+                                    <s:Label text="@Resource(key='maxLength', bundle='strings')" minWidth="80" textAlign="right" enabled="{changeWritableOnceCheckbox.selected &amp;&amp; writableOnceValueCheckbox.selected}"/>
+                                    <s:NumericStepper id="maxReadCharsStepper" width="80" minimum="0" maximum="65535" value="0" enabled="{changeWritableOnceCheckbox.selected &amp;&amp; writableOnceValueCheckbox.selected}"/>
+                                </s:HGroup>
+                            </nail:GroupBox>
+
+                            <!-- 9. hasAction group (ITEM only) -->
+                            <nail:GroupBox id="actionGroupBox" label="@Resource(key='hasAction', bundle='strings')"
+                                width="100%" includeIn="item">
+                                <nail:layout><s:VerticalLayout padding="10" gap="5"/></nail:layout>
+                                <s:HGroup width="100%" verticalAlign="middle" gap="10">
+                                    <s:CheckBox id="changeDefaultActionCheckbox" label="Change" toolTip="@Resource(key='change', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <s:CheckBox id="defaultActionValueCheckbox" label="@Resource(key='hasAction', bundle='strings')" enabled="{changeDefaultActionCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right" gap="10" paddingRight="30">
+                                    <s:Label text="@Resource(key='actionType', bundle='strings')" textAlign="right" minWidth="60"/>
+                                    <s:DropDownList id="defaultActionDropDown" width="170" height="20" fontSize="11" requireSelection="true" selectedIndex="0"
+                                        enabled="{changeDefaultActionCheckbox.selected &amp;&amp; defaultActionValueCheckbox.selected}">
+                                        <s:dataProvider>
+                                            <s:ArrayList>
+                                                <fx:String>{resourceManager.getString('strings', 'action.none')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'action.look')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'action.use')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'action.open')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'action.autowalkHighlight')}</fx:String>
+                                            </s:ArrayList>
+                                        </s:dataProvider>
+                                    </s:DropDownList>
+                                </s:HGroup>
+                            </nail:GroupBox>
+
+                            <!-- 10. lensHelp group (ITEM only) -->
+                            <nail:GroupBox label="@Resource(key='lensHelp', bundle='strings')"
+                                width="100%" includeIn="item">
+                                <nail:layout><s:VerticalLayout padding="10" gap="5"/></nail:layout>
+                                <s:HGroup width="100%" verticalAlign="middle" gap="10">
+                                    <s:CheckBox id="changeLensHelpCheckbox" label="Change" toolTip="@Resource(key='change', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <s:CheckBox id="lensHelpValueCheckbox" label="@Resource(key='lensHelp', bundle='strings')" enabled="{changeLensHelpCheckbox.selected}" change="onPropertyChange(event)"/>
+                                </s:HGroup>
+                                <s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right" gap="10" paddingRight="30">
+                                    <s:Label text="{resourceManager.getString('strings', 'type') + ':'}" minWidth="60" textAlign="right"/>
+                                    <s:DropDownList id="lensHelpDropDown" width="170" height="20" fontSize="11" requireSelection="true" selectedIndex="0"
+                                        enabled="{changeLensHelpCheckbox.selected &amp;&amp; lensHelpValueCheckbox.selected}">
+                                        <s:dataProvider>
+                                            <s:ArrayList>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.ladders')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.sewerGrates')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.dungeonFloor')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.levers')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.doors')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.specialDoors')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.stairs')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.mailboxes')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.depotBoxes')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.dustbins')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.stonePiles')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.signs')}</fx:String>
+                                                <fx:String>{resourceManager.getString('strings', 'lensHelp.booksAndScrolls')}</fx:String>
+                                            </s:ArrayList>
+                                        </s:dataProvider>
+                                    </s:DropDownList>
+                                </s:HGroup>
+                            </nail:GroupBox>
+
+                            <!-- 11. flags (ITEM only) — two columns like ThingTypeEditor -->
+                            <nail:GroupBox label="@Resource(key='flags', bundle='strings')"
+                                width="100%" includeIn="item">
+                                <nail:layout><s:HorizontalLayout padding="10"/></nail:layout>
+                                <s:VGroup width="100%" height="100%">
                                     <otlib:BulkPropertyRow propertyName="isGroundBorder" labelText="@Resource(key='isGroundBorder', bundle='strings')" change="onPropertyChange(event)"/>
                                     <otlib:BulkPropertyRow propertyName="isOnBottom" labelText="@Resource(key='isOnBottom', bundle='strings')" change="onPropertyChange(event)"/>
                                     <otlib:BulkPropertyRow propertyName="isOnTop" labelText="@Resource(key='isOnTop', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="isFullGround" labelText="@Resource(key='fullGround', bundle='strings')" change="onPropertyChange(event)"/>
-                                </s:Group>
-                            </nail:GroupBox>
-
-                            <!-- Other Properties (ITEM only) -->
-                            <nail:GroupBox label="@Resource(key='othersProperties', bundle='strings')"
-                                width="100%"
-                                includeIn="item">
-                                <nail:layout>
-                                    <s:VerticalLayout paddingLeft="5" paddingRight="5" paddingTop="3" paddingBottom="5" gap="0"/>
-                                </nail:layout>
-                                <s:Group width="100%">
-                                    <s:layout>
-                                        <s:TileLayout columnWidth="220" rowHeight="20" horizontalGap="10" verticalGap="0" columnAlign="justifyUsingWidth"/>
-                                    </s:layout>
                                     <otlib:BulkPropertyRow propertyName="isContainer" labelText="@Resource(key='container', bundle='strings')" change="onPropertyChange(event)"/>
                                     <otlib:BulkPropertyRow propertyName="stackable" labelText="@Resource(key='stackable', bundle='strings')" change="onPropertyChange(event)"/>
                                     <otlib:BulkPropertyRow propertyName="forceUse" labelText="@Resource(key='forceUse', bundle='strings')" change="onPropertyChange(event)"/>
@@ -374,64 +799,46 @@ THE SOFTWARE.
                                     <otlib:BulkPropertyRow propertyName="isUnmoveable" labelText="@Resource(key='unmovable', bundle='strings')" change="onPropertyChange(event)"/>
                                     <otlib:BulkPropertyRow propertyName="blockMissile" labelText="@Resource(key='blockMissile', bundle='strings')" change="onPropertyChange(event)"/>
                                     <otlib:BulkPropertyRow propertyName="blockPathfind" labelText="@Resource(key='blockPathfinder', bundle='strings')" change="onPropertyChange(event)"/>
+                                </s:VGroup>
+                                <s:VGroup width="100%" height="100%">
+                                    <otlib:BulkPropertyRow id="noMoveAnimationRow" propertyName="noMoveAnimation" labelText="@Resource(key='noMoveAnimation', bundle='strings')" change="onPropertyChange(event)"/>
                                     <otlib:BulkPropertyRow propertyName="pickupable" labelText="@Resource(key='pickupable', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="hangable" labelText="@Resource(key='hangable', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="isVertical" labelText="@Resource(key='verticalWall', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="isHorizontal" labelText="@Resource(key='horizontalWall', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <otlib:BulkPropertyRow id="hangableRow" propertyName="hangable" labelText="@Resource(key='hangable', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <otlib:BulkPropertyRow id="isHorizontalRow" propertyName="isHorizontal" labelText="@Resource(key='horizontalWall', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <otlib:BulkPropertyRow id="isVerticalRow" propertyName="isVertical" labelText="@Resource(key='verticalWall', bundle='strings')" change="onPropertyChange(event)"/>
                                     <otlib:BulkPropertyRow propertyName="rotatable" labelText="@Resource(key='rotatable', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="dontHide" labelText="@Resource(key='dontHide', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="isTranslucent" labelText="@Resource(key='translucent', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <otlib:BulkPropertyRow id="dontHideRow" propertyName="dontHide" labelText="@Resource(key='dontHide', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <otlib:BulkPropertyRow id="isTranslucentRow" propertyName="isTranslucent" labelText="@Resource(key='translucent', bundle='strings')" change="onPropertyChange(event)"/>
                                     <otlib:BulkPropertyRow propertyName="isLyingObject" labelText="@Resource(key='lyingObject', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="ignoreLook" labelText="@Resource(key='ignoreLook', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="hasCharges" labelText="@Resource(key='hasCharges', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="noMoveAnimation" labelText="@Resource(key='noMoveAnimation', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="usable" labelText="@Resource(key='usable', bundle='strings')" change="onPropertyChange(event)"/>
                                     <otlib:BulkPropertyRow propertyName="animateAlways" labelText="@Resource(key='animateAlways', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="writable" labelText="@Resource(key='writable', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="writableOnce" labelText="@Resource(key='writableOnce', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="floorChange" labelText="@Resource(key='floorChange', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="wrappable" labelText="@Resource(key='wrappable', bundle='strings')" change="onPropertyChange(event)"/>
-                                    <otlib:BulkPropertyRow propertyName="unwrappable" labelText="@Resource(key='unwrappable', bundle='strings')" change="onPropertyChange(event)"/>
-                                </s:Group>
+                                    <otlib:BulkPropertyRow propertyName="isFullGround" labelText="@Resource(key='fullGround', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <otlib:BulkPropertyRow id="ignoreLookRow" propertyName="ignoreLook" labelText="@Resource(key='ignoreLook', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <otlib:BulkPropertyRow id="usableRow" propertyName="usable" labelText="@Resource(key='usable', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <otlib:BulkPropertyRow id="hasChargesRow" propertyName="hasCharges" labelText="@Resource(key='hasCharges', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <otlib:BulkPropertyRow id="floorChangeRow" propertyName="floorChange" labelText="@Resource(key='floorChange', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <otlib:BulkPropertyRow id="wrappableRow" propertyName="wrappable" labelText="@Resource(key='wrappable', bundle='strings')" change="onPropertyChange(event)"/>
+                                    <otlib:BulkPropertyRow id="unwrappableRow" propertyName="unwrappable" labelText="@Resource(key='unwrappable', bundle='strings')" change="onPropertyChange(event)"/>
+                                </s:VGroup>
                             </nail:GroupBox>
 
                             <!-- Outfit Properties -->
-                            <nail:GroupBox label="@Resource(key='properties', bundle='strings')"
-                                width="100%"
-                                includeIn="outfit">
-                                <nail:layout>
-                                    <s:VerticalLayout paddingLeft="5" paddingRight="5" paddingTop="3" paddingBottom="5" gap="0"/>
-                                </nail:layout>
-                                <s:Group width="100%">
-                                    <s:layout>
-                                        <s:TileLayout columnWidth="220" rowHeight="20" horizontalGap="10" verticalGap="0" columnAlign="justifyUsingWidth"/>
-                                    </s:layout>
-                                    <otlib:BulkPropertyRow propertyName="animateAlways" labelText="@Resource(key='animateAlways', bundle='strings')" change="onPropertyChange(event)"/>
-                                </s:Group>
+                            <nail:GroupBox label="@Resource(key='flags', bundle='strings')"
+                                width="100%" includeIn="outfit">
+                                <nail:layout><s:VerticalLayout padding="10"/></nail:layout>
+                                <otlib:BulkPropertyRow propertyName="animateAlways" labelText="@Resource(key='animateAlways', bundle='strings')" change="onPropertyChange(event)"/>
                             </nail:GroupBox>
 
                             <!-- Effect Properties -->
-                            <nail:GroupBox label="@Resource(key='properties', bundle='strings')"
-                                width="100%"
-                                includeIn="effect">
-                                <nail:layout>
-                                    <s:VerticalLayout paddingLeft="5" paddingRight="5" paddingTop="3" paddingBottom="5" gap="0"/>
-                                </nail:layout>
-                                <s:Group width="100%">
-                                    <s:layout>
-                                        <s:TileLayout columnWidth="220" rowHeight="20" horizontalGap="10" verticalGap="0" columnAlign="justifyUsingWidth"/>
-                                    </s:layout>
-                                    <otlib:BulkPropertyRow propertyName="topEffect" labelText="@Resource(key='topEffect', bundle='strings')" change="onPropertyChange(event)"/>
-                                </s:Group>
+                            <nail:GroupBox label="@Resource(key='flags', bundle='strings')"
+                                width="100%" includeIn="effect">
+                                <nail:layout><s:VerticalLayout padding="10"/></nail:layout>
+                                <otlib:BulkPropertyRow id="topEffectEffectRow" propertyName="topEffect" labelText="@Resource(key='topEffect', bundle='strings')" change="onPropertyChange(event)"/>
                             </nail:GroupBox>
 
                             <!-- Animation Settings (Item, Outfit, Effect) - NOT Missile -->
                             <nail:GroupBox label="@Resource(key='animationSettings', bundle='strings')"
-                                width="100%"
-                                excludeFrom="missile">
-                                <nail:layout>
-                                    <s:VerticalLayout paddingLeft="10" paddingRight="10" paddingTop="8" paddingBottom="10" gap="5"/>
-                                </nail:layout>
+                                width="100%" excludeFrom="missile">
+                                <nail:layout><s:VerticalLayout padding="10" gap="5"/></nail:layout>
 
                                 <!-- Animation Mode -->
                                 <s:HGroup width="100%" verticalAlign="middle" gap="10">
@@ -467,11 +874,8 @@ THE SOFTWARE.
                             </nail:GroupBox>
 
                             <nail:GroupBox label="@Resource(key='animationDuration', bundle='strings')"
-                                width="100%"
-                                excludeFrom="missile">
-                                <nail:layout>
-                                    <s:VerticalLayout paddingLeft="10" paddingRight="10" paddingTop="8" paddingBottom="10" gap="5"/>
-                                </nail:layout>
+                                width="100%" excludeFrom="missile">
+                                <nail:layout><s:VerticalLayout padding="10" gap="5"/></nail:layout>
 
                                 <s:HGroup width="100%" verticalAlign="middle" gap="10">
                                     <s:CheckBox id="changeDurationCheckbox" label="Change"
@@ -507,9 +911,7 @@ THE SOFTWARE.
                             <nail:GroupBox label="@Resource(key='properties', bundle='strings')"
                                 width="100%"
                                 includeIn="missile">
-                                <nail:layout>
-                                    <s:VerticalLayout paddingLeft="10" paddingRight="10" paddingTop="8" paddingBottom="10" gap="5"/>
-                                </nail:layout>
+                                <nail:layout><s:VerticalLayout padding="10" gap="5"/></nail:layout>
                                 <s:Label text="@Resource(key='noPropertiesAvailable', bundle='strings')"/>
                             </nail:GroupBox>
 
