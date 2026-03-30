@@ -52,6 +52,7 @@ THE SOFTWARE.
             import flash.events.FocusEvent;
             import flash.events.KeyboardEvent;
             import flash.ui.Keyboard;
+            import flash.utils.Dictionary;
 
             import mx.controls.Spacer;
             import mx.core.DragSource;
@@ -122,6 +123,7 @@ THE SOFTWARE.
             private var _pixelsModified:Boolean = false;
             private var _filmRollBitmaps:Vector.<BitmapData> = new Vector.<BitmapData>();
             private var _suppressDrawCropSize:Boolean = false;  // guards drawCropSize() during batch button adds
+            private var _multiSelectedFrames:Dictionary = new Dictionary();
             private var _rect:Rectangle;
             private var _point:Point;
             private var _patternX:uint;
@@ -344,14 +346,31 @@ THE SOFTWARE.
             {
                 if (!_editPixelsMode || !_thingData) return;
 
+                // Ctrl+A: select all film roll frames
+                if (event.keyCode == Keyboard.A && event.ctrlKey
+                    && _filmRollMode && _frameGroup && _frameGroup.frames > 1)
+                {
+                    selectAllFilmRollFrames();
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    return;
+                }
+
+                var dx:int = 0, dy:int = 0;
                 switch (event.keyCode)
                 {
-                    case Keyboard.UP:    shiftPixels(0, -1); break;
-                    case Keyboard.DOWN:  shiftPixels(0, 1);  break;
-                    case Keyboard.LEFT:  shiftPixels(-1, 0); break;
-                    case Keyboard.RIGHT: shiftPixels(1, 0);  break;
+                    case Keyboard.UP:    dy = -1; break;
+                    case Keyboard.DOWN:  dy = 1;  break;
+                    case Keyboard.LEFT:  dx = -1; break;
+                    case Keyboard.RIGHT: dx = 1;  break;
                     default: return;
                 }
+
+                if (getMultiSelectedFrameCount() > 0)
+                    shiftMultipleFrames(dx, dy);
+                else
+                    shiftPixels(dx, dy);
+
                 event.preventDefault();
                 event.stopImmediatePropagation();
             }
@@ -383,14 +402,140 @@ THE SOFTWARE.
                 ];
             }
 
+            private function parseFrameName(name:String):Object
+            {
+                if (!name || name.indexOf("filmRollFrame_") != 0) return null;
+                var suffix:String = name.substr(14);
+                var uidx:int = suffix.indexOf("_");
+                if (uidx >= 0)
+                {
+                    var dIdx:uint = uint(suffix.substr(0, uidx));
+                    var dirs:Array = getDirectionMappings();
+                    if (dIdx >= dirs.length) return null;
+                    return { frameIdx: uint(suffix.substr(uidx + 1)), dirPatX: dirs[dIdx].patX, dirPatY: dirs[dIdx].patY };
+                }
+                return { frameIdx: uint(suffix), dirPatX: -1, dirPatY: -1 };
+            }
+
+            private function isFrameMultiSelected(frameName:String):Boolean
+            {
+                return _multiSelectedFrames[frameName] == true;
+            }
+
+            private function clearMultiSelection():void
+            {
+                _multiSelectedFrames = new Dictionary();
+            }
+
+            private function getMultiSelectedFrameCount():uint
+            {
+                var count:uint = 0;
+                for (var key:String in _multiSelectedFrames) count++;
+                return count;
+            }
+
+            /**
+             * Find the frame name that matches the current selection (animationSlider + _patternX/_patternY).
+             */
+            private function findCurrentFrameName(container:IVisualElementContainer):String
+            {
+                for (var i:int = 0; i < container.numElements; i++)
+                {
+                    var el:Object = container.getElementAt(i);
+                    if (el is Group)
+                    {
+                        var grp:Group = el as Group;
+                        if (grp.name && grp.name.indexOf("filmRollFrame_") == 0)
+                        {
+                            var info:Object = parseFrameName(grp.name);
+                            if (info && info.frameIdx == animationSlider.value)
+                            {
+                                if (info.dirPatX < 0)
+                                    return grp.name; // Simple frame — match by frame index only
+                                if (info.dirPatX == _patternX && info.dirPatY == _patternY)
+                                    return grp.name; // Multi-direction — match direction too
+                            }
+                        }
+                        else
+                        {
+                            var found:String = findCurrentFrameName(grp);
+                            if (found) return found;
+                        }
+                    }
+                    else if (el is IVisualElementContainer)
+                    {
+                        var found2:String = findCurrentFrameName(el as IVisualElementContainer);
+                        if (found2) return found2;
+                    }
+                }
+                return null;
+            }
+
             private function isContentPixel(pixel:uint):Boolean
             {
                 return (pixel >>> 24) > 0 && pixel != 0xFFFF00FF;
             }
 
-            private function shiftPixels(dx:int, dy:int):void
+            /**
+             * Check if pixel shift would be blocked by boundary for the current frame.
+             * Uses animationSlider.value, _patternX, _patternY (caller sets these).
+             */
+            private function isShiftBlocked(dx:int, dy:int):Boolean
             {
-                if (!_thingData || !_frameGroup) return;
+                if (!_thingData || !_frameGroup) return true;
+
+                var groupType:uint = frameGroupSlider.value;
+                var size:uint = SpriteExtent.DEFAULT_SIZE;
+                var f:uint = animationSlider.value;
+                var l:uint = layerSlider.value;
+                var patX:uint = _patternX % _frameGroup.patternX;
+                var patY:uint = (_patternY + addonsSlider.value) % _frameGroup.patternY;
+                var z:uint = mountSlider.value;
+                var fgWidth:uint = _frameGroup.width;
+                var fgHeight:uint = _frameGroup.height;
+                var totalW:uint = fgWidth * size;
+                var totalH:uint = fgHeight * size;
+                var rect32:Rectangle = new Rectangle(0, 0, size, size);
+                var pt:Point = new Point();
+                var emptyColor:uint = (_filesInfo && _filesInfo.transparency) ? 0x00000000 : 0xFFFF00FF;
+
+                var composite:BitmapData = new BitmapData(totalW, totalH, true, emptyColor);
+                for (var w:uint = 0; w < fgWidth; w++)
+                {
+                    for (var h:uint = 0; h < fgHeight; h++)
+                    {
+                        var index:int = _frameGroup.getSpriteIndex(w, h, l, patX, patY, z, f);
+                        var bmp:BitmapData = _thingBinding.getSpriteBitmap(groupType, index);
+                        if (!bmp) continue;
+                        pt.x = (fgWidth - w - 1) * size;
+                        pt.y = (fgHeight - h - 1) * size;
+                        composite.copyPixels(bmp, rect32, pt);
+                        bmp.dispose();
+                    }
+                }
+
+                var blocked:Boolean = false;
+                if (dx > 0)
+                { for (var ry:int = 0; ry < totalH; ry++) { if (isContentPixel(composite.getPixel32(totalW - 1, ry))) { blocked = true; break; } } }
+                else if (dx < 0)
+                { for (var ly:int = 0; ly < totalH; ly++) { if (isContentPixel(composite.getPixel32(0, ly))) { blocked = true; break; } } }
+                if (dy > 0)
+                { for (var bx:int = 0; bx < totalW; bx++) { if (isContentPixel(composite.getPixel32(bx, totalH - 1))) { blocked = true; break; } } }
+                else if (dy < 0)
+                { for (var tx:int = 0; tx < totalW; tx++) { if (isContentPixel(composite.getPixel32(tx, 0))) { blocked = true; break; } } }
+
+                composite.dispose();
+                return blocked;
+            }
+
+            /**
+             * Core pixel shift logic: compose → boundary check → shift → split.
+             * Returns true if shift succeeded, false if blocked by boundary.
+             * Does NOT trigger UI refresh or events — caller handles that.
+             */
+            private function shiftPixelsCore(dx:int, dy:int):Boolean
+            {
+                if (!_thingData || !_frameGroup) return false;
 
                 var groupType:uint = frameGroupSlider.value;
                 var size:uint = SpriteExtent.DEFAULT_SIZE;
@@ -409,12 +554,9 @@ THE SOFTWARE.
                 var pt:Point = new Point();
                 var index:int;
                 var bmp:BitmapData;
-                var px:int;
-                var py:int;
 
                 var emptyColor:uint = (_filesInfo && _filesInfo.transparency) ? 0x00000000 : 0xFFFF00FF;
 
-                // Crop boundary (bottom-right aligned)
                 var cropSize:uint = cropSizeNumericStepper.value;
                 var cropW:uint = (cropSize > 0 && cropSize < totalW) ? Math.min(totalW, cropSize) : totalW;
                 var cropH:uint = (cropSize > 0 && cropSize < totalH) ? Math.min(totalH, cropSize) : totalH;
@@ -437,50 +579,30 @@ THE SOFTWARE.
                     }
                 }
 
-                // 2. Boundary check — getPixel32 on BITMAP edge in shift direction
-                //    Crop is bottom-right aligned: right/bottom bitmap edge = crop edge
-                //    Left/top: check bitmap edge (0, 0) to allow shifting into margin
+                // 2. Boundary check
                 var blocked:Boolean = false;
-
                 if (dx > 0)
                 {
                     for (var ery:int = 0; ery < totalH; ery++)
-                    {
-                        if (isContentPixel(composite.getPixel32(totalW - 1, ery)))
-                        { blocked = true; break; }
-                    }
+                    { if (isContentPixel(composite.getPixel32(totalW - 1, ery))) { blocked = true; break; } }
                 }
                 else if (dx < 0)
                 {
                     for (var ely:int = 0; ely < totalH; ely++)
-                    {
-                        if (isContentPixel(composite.getPixel32(0, ely)))
-                        { blocked = true; break; }
-                    }
+                    { if (isContentPixel(composite.getPixel32(0, ely))) { blocked = true; break; } }
                 }
-
                 if (dy > 0)
                 {
                     for (var ebx:int = 0; ebx < totalW; ebx++)
-                    {
-                        if (isContentPixel(composite.getPixel32(ebx, totalH - 1)))
-                        { blocked = true; break; }
-                    }
+                    { if (isContentPixel(composite.getPixel32(ebx, totalH - 1))) { blocked = true; break; } }
                 }
                 else if (dy < 0)
                 {
                     for (var etx:int = 0; etx < totalW; etx++)
-                    {
-                        if (isContentPixel(composite.getPixel32(etx, 0)))
-                        { blocked = true; break; }
-                    }
+                    { if (isContentPixel(composite.getPixel32(etx, 0))) { blocked = true; break; } }
                 }
 
-                if (blocked)
-                {
-                    composite.dispose();
-                    return;
-                }
+                if (blocked) { composite.dispose(); return false; }
 
                 // 3. Shift the composite
                 var shifted:BitmapData = new BitmapData(totalW, totalH, true, emptyColor);
@@ -488,7 +610,7 @@ THE SOFTWARE.
                 shifted.copyPixels(composite, composite.rect, pt);
                 composite.dispose();
 
-                // 4. Split back into individual 32x32 sprites (reuse single tile BitmapData + region Rectangle)
+                // 4. Split back into individual sprites
                 var region:Rectangle = new Rectangle(0, 0, size, size);
                 var tile:BitmapData = new BitmapData(size, size, true, emptyColor);
                 pt.x = 0; pt.y = 0;
@@ -507,29 +629,30 @@ THE SOFTWARE.
                         var origId:uint = _frameGroup.spriteIndex[index];
                         if (sd && origId != 0)
                         {
-                            // Existing sprite — clone with SAME ID so worker replaces, not adds
                             var clonedSd:SpriteData = SpriteData.createSpriteData(uint.MAX_VALUE, tilePixels);
                             _thingBinding.sprites[groupType][index] = clonedSd;
                             _frameGroup.spriteIndex[index] = uint.MAX_VALUE;
                         }
                         else
                         {
-                            // Sprite 0 slot — create new only if tile has content
                             var newSd:SpriteData = SpriteData.createSpriteData(uint.MAX_VALUE, tilePixels);
                             if (!newSd.isEmpty())
-                            {
                                 _thingBinding.setSprite(groupType, index, newSd);
-                            }
                         }
                     }
                 }
                 tile.dispose();
                 shifted.dispose();
+                return true;
+            }
+
+            private function shiftPixels(dx:int, dy:int):void
+            {
+                if (!shiftPixelsCore(dx, dy)) return;
 
                 _pixelsModified = true;
                 _changed = true;
 
-                // Lightweight refresh — only recompose bitmap, don't rebuild UI
                 if (_filmRollMode && _frameGroup.frames > 1)
                     refreshFilmRollFrame();
                 else
@@ -537,6 +660,96 @@ THE SOFTWARE.
 
                 setFocus();
                 dispatchEvent(new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, _thingData));
+            }
+
+            private function shiftMultipleFrames(dx:int, dy:int):void
+            {
+                if (!_thingData || !_frameGroup) return;
+
+                var savedF:uint = animationSlider.value;
+                var savedPatX:uint = _patternX;
+                var savedPatY:uint = _patternY;
+
+                // Pass 1: check ALL frames — if ANY is blocked, abort entirely
+                for (var frameName:String in _multiSelectedFrames)
+                {
+                    var info:Object = parseFrameName(frameName);
+                    if (!info) continue;
+
+                    animationSlider.value = info.frameIdx;
+                    if (info.dirPatX >= 0)
+                    {
+                        _patternX = info.dirPatX;
+                        _patternY = info.dirPatY;
+                    }
+
+                    if (isShiftBlocked(dx, dy))
+                    {
+                        // Restore and abort — no frames shifted
+                        animationSlider.value = savedF;
+                        _patternX = savedPatX;
+                        _patternY = savedPatY;
+                        return;
+                    }
+                }
+
+                // Pass 2: shift ALL frames (guaranteed none blocked)
+                for (frameName in _multiSelectedFrames)
+                {
+                    info = parseFrameName(frameName);
+                    if (!info) continue;
+
+                    animationSlider.value = info.frameIdx;
+                    if (info.dirPatX >= 0)
+                    {
+                        _patternX = info.dirPatX;
+                        _patternY = info.dirPatY;
+                    }
+
+                    shiftPixelsCore(dx, dy);
+                }
+
+                animationSlider.value = savedF;
+                _patternX = savedPatX;
+                _patternY = savedPatY;
+
+                _pixelsModified = true;
+                _changed = true;
+
+                if (_filmRollMode && _frameGroup.frames > 1)
+                    updatePreview();
+                else
+                    refreshViewBitmap();
+
+                setFocus();
+                dispatchEvent(new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, _thingData));
+            }
+
+            private function selectAllFilmRollFrames():void
+            {
+                clearMultiSelection();
+                collectFrameNamesRecursive(buttonsContainer);
+                updateFilmRollSelection();
+            }
+
+            private function collectFrameNamesRecursive(container:IVisualElementContainer):void
+            {
+                for (var i:int = 0; i < container.numElements; i++)
+                {
+                    var el:Object = container.getElementAt(i);
+                    if (el is Group)
+                    {
+                        var grp:Group = el as Group;
+                        if (grp.name && grp.name.indexOf("filmRollFrame_") == 0)
+                            _multiSelectedFrames[grp.name] = true;
+                        else
+                            collectFrameNamesRecursive(grp);
+                    }
+                    else if (el is IVisualElementContainer)
+                    {
+                        collectFrameNamesRecursive(el as IVisualElementContainer);
+                    }
+                }
             }
 
             public function updateFrameGroupNameLabel():void
@@ -764,6 +977,7 @@ THE SOFTWARE.
                 _loading = true;
                 _editPixelsMode = false;
                 _pixelsModified = false;
+                clearMultiSelection();
                 _lastAnimationFrame = 0;
                 _lastPreviewState = null; // Reset cache for updatePreview optimization
             
@@ -1237,10 +1451,16 @@ THE SOFTWARE.
                     if (_editPixelsMode)
                         frameGrp.addElement(createPixelGridOverlay(frameW, frameH));
 
-                    // Selection border (blue for edit pixels, green for normal)
-                    if (f == currentFrame)
+                    // Selection border
+                    var isCurrent:Boolean = (f == currentFrame);
+                    var isMulti:Boolean = isFrameMultiSelected(frameGrp.name);
+                    if (isCurrent || isMulti)
                     {
-                        var borderColor:uint = _editPixelsMode ? 0x6CACEC : 0x00FF00;
+                        var borderColor:uint;
+                        if (isCurrent)
+                            borderColor = _editPixelsMode ? 0x6CACEC : 0x00FF00;
+                        else
+                            borderColor = 0xFFAA00;
                         var selRect:Rect = new Rect();
                         selRect.x = -1;
                         selRect.y = -1;
@@ -1403,11 +1623,17 @@ THE SOFTWARE.
                         if (_editPixelsMode)
                             mdFrameGrp.addElement(createPixelGridOverlay(frameW, frameH));
 
-                        // Selection border (compare patY with addon offset for outfits)
+                        // Selection border
                         var selPatY:uint = isOutfit ? (_patternY + addonY) : _patternY;
-                        if (f == currentFrame && dir.patX == _patternX && dir.patY == selPatY)
+                        var mdIsCurrent:Boolean = (f == currentFrame && dir.patX == _patternX && dir.patY == selPatY);
+                        var mdIsMulti:Boolean = isFrameMultiSelected(mdFrameGrp.name);
+                        if (mdIsCurrent || mdIsMulti)
                         {
-                            var mdBorderColor:uint = _editPixelsMode ? 0x6CACEC : 0x00FF00;
+                            var mdBorderColor:uint;
+                            if (mdIsCurrent)
+                                mdBorderColor = _editPixelsMode ? 0x6CACEC : 0x00FF00;
+                            else
+                                mdBorderColor = 0xFFAA00;
                             var mdSelRect:Rect = new Rect();
                             mdSelRect.x = -1;
                             mdSelRect.y = -1;
@@ -1437,8 +1663,30 @@ THE SOFTWARE.
 
                 var name:String = target.name;
                 if (name.indexOf("filmRollFrame_") != 0) return;
-                var suffix:String = name.substr(14);
 
+                // Ctrl+Click: toggle multi-select without changing current frame
+                if (event.ctrlKey && _editPixelsMode)
+                {
+                    // On first Ctrl+Click, add the currently active frame to multi-select
+                    if (getMultiSelectedFrameCount() == 0)
+                    {
+                        var currentName:String = findCurrentFrameName(buttonsContainer);
+                        if (currentName)
+                            _multiSelectedFrames[currentName] = true;
+                    }
+
+                    if (_multiSelectedFrames[name])
+                        delete _multiSelectedFrames[name];
+                    else
+                        _multiSelectedFrames[name] = true;
+                    updateFilmRollSelection();
+                    return;
+                }
+
+                // Normal click: clear multi-select, select single frame
+                clearMultiSelection();
+
+                var suffix:String = name.substr(14);
                 var underscoreIdx:int = suffix.indexOf("_");
                 if (underscoreIdx >= 0)
                 {
@@ -1459,7 +1707,6 @@ THE SOFTWARE.
                     animationSlider.value = uint(suffix);
                 }
 
-                // Lightweight selection update — don't rebuild entire film roll
                 updateFilmRollSelection();
             }
 
@@ -1501,11 +1748,15 @@ THE SOFTWARE.
                             if (lastEl is Rect && Rect(lastEl).stroke != null)
                                 grp.removeElementAt(grp.numElements - 1);
 
-                            // Add selection border if selected
-                            if (isSelected)
+                            // Add selection border
+                            var isMultiSel:Boolean = isFrameMultiSelected(grp.name);
+                            if (isSelected || isMultiSel)
                             {
-                                var borderColor:uint = _editPixelsMode ? 0x6CACEC : 0x00FF00;
-                                // Get size from bgRect (first child) to avoid feedback loop
+                                var borderColor:uint;
+                                if (isSelected)
+                                    borderColor = _editPixelsMode ? 0x6CACEC : 0x00FF00;
+                                else
+                                    borderColor = 0xFFAA00; // Orange for multi-select
                                 var bgEl:Object = grp.numElements > 0 ? grp.getElementAt(0) : null;
                                 var fW:Number = (bgEl is Rect) ? Rect(bgEl).width : 32;
                                 var fH:Number = (bgEl is Rect) ? Rect(bgEl).height : 32;
@@ -2743,12 +2994,12 @@ THE SOFTWARE.
                             <s:CheckBox id="editPixelsCheckBox"
                                 label="Edit Pixels"
                                 selected="{_editPixelsMode}"
-                                change="{_editPixelsMode = editPixelsCheckBox.selected; if (_editPixelsMode) setFocus(); if (_filmRollMode) updatePreview();}"/>
+                                change="{_editPixelsMode = editPixelsCheckBox.selected; clearMultiSelection(); if (_editPixelsMode) setFocus(); if (_filmRollMode) updatePreview();}"/>
 
                             <s:CheckBox id="filmRollCheckBox"
                                 label="Film Roll"
                                 selected="{_filmRollMode}"
-                                change="{_filmRollMode = filmRollCheckBox.selected; updatePreview();}"/>
+                                change="{_filmRollMode = filmRollCheckBox.selected; clearMultiSelection(); updatePreview();}"/>
                         </s:HGroup>
 
                         <s:Group width="100%" minHeight="200">
