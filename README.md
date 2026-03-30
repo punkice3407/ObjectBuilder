@@ -16,6 +16,9 @@ Some features:
 * 4K / high-DPI display support.
 * Bulk replace objects and sprites.
 * Quick Save and multiple window support.
+* Edit Pixels - shift sprite pixels with boundary protection.
+* Film Roll view for browsing animation frames.
+* Pixel grid overlay for precise editing.
 
 
 Supported client versions:

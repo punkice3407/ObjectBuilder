@@ -1,3 +1,18 @@
+### 0.5.9
+
+Features:
+
+* Edit Pixels - shift sprite pixels in any direction with boundary protection using arrow keys or on-screen buttons.
+* Film Roll view for browsing animation frames in a filmstrip layout.
+* Pixel grid overlay for precise sprite editing.
+* Multi-frame selection in Film Roll via Ctrl+Click (toggle individual frames) and Ctrl+A (select all). Shift pixels on all selected frames at once with arrow keys. Selected frames highlighted with orange border.
+* Bulk Editor expanded with missing properties (ground speed, light, minimap, offset, elevation, cloth, default action, lens help, market, writable) and version-dependent property visibility.
+
+Bug Fixes:
+
+* Fixed _changed flag not reset after save, causing false "Save changes?" dialog.
+* Fixed pink fields when shifting pixels on non-transparent clients.
+
 ### 0.5.8
 
 Features:
