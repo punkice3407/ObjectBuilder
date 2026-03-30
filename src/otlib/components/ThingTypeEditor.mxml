@@ -48,28 +48,36 @@ THE SOFTWARE.
 
     <fx:Script>
         <![CDATA[
+            import flash.display.Graphics;
+            import flash.events.FocusEvent;
+            import flash.events.KeyboardEvent;
+            import flash.ui.Keyboard;
+
+            import mx.controls.Spacer;
             import mx.core.DragSource;
             import mx.core.IVisualElement;
+            import mx.core.IVisualElementContainer;
             import mx.core.UIComponent;
             import mx.events.DragEvent;
             import mx.events.FlexEvent;
             import mx.events.PropertyChangeEvent;
+            import mx.graphics.SolidColor;
+            import mx.graphics.SolidColorStroke;
             import mx.managers.DragManager;
-            
+
             import spark.components.Button;
-            import spark.components.HGroup;
-            import spark.components.Label;
-            import spark.components.TextInput;
-            import spark.components.DropDownList;
             import spark.components.CheckBox;
             import spark.components.ComboBox;
+            import spark.components.DropDownList;
             import spark.components.Group;
-            import mx.controls.Spacer;
+            import spark.components.HGroup;
+            import spark.components.Image;
+            import spark.components.Label;
+            import spark.components.Scroller;
+            import spark.components.TextInput;
             import spark.events.IndexChangeEvent;
             import spark.formatters.NumberFormatter;
-            import flash.events.FocusEvent;
-            import flash.events.KeyboardEvent;
-            import flash.ui.Keyboard;
+            import spark.primitives.Rect;
             
             import otlib.animation.FrameDuration;
             import otlib.animation.FrameGroup;
@@ -109,7 +117,11 @@ THE SOFTWARE.
             private var _changed:Boolean;
             private var _loading:Boolean;
             [Bindable] private var _editPixelsMode:Boolean = false;
+            [Bindable] private var _filmRollMode:Boolean = false;
+            [Bindable] private var _currentDirectionLabel:String = "South";
             private var _pixelsModified:Boolean = false;
+            private var _filmRollBitmaps:Vector.<BitmapData> = new Vector.<BitmapData>();
+            private var _suppressDrawCropSize:Boolean = false;  // guards drawCropSize() during batch button adds
             private var _rect:Rectangle;
             private var _point:Point;
             private var _patternX:uint;
@@ -220,6 +232,11 @@ THE SOFTWARE.
             public function setCurrentFrameGroup(value:FrameGroup):void
             {
                 _frameGroup = value;
+                // Update pixel grid size in single invalidation pass
+                if (pixelGrid && value)
+                    pixelGrid.setGridSize(value.width * 8, value.height * 8);
+                else if (pixelGrid)
+                    pixelGrid.setGridSize(1, 1);
             }
             
             public function set spriteDimension(value:SpriteDimension):void
@@ -339,6 +356,33 @@ THE SOFTWARE.
                 event.stopImmediatePropagation();
             }
 
+            private function getDirectionLabel(direction:Direction):String
+            {
+                switch(direction)
+                {
+                    case Direction.NORTH: return "North";
+                    case Direction.EAST: return "East";
+                    case Direction.SOUTH: return "South";
+                    case Direction.WEST: return "West";
+                    case Direction.NORTHWEST: return "Northwest";
+                    case Direction.NORTHEAST: return "Northeast";
+                    case Direction.SOUTHWEST: return "Southwest";
+                    case Direction.SOUTHEAST: return "Southeast";
+                }
+                return "";
+            }
+
+            private function getDirectionMappings():Array
+            {
+                var isOutfit:Boolean = (_thingData && _thingData.category == ThingCategory.OUTFIT);
+                return [
+                    { patX: isOutfit ? 0 : 1, patY: 0 },
+                    { patX: isOutfit ? 1 : 2, patY: isOutfit ? 0 : 1 },
+                    { patX: isOutfit ? 2 : 1, patY: isOutfit ? 0 : 2 },
+                    { patX: isOutfit ? 3 : 0, patY: isOutfit ? 0 : 1 }
+                ];
+            }
+
             private function isContentPixel(pixel:uint):Boolean
             {
                 return (pixel >>> 24) > 0 && pixel != 0xFFFF00FF;
@@ -362,8 +406,8 @@ THE SOFTWARE.
                 var totalW:uint = fgWidth * size;
                 var totalH:uint = fgHeight * size;
                 var rect32:Rectangle = new Rectangle(0, 0, size, size);
+                var pt:Point = new Point();
                 var index:int;
-                var sd:SpriteData;
                 var bmp:BitmapData;
                 var px:int;
                 var py:int;
@@ -384,13 +428,11 @@ THE SOFTWARE.
                     for (h = 0; h < fgHeight; h++)
                     {
                         index = _frameGroup.getSpriteIndex(w, h, l, patX, patY, z, f);
-                        sd = _thingBinding.sprites[groupType][index];
-                        if (!sd) continue;
-                        bmp = sd.getBitmap();
+                        bmp = _thingBinding.getSpriteBitmap(groupType, index);
                         if (!bmp) continue;
-                        px = (fgWidth - w - 1) * size;
-                        py = (fgHeight - h - 1) * size;
-                        composite.copyPixels(bmp, rect32, new Point(px, py));
+                        pt.x = (fgWidth - w - 1) * size;
+                        pt.y = (fgHeight - h - 1) * size;
+                        composite.copyPixels(bmp, rect32, pt);
                         bmp.dispose();
                     }
                 }
@@ -442,24 +484,26 @@ THE SOFTWARE.
 
                 // 3. Shift the composite
                 var shifted:BitmapData = new BitmapData(totalW, totalH, true, emptyColor);
-                shifted.copyPixels(composite, composite.rect, new Point(dx, dy));
+                pt.x = dx; pt.y = dy;
+                shifted.copyPixels(composite, composite.rect, pt);
                 composite.dispose();
 
-                // 4. Split back into individual 32x32 sprites
+                // 4. Split back into individual 32x32 sprites (reuse single tile BitmapData + region Rectangle)
+                var region:Rectangle = new Rectangle(0, 0, size, size);
+                var tile:BitmapData = new BitmapData(size, size, true, emptyColor);
+                pt.x = 0; pt.y = 0;
                 for (w = 0; w < fgWidth; w++)
                 {
                     for (h = 0; h < fgHeight; h++)
                     {
                         index = _frameGroup.getSpriteIndex(w, h, l, patX, patY, z, f);
-                        px = (fgWidth - w - 1) * size;
-                        py = (fgHeight - h - 1) * size;
-                        var region:Rectangle = new Rectangle(px, py, size, size);
-                        var tile:BitmapData = new BitmapData(size, size, true, emptyColor);
-                        tile.copyPixels(shifted, region, new Point(0, 0));
+                        region.x = (fgWidth - w - 1) * size;
+                        region.y = (fgHeight - h - 1) * size;
+                        tile.fillRect(rect32, emptyColor);
+                        tile.copyPixels(shifted, region, pt);
                         var tilePixels:ByteArray = tile.getPixels(rect32);
-                        tile.dispose();
 
-                        sd = _thingBinding.sprites[groupType][index];
+                        var sd:SpriteData = _thingBinding.sprites[groupType][index];
                         var origId:uint = _frameGroup.spriteIndex[index];
                         if (sd && origId != 0)
                         {
@@ -479,11 +523,18 @@ THE SOFTWARE.
                         }
                     }
                 }
+                tile.dispose();
                 shifted.dispose();
 
                 _pixelsModified = true;
                 _changed = true;
-                updatePreview();
+
+                // Lightweight refresh — only recompose bitmap, don't rebuild UI
+                if (_filmRollMode && _frameGroup.frames > 1)
+                    refreshFilmRollFrame();
+                else
+                    refreshViewBitmap();
+
                 setFocus();
                 dispatchEvent(new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, _thingData));
             }
@@ -553,10 +604,23 @@ THE SOFTWARE.
                     refreshFrameDurationsTime();
                 }
             
-                if (_thingData.category == ThingCategory.OUTFIT || _thingData.category == ThingCategory.MISSILE)
+                var isOutfitOrMissile:Boolean = (_thingData.category == ThingCategory.OUTFIT || _thingData.category == ThingCategory.MISSILE);
+
+                if (isOutfitOrMissile)
                 {
                     addonGroup.visible = (_thingData.category == ThingCategory.OUTFIT && patternYNumericStepper.value > 1);
                     frameGroupSlider.visible = (_thingData.category == ThingCategory.OUTFIT && frameGroupsNumericStepper.value > 1);
+                }
+
+                if (_filmRollMode && _frameGroup.frames > 1)
+                {
+                    if (isOutfitOrMissile)
+                        updateMultiDirectionFilmRollView();
+                    else
+                        updateFilmRollView();
+                }
+                else if (isOutfitOrMissile)
+                {
                     updateViewWithDirection();
                 }
                 else
@@ -584,65 +648,81 @@ THE SOFTWARE.
                 updatePreview();
             }
             
+            /**
+             * Recursively collect all sprite Buttons from a container (handles film roll nesting).
+             */
+            private function collectSpriteButtons(container:IVisualElementContainer, result:Vector.<Button>):void
+            {
+                for (var i:int = 0; i < container.numElements; i++)
+                {
+                    var el:Object = container.getElementAt(i);
+                    if (el is Button)
+                        result.push(el as Button);
+                    else if (el is IVisualElementContainer)
+                        collectSpriteButtons(el as IVisualElementContainer, result);
+                }
+            }
+
             public function copyFrame(frame:int):void
             {
                 if (!_thingData || !_frameGroup || frame < 0 || frame >= _frameGroup.frames)
                     return;
-            
+
                 var groupType:uint = _frameGroup.type;
                 if (!_thingBinding.sprites[groupType])
                     return;
-            
-                var length:int = buttonsContainer.numElements;
+
+                var buttons:Vector.<Button> = new Vector.<Button>();
+                collectSpriteButtons(buttonsContainer, buttons);
+                var length:int = buttons.length;
                 _virtualTransferArea = new Vector.<SpriteData>(length, true);
                 for (var i:int = 0; i < length; i++)
                 {
-                    var button:Button = buttonsContainer.getElementAt(i) as Button;
-                    var index:int = parseInt(button.label);
+                    var index:int = parseInt(buttons[i].label);
                     _virtualTransferArea[i] = _thingBinding.sprites[groupType][index].clone();
                 }
             }
-            
+
             public function pasteFrame(frame:int):void
             {
                 if (!_thingData || !_frameGroup || frame < 0 || frame >= _frameGroup.frames)
                     return;
-            
+
                 if (!_virtualTransferArea)
                     return;
-            
-                var length:int = buttonsContainer.numElements;
-                if (_virtualTransferArea.length != length)
+
+                var buttons:Vector.<Button> = new Vector.<Button>();
+                collectSpriteButtons(buttonsContainer, buttons);
+                if (_virtualTransferArea.length != buttons.length)
                     return;
-            
+
                 var groupType:uint = _frameGroup.type;
                 if (!_thingBinding.sprites[groupType])
                     return;
-            
-                for (var i:int = 0; i < length; i++)
+
+                for (var i:int = 0; i < buttons.length; i++)
                 {
-                    var button:Button = buttonsContainer.getElementAt(i) as Button;
-                    var index:int = parseInt(button.label);
+                    var index:int = parseInt(buttons[i].label);
                     _thingBinding.setSprite(groupType, index, _virtualTransferArea[i]);
                 }
                 updatePreview();
             }
-            
+
             public function clearFrame(frame:int):void
             {
                 if (!_thingData || !_frameGroup || frame < 0 || frame >= _frameGroup.frames)
                     return;
-            
+
                 var groupType:uint = _frameGroup.type;
                 if (!_thingBinding.sprites[groupType])
                     return;
-            
+
                 var sprite:SpriteData = new SpriteData();
-                var length:int = buttonsContainer.numElements;
-                for (var i:int = 0; i < length; i++)
+                var buttons:Vector.<Button> = new Vector.<Button>();
+                collectSpriteButtons(buttonsContainer, buttons);
+                for (var i:int = 0; i < buttons.length; i++)
                 {
-                    var button:Button = buttonsContainer.getElementAt(i) as Button;
-                    var index:int = parseInt(button.label);
+                    var index:int = parseInt(buttons[i].label);
                     _thingBinding.setSprite(groupType, index, sprite);
                 }
                 updatePreview();
@@ -900,22 +980,22 @@ THE SOFTWARE.
             private function updateViewWithDirection():void
             {
                 removeButtons();
-            
+
                 if (!_thingData || !_frameGroup)
                     return;
-            
+
                 var width:uint = _frameGroup.width;
                 var height:uint = _frameGroup.height;
                 var size:uint = SpriteExtent.DEFAULT_SIZE;
                 var bitmapWidth:Number = Math.max(size, width * size);
                 var bitmapHeight:Number = Math.max(size, height * size);
-            
+
                 if (_viewBitmap && (_viewBitmap.width != bitmapWidth || _viewBitmap.height != bitmapHeight))
                 {
                     _viewBitmap.dispose();
                     _viewBitmap = null;
                 }
-            
+
                 if (!_viewBitmap)
                 {
                     _viewBitmap = new BitmapData(bitmapWidth, bitmapHeight, true, 0x00FF00FF);
@@ -924,13 +1004,14 @@ THE SOFTWARE.
                 {
                     _viewBitmap.fillRect(_viewBitmap.rect, 0x00FF00FF);
                 }
-            
+
                 var f:uint = animationSlider.value;
                 var l:uint = layerSlider.value;
                 var x:uint = _patternX % _frameGroup.patternX;
                 var y:uint = (_patternY + addonsSlider.value) % _frameGroup.patternY;
                 var z:uint = mountSlider.value;
-            
+
+                _suppressDrawCropSize = true;
                 for (var w:uint = 0; w < width; w++)
                 {
                     for (var h:uint = 0; h < height; h++)
@@ -943,23 +1024,29 @@ THE SOFTWARE.
                         addButton(index, id, px, py);
                     }
                 }
-            
+                _suppressDrawCropSize = false;
+
                 if (bitmapView.source && bitmapView.source != _viewBitmap)
                 {
                     bitmapView.source.dispose();
                     bitmapView.source = null;
                 }
-            
+
                 bitmapView.source = _viewBitmap;
+                buttonsContainer.width = _viewBitmap.width;
+                buttonsContainer.height = _viewBitmap.height;
+                spriteViewContainer.scaleX = _zoom;
+                spriteViewContainer.scaleY = _zoom;
+                drawCropSize();
             }
-            
+
             private function updateView():void
             {
                 removeButtons();
-            
+
                 if (!_thingData)
                     return;
-            
+
                 var width:uint = _frameGroup.width;
                 var height:uint = _frameGroup.height;
                 var layers:uint = _frameGroup.layers;
@@ -970,13 +1057,13 @@ THE SOFTWARE.
                 var bitmapHeight:Number = Math.max(size, (patternY * height) * size);
                 var pixelsWidth:int = width * size;
                 var pixelsHeight:int = height * size;
-            
+
                 if (_viewBitmap && (_viewBitmap.width != bitmapWidth || _viewBitmap.height != bitmapHeight))
                 {
                     _viewBitmap.dispose();
                     _viewBitmap = null;
                 }
-            
+
                 if (!_viewBitmap)
                 {
                     _viewBitmap = new BitmapData(bitmapWidth, bitmapHeight, true, 0x00FF00FF);
@@ -985,11 +1072,12 @@ THE SOFTWARE.
                 {
                     _viewBitmap.fillRect(_viewBitmap.rect, 0x00FF00FF);
                 }
-            
+
                 var f:uint = animationSlider.value;
                 var l:uint = layerSlider.value;
                 var z:uint = mountSlider.value;
-            
+
+                _suppressDrawCropSize = true;
                 for (var y:uint = 0; y < patternY; y++)
                 {
                     for (var x:uint = 0; x < patternX; x++)
@@ -1010,16 +1098,438 @@ THE SOFTWARE.
                         }
                     }
                 }
-            
+                _suppressDrawCropSize = false;
+
                 if (bitmapView.source && bitmapView.source != _viewBitmap)
                 {
                     bitmapView.source.dispose();
                     bitmapView.source = null;
                 }
-            
+
                 bitmapView.source = _viewBitmap;
+                buttonsContainer.width = _viewBitmap.width;
+                buttonsContainer.height = _viewBitmap.height;
+                spriteViewContainer.scaleX = _zoom;
+                spriteViewContainer.scaleY = _zoom;
+                drawCropSize();
             }
-            
+
+            private function updateFilmRollView():void
+            {
+                removeButtons();
+                _rect.x = 0; _rect.y = 0;
+                _rect.width = SpriteExtent.DEFAULT_SIZE; _rect.height = SpriteExtent.DEFAULT_SIZE;
+                if (!_thingData || !_frameGroup || _frameGroup.frames <= 1) return;
+
+                var size:uint = SpriteExtent.DEFAULT_SIZE;
+                var fgWidth:uint = _frameGroup.width;
+                var fgHeight:uint = _frameGroup.height;
+                var patX:uint = _frameGroup.patternX;
+                var patY:uint = _frameGroup.patternY;
+                var frameW:uint = Math.max(size, (patX * fgWidth) * size);
+                var frameH:uint = Math.max(size, (patY * fgHeight) * size);
+                var frames:uint = _frameGroup.frames;
+                var spacing:uint = 4;
+                var pad:uint = 4;
+                var groupType:uint = frameGroupSlider.value;
+                var l:uint = layerSlider.value;
+                var z:uint = mountSlider.value;
+                var currentFrame:uint = animationSlider.value;
+
+                var totalW:uint = pad + frames * frameW + (frames - 1) * spacing + pad;
+
+                var availW:uint = appearanceGroupBox.width > 40 ? appearanceGroupBox.width - 40 : 300;
+                var scrollerW:uint = Math.min(totalW + 14, availW);
+
+                var scroller:Scroller = new Scroller();
+                scroller.width = scrollerW;
+                scroller.height = frameH + 14 + pad * 2 + 14;
+
+                var container:Group = new Group();
+
+                for (var f:uint = 0; f < frames; f++)
+                {
+                    var xPos:int = pad + f * (frameW + spacing);
+
+                    // Frame label
+                    var lbl:Label = new Label();
+                    lbl.text = String(f + 1);
+                    lbl.setStyle("color", 0x999999);
+                    lbl.setStyle("fontSize", 8);
+                    lbl.x = xPos + frameW / 2 - 4;
+                    lbl.y = pad;
+                    container.addElement(lbl);
+
+                    // Frame container
+                    var frameGrp:Group = new Group();
+                    frameGrp.x = xPos;
+                    frameGrp.y = 12 + pad;
+                    frameGrp.name = "filmRollFrame_" + f;
+                    frameGrp.addEventListener(MouseEvent.CLICK, filmRollFrameClickHandler);
+                    container.addElement(frameGrp);
+
+                    // Gray background
+                    var bgRect:Rect = new Rect();
+                    bgRect.width = frameW;
+                    bgRect.height = frameH;
+                    bgRect.fill = new SolidColor(0x636363);
+                    frameGrp.addElement(bgRect);
+
+                    // Compose frame bitmap
+                    var frameBmp:BitmapData = new BitmapData(frameW, frameH, true, 0x00FF00FF);
+                    _filmRollBitmaps.push(frameBmp);
+                    var pixelsWidth:int = fgWidth * size;
+                    var pixelsHeight:int = fgHeight * size;
+
+                    for (var y:uint = 0; y < patY; y++)
+                    {
+                        for (var x:uint = 0; x < patX; x++)
+                        {
+                            for (var w:uint = 0; w < fgWidth; w++)
+                            {
+                                for (var h:uint = 0; h < fgHeight; h++)
+                                {
+                                    var idx:int = _frameGroup.getSpriteIndex(w, h, l, x, y, z, f);
+                                    var bmp:BitmapData = _thingBinding.getSpriteBitmap(groupType, idx);
+                                    if (bmp)
+                                    {
+                                        var px:int = ((fgWidth - w - 1) * size) + x * pixelsWidth;
+                                        var py:int = ((fgHeight - h - 1) * size) + y * pixelsHeight;
+                                        frameBmp.copyPixels(bmp, _rect, new Point(px, py));
+                                        bmp.dispose();
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Frame image
+                    var img:Image = new Image();
+                    img.source = frameBmp;
+                    img.mouseEnabled = false;
+                    frameGrp.addElement(img);
+
+                    // Sprite buttons (interactive — inside frameGrp so drag-drop works)
+                    for (y = 0; y < patY; y++)
+                    {
+                        for (x = 0; x < patX; x++)
+                        {
+                            for (w = 0; w < fgWidth; w++)
+                            {
+                                for (h = 0; h < fgHeight; h++)
+                                {
+                                    idx = _frameGroup.getSpriteIndex(w, h, l, x, y, z, f);
+                                    var sid:uint = (idx < _frameGroup.spriteIndex.length) ? _frameGroup.spriteIndex[idx] : 0;
+                                    px = ((fgWidth - w - 1) * size) + x * pixelsWidth;
+                                    py = ((fgHeight - h - 1) * size) + y * pixelsHeight;
+                                    var btn:Button = getSpriteButtonFromPool();
+                                    btn.alpha = showGridCheckBox.selected ? 1 : 0;
+                                    btn.label = idx.toString();
+                                    btn.toolTip = sid.toString();
+                                    btn.move(px, py);
+                                    frameGrp.addElement(btn);
+                                }
+                            }
+                        }
+                    }
+
+                    // Pixel grid overlay (edit pixels mode only)
+                    if (_editPixelsMode)
+                        frameGrp.addElement(createPixelGridOverlay(frameW, frameH));
+
+                    // Selection border (blue for edit pixels, green for normal)
+                    if (f == currentFrame)
+                    {
+                        var borderColor:uint = _editPixelsMode ? 0x6CACEC : 0x00FF00;
+                        var selRect:Rect = new Rect();
+                        selRect.x = -1;
+                        selRect.y = -1;
+                        selRect.width = frameW + 2;
+                        selRect.height = frameH + 2;
+                        selRect.stroke = new SolidColorStroke(borderColor, 2);
+                        frameGrp.addElement(selRect);
+                    }
+                }
+
+                scroller.viewport = container;
+
+                bitmapView.visible = false;
+                buttonsContainer.addElement(scroller);
+                buttonsContainer.width = scrollerW;
+                buttonsContainer.height = frameH + 14 + pad * 2 + 14;
+
+                spriteViewContainer.scaleX = _zoom;
+                spriteViewContainer.scaleY = _zoom;
+            }
+
+            private function updateMultiDirectionFilmRollView():void
+            {
+                removeButtons();
+                _rect.x = 0; _rect.y = 0;
+                _rect.width = SpriteExtent.DEFAULT_SIZE; _rect.height = SpriteExtent.DEFAULT_SIZE;
+                if (!_thingData || !_frameGroup || _frameGroup.frames <= 1)
+                {
+                    updateViewWithDirection();
+                    return;
+                }
+
+                var size:uint = SpriteExtent.DEFAULT_SIZE;
+                var fgWidth:uint = _frameGroup.width;
+                var fgHeight:uint = _frameGroup.height;
+                var frameW:uint = fgWidth * size;
+                var frameH:uint = fgHeight * size;
+                var frames:uint = _frameGroup.frames;
+                var spacing:uint = 4;
+                var dirSpacing:uint = 5;
+                var pad:uint = 4;
+                var groupType:uint = frameGroupSlider.value;
+                var l:uint = layerSlider.value;
+                var z:uint = mountSlider.value;
+                var currentFrame:uint = animationSlider.value;
+                var isOutfit:Boolean = (_thingData.category == ThingCategory.OUTFIT);
+
+                var addonY:uint = isOutfit ? addonsSlider.value : 0;
+                var directions:Array = [
+                    { label: "N", patX: isOutfit ? 0 : 1, patY: addonY },
+                    { label: "E",  patX: isOutfit ? 1 : 2, patY: isOutfit ? addonY : 1 },
+                    { label: "S", patX: isOutfit ? 2 : 1, patY: isOutfit ? addonY : 2 },
+                    { label: "W",  patX: isOutfit ? 3 : 0, patY: isOutfit ? addonY : 1 }
+                ];
+
+                var labelW:uint = 15;
+                var rowH:uint = frameH + 14;
+                var totalW:uint = pad + labelW + frames * frameW + (frames - 1) * spacing + pad;
+                var totalH:uint = pad + directions.length * rowH + (directions.length - 1) * dirSpacing + pad;
+
+                var availW:uint = appearanceGroupBox.width > 40 ? appearanceGroupBox.width - 40 : 300;
+                var scrollerW:uint = Math.min(totalW + 14, availW);
+
+                var scroller:Scroller = new Scroller();
+                scroller.width = scrollerW;
+                scroller.height = totalH + 14;
+
+                var container:Group = new Group();
+
+                for (var d:uint = 0; d < directions.length; d++)
+                {
+                    var dir:Object = directions[d];
+                    var yOff:int = pad + d * (rowH + dirSpacing);
+
+                    // Direction label
+                    var dirLabel:Label = new Label();
+                    dirLabel.text = dir.label;
+                    dirLabel.setStyle("color", 0x999999);
+                    dirLabel.setStyle("fontSize", 8);
+                    dirLabel.x = pad;
+                    dirLabel.y = yOff + frameH / 2 + 8;
+                    container.addElement(dirLabel);
+
+                    for (var f:uint = 0; f < frames; f++)
+                    {
+                        var xPos:int = pad + labelW + f * (frameW + spacing);
+
+                        // Frame number (only for first direction row)
+                        if (d == 0)
+                        {
+                            var numLbl:Label = new Label();
+                            numLbl.text = String(f + 1);
+                            numLbl.setStyle("color", 0x999999);
+                            numLbl.setStyle("fontSize", 8);
+                            numLbl.x = xPos + frameW / 2 - 4;
+                            numLbl.y = yOff;
+                            container.addElement(numLbl);
+                        }
+
+                        // Compose frame
+                        var frameBmp:BitmapData = new BitmapData(frameW, frameH, true, 0x00FF00FF);
+                        for (var w:uint = 0; w < fgWidth; w++)
+                        {
+                            for (var h:uint = 0; h < fgHeight; h++)
+                            {
+                                var idx:int = _frameGroup.getSpriteIndex(w, h, l, dir.patX, dir.patY, z, f);
+                                var bmp:BitmapData = _thingBinding.getSpriteBitmap(groupType, idx);
+                                if (bmp)
+                                {
+                                    var px:int = (fgWidth - w - 1) * size;
+                                    var py:int = (fgHeight - h - 1) * size;
+                                    frameBmp.copyPixels(bmp, _rect, new Point(px, py));
+                                    bmp.dispose();
+                                }
+                            }
+                        }
+
+                        _filmRollBitmaps.push(frameBmp);
+                        var imgY:int = yOff + (d == 0 ? 12 : 2);
+
+                        // Frame container with click handler
+                        var mdFrameGrp:Group = new Group();
+                        mdFrameGrp.x = xPos;
+                        mdFrameGrp.y = imgY;
+                        mdFrameGrp.name = "filmRollFrame_" + d + "_" + f;
+                        mdFrameGrp.addEventListener(MouseEvent.CLICK, filmRollFrameClickHandler);
+                        container.addElement(mdFrameGrp);
+
+                        // Gray background
+                        var mdBgRect:Rect = new Rect();
+                        mdBgRect.width = frameW;
+                        mdBgRect.height = frameH;
+                        mdBgRect.fill = new SolidColor(0x636363);
+                        mdFrameGrp.addElement(mdBgRect);
+
+                        var img:Image = new Image();
+                        img.source = frameBmp;
+                        img.mouseEnabled = false;
+                        mdFrameGrp.addElement(img);
+
+                        // Sprite buttons inside frame container
+                        for (w = 0; w < fgWidth; w++)
+                        {
+                            for (h = 0; h < fgHeight; h++)
+                            {
+                                idx = _frameGroup.getSpriteIndex(w, h, l, dir.patX, dir.patY, z, f);
+                                var mdSid:uint = (idx < _frameGroup.spriteIndex.length) ? _frameGroup.spriteIndex[idx] : 0;
+                                var mdPx:int = (fgWidth - w - 1) * size;
+                                var mdPy:int = (fgHeight - h - 1) * size;
+                                var mdBtn:Button = getSpriteButtonFromPool();
+                                mdBtn.alpha = showGridCheckBox.selected ? 1 : 0;
+                                mdBtn.label = idx.toString();
+                                mdBtn.toolTip = mdSid.toString();
+                                mdBtn.move(mdPx, mdPy);
+                                mdFrameGrp.addElement(mdBtn);
+                            }
+                        }
+
+                        // Pixel grid overlay (edit pixels mode only)
+                        if (_editPixelsMode)
+                            mdFrameGrp.addElement(createPixelGridOverlay(frameW, frameH));
+
+                        // Selection border (compare patY with addon offset for outfits)
+                        var selPatY:uint = isOutfit ? (_patternY + addonY) : _patternY;
+                        if (f == currentFrame && dir.patX == _patternX && dir.patY == selPatY)
+                        {
+                            var mdBorderColor:uint = _editPixelsMode ? 0x6CACEC : 0x00FF00;
+                            var mdSelRect:Rect = new Rect();
+                            mdSelRect.x = -1;
+                            mdSelRect.y = -1;
+                            mdSelRect.width = frameW + 2;
+                            mdSelRect.height = frameH + 2;
+                            mdSelRect.stroke = new SolidColorStroke(mdBorderColor, 2);
+                            mdFrameGrp.addElement(mdSelRect);
+                        }
+                    }
+                }
+
+                scroller.viewport = container;
+
+                bitmapView.visible = false;
+                buttonsContainer.addElement(scroller);
+                buttonsContainer.width = scrollerW;
+                buttonsContainer.height = totalH + 14;
+
+                spriteViewContainer.scaleX = _zoom;
+                spriteViewContainer.scaleY = _zoom;
+            }
+
+            private function filmRollFrameClickHandler(event:MouseEvent):void
+            {
+                var target:Group = event.currentTarget as Group;
+                if (!target || !target.name) return;
+
+                var name:String = target.name;
+                if (name.indexOf("filmRollFrame_") != 0) return;
+                var suffix:String = name.substr(14);
+
+                var underscoreIdx:int = suffix.indexOf("_");
+                if (underscoreIdx >= 0)
+                {
+                    var dirIndex:uint = uint(suffix.substr(0, underscoreIdx));
+                    var frameIdx:uint = uint(suffix.substr(underscoreIdx + 1));
+
+                    var directions:Array = getDirectionMappings();
+
+                    if (dirIndex < directions.length)
+                    {
+                        _patternX = directions[dirIndex].patX;
+                        _patternY = directions[dirIndex].patY;
+                    }
+                    animationSlider.value = frameIdx;
+                }
+                else
+                {
+                    animationSlider.value = uint(suffix);
+                }
+
+                // Lightweight selection update — don't rebuild entire film roll
+                updateFilmRollSelection();
+            }
+
+            private function updateFilmRollSelection():void
+            {
+                // Find all frame groups and update their selection border
+                updateSelectionRecursive(buttonsContainer);
+            }
+
+            private function updateSelectionRecursive(container:IVisualElementContainer):void
+            {
+                for (var i:int = 0; i < container.numElements; i++)
+                {
+                    var el:Object = container.getElementAt(i);
+                    if (el is Group)
+                    {
+                        var grp:Group = el as Group;
+                        if (grp.name && grp.name.indexOf("filmRollFrame_") == 0)
+                        {
+                            // Check if this frame is selected
+                            var isSelected:Boolean = false;
+                            var frameName:String = grp.name.substr(14);
+                            var uidx:int = frameName.indexOf("_");
+                            if (uidx >= 0)
+                            {
+                                var dIdx:uint = uint(frameName.substr(0, uidx));
+                                var fIdx:uint = uint(frameName.substr(uidx + 1));
+                                var dirs:Array = getDirectionMappings();
+                                isSelected = (fIdx == animationSlider.value && dIdx < dirs.length &&
+                                    dirs[dIdx].patX == _patternX && dirs[dIdx].patY == _patternY);
+                            }
+                            else
+                            {
+                                isSelected = (uint(frameName) == animationSlider.value);
+                            }
+
+                            // Remove old selection rect (last element if it's a Rect with stroke)
+                            var lastEl:Object = grp.numElements > 0 ? grp.getElementAt(grp.numElements - 1) : null;
+                            if (lastEl is Rect && Rect(lastEl).stroke != null)
+                                grp.removeElementAt(grp.numElements - 1);
+
+                            // Add selection border if selected
+                            if (isSelected)
+                            {
+                                var borderColor:uint = _editPixelsMode ? 0x6CACEC : 0x00FF00;
+                                // Get size from bgRect (first child) to avoid feedback loop
+                                var bgEl:Object = grp.numElements > 0 ? grp.getElementAt(0) : null;
+                                var fW:Number = (bgEl is Rect) ? Rect(bgEl).width : 32;
+                                var fH:Number = (bgEl is Rect) ? Rect(bgEl).height : 32;
+                                var selRect:Rect = new Rect();
+                                selRect.x = -1;
+                                selRect.y = -1;
+                                selRect.width = fW + 2;
+                                selRect.height = fH + 2;
+                                selRect.stroke = new SolidColorStroke(borderColor, 2);
+                                grp.addElement(selRect);
+                            }
+                        }
+                        else
+                        {
+                            updateSelectionRecursive(grp);
+                        }
+                    }
+                    else if (el is IVisualElementContainer)
+                    {
+                        updateSelectionRecursive(el as IVisualElementContainer);
+                    }
+                }
+            }
+
             private function addButton(index:uint, id:uint, x:uint, y:uint):void
             {
                 var button:Button = getSpriteButtonFromPool();
@@ -1055,8 +1565,14 @@ THE SOFTWARE.
             
             private function drawCropSize():void
             {
-                if (!_thingData)
+                if (!_thingData || _suppressDrawCropSize)
                     return;
+
+                if (_filmRollMode && _frameGroup && _frameGroup.frames > 1)
+                {
+                    buttonsContainer.graphics.clear();
+                    return;
+                }
             
                 var size:uint = cropSizeNumericStepper.value;
                 buttonsContainer.graphics.clear();
@@ -1076,27 +1592,345 @@ THE SOFTWARE.
                 buttonsContainer.graphics.endFill();
             }
             
+            private function poolButtonsFrom(container:IVisualElementContainer):void
+            {
+                for (var i:int = 0; i < container.numElements; i++)
+                {
+                    var el:Object = container.getElementAt(i);
+                    if (el is Button)
+                        _spriteButtonPool.push(el as Button);
+                    else if (el is IVisualElementContainer)
+                        poolButtonsFrom(el as IVisualElementContainer);
+                }
+            }
+
             private function removeButtons():void
             {
-                var length:uint = buttonsContainer.numElements;
-                for (var i:uint = 0; i < length; i++)
+                // Move focus away from buttons before removing to prevent FocusManager crash
+                if (focusManager)
                 {
-                    var button:Button = buttonsContainer.getElementAt(i) as Button;
-                    _spriteButtonPool.push(button);
+                    try { setFocus(); } catch (e:Error) {}
                 }
+
+                // Dispose film roll bitmaps
+                for each (var bmpDispose:BitmapData in _filmRollBitmaps)
+                {
+                    if (bmpDispose) bmpDispose.dispose();
+                }
+                _filmRollBitmaps.length = 0;
+
+                // Remove film roll frame click listeners to prevent memory leaks
+                removeFrameClickListeners(buttonsContainer);
+
+                poolButtonsFrom(buttonsContainer);
                 buttonsContainer.removeAllElements();
+                bitmapView.visible = true;
             }
-            
+
+            private function removeFrameClickListeners(container:IVisualElementContainer):void
+            {
+                for (var i:int = 0; i < container.numElements; i++)
+                {
+                    var el:Object = container.getElementAt(i);
+                    if (el is Group)
+                    {
+                        var grp:Group = el as Group;
+                        if (grp.name && grp.name.indexOf("filmRollFrame_") == 0)
+                            grp.removeEventListener(MouseEvent.CLICK, filmRollFrameClickHandler);
+                        removeFrameClickListeners(grp);
+                    }
+                    else if (el is IVisualElementContainer)
+                    {
+                        removeFrameClickListeners(el as IVisualElementContainer);
+                    }
+                }
+            }
+
             private function changeButtonsVisible(visible:Boolean):void
             {
-                var length:uint = buttonsContainer.numElements;
-                for (var i:uint = 0; i < length; i++)
+                setButtonsVisibleRecursive(buttonsContainer, visible);
+            }
+
+            /**
+             * Creates a pixel grid overlay (4px cells, white, alpha 0.3) for a film roll frame.
+             */
+            private function createPixelGridOverlay(w:uint, h:uint):UIComponent
+            {
+                var overlay:UIComponent = new UIComponent();
+                var cellSize:uint = 4;
+                var cols:uint = w / cellSize;
+                var rows:uint = h / cellSize;
+                var g:Graphics = overlay.graphics;
+                g.lineStyle(0.5, 0xFFFFFF, 0.3);
+                for (var c:uint = 1; c < cols; c++)
                 {
-                    var button:Button = buttonsContainer.getElementAt(i) as Button;
-                    button.alpha = visible ? 1 : 0;
+                    var cx:Number = c * cellSize;
+                    g.moveTo(cx, 0);
+                    g.lineTo(cx, h);
+                }
+                for (var r:uint = 1; r < rows; r++)
+                {
+                    var ry:Number = r * cellSize;
+                    g.moveTo(0, ry);
+                    g.lineTo(w, ry);
+                }
+                overlay.width = w;
+                overlay.height = h;
+                overlay.mouseEnabled = false;
+                overlay.mouseChildren = false;
+                return overlay;
+            }
+
+            private function setButtonsVisibleRecursive(container:IVisualElementContainer, visible:Boolean):void
+            {
+                for (var i:int = 0; i < container.numElements; i++)
+                {
+                    var el:Object = container.getElementAt(i);
+                    if (el is Button)
+                        Button(el).alpha = visible ? 1 : 0;
+                    else if (el is IVisualElementContainer)
+                        setButtonsVisibleRecursive(el as IVisualElementContainer, visible);
                 }
             }
             
+            /**
+             * Lightweight bitmap-only refresh: recomposes _viewBitmap from current sprite data
+             * without destroying/recreating buttons. Used after shiftPixels() where only
+             * pixel content changed but sprite layout remains identical.
+             */
+            private function refreshViewBitmap():void
+            {
+                if (!_thingData || !_frameGroup || !_viewBitmap) return;
+
+                // Defensive _rect initialization
+                _rect.x = 0; _rect.y = 0;
+                _rect.width = SpriteExtent.DEFAULT_SIZE; _rect.height = SpriteExtent.DEFAULT_SIZE;
+
+                var isOutfitOrMissile:Boolean = (_thingData.category == ThingCategory.OUTFIT || _thingData.category == ThingCategory.MISSILE);
+
+                _viewBitmap.fillRect(_viewBitmap.rect, 0x00FF00FF);
+
+                var size:uint = SpriteExtent.DEFAULT_SIZE;
+                var fgWidth:uint = _frameGroup.width;
+                var fgHeight:uint = _frameGroup.height;
+                var f:uint = animationSlider.value;
+                var l:uint = layerSlider.value;
+                var z:uint = mountSlider.value;
+
+                if (isOutfitOrMissile)
+                {
+                    var x:uint = _patternX % _frameGroup.patternX;
+                    var y:uint = (_patternY + addonsSlider.value) % _frameGroup.patternY;
+                    for (var w:uint = 0; w < fgWidth; w++)
+                    {
+                        for (var h:uint = 0; h < fgHeight; h++)
+                        {
+                            var index:int = _frameGroup.getSpriteIndex(w, h, l, x, y, z, f);
+                            copyPixels(_frameGroup.type, index, _viewBitmap, (fgWidth - w - 1) * size, (fgHeight - h - 1) * size);
+                        }
+                    }
+                }
+                else
+                {
+                    var patternX:uint = _frameGroup.patternX;
+                    var patternY:uint = _frameGroup.patternY;
+                    var pixelsWidth:int = fgWidth * size;
+                    var pixelsHeight:int = fgHeight * size;
+                    for (var py:uint = 0; py < patternY; py++)
+                    {
+                        for (var px:uint = 0; px < patternX; px++)
+                        {
+                            var fx:int = px * pixelsWidth;
+                            var fy:int = py * pixelsHeight;
+                            for (var w2:uint = 0; w2 < fgWidth; w2++)
+                            {
+                                for (var h2:uint = 0; h2 < fgHeight; h2++)
+                                {
+                                    var idx:int = _frameGroup.getSpriteIndex(w2, h2, l, px, py, z, f);
+                                    copyPixels(frameGroupSlider.value, idx, _viewBitmap, ((fgWidth - w2 - 1) * size) + fx, ((fgHeight - h2 - 1) * size) + fy);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Force re-render without layout thrashing — swap to temp bitmap then back
+                _suppressDrawCropSize = true;
+                bitmapView.source = null;
+                bitmapView.source = _viewBitmap;
+                _suppressDrawCropSize = false;
+
+                // Update button tooltips (sprite IDs may have changed)
+                for (var bi:int = 0; bi < buttonsContainer.numElements; bi++)
+                {
+                    var btn:Button = buttonsContainer.getElementAt(bi) as Button;
+                    if (btn)
+                    {
+                        var btnIdx:int = int(btn.label);
+                        var sid:uint = (btnIdx >= 0 && btnIdx < _frameGroup.spriteIndex.length) ? _frameGroup.spriteIndex[btnIdx] : 0;
+                        btn.toolTip = sid.toString();
+                    }
+                }
+            }
+
+            /**
+             * Lightweight film roll refresh: recomposes only the current frame's bitmap
+             * without destroying/rebuilding the entire film roll structure.
+             */
+            private function refreshFilmRollFrame():void
+            {
+                if (!_thingData || !_frameGroup || _frameGroup.frames <= 1) return;
+
+                var size:uint = SpriteExtent.DEFAULT_SIZE;
+                var fgWidth:uint = _frameGroup.width;
+                var fgHeight:uint = _frameGroup.height;
+                var groupType:uint = frameGroupSlider.value;
+                var l:uint = layerSlider.value;
+                var z:uint = mountSlider.value;
+                var f:uint = animationSlider.value;
+                var isOutfitOrMissile:Boolean = (_thingData.category == ThingCategory.OUTFIT || _thingData.category == ThingCategory.MISSILE);
+
+                _rect.x = 0; _rect.y = 0;
+                _rect.width = size; _rect.height = size;
+
+                // Find the frame Group for the current frame and recompose its bitmap
+                findAndRefreshFrame(buttonsContainer, f, isOutfitOrMissile, groupType, l, z, size, fgWidth, fgHeight);
+            }
+
+            private function findAndRefreshFrame(container:IVisualElementContainer, targetFrame:uint,
+                isOutfitOrMissile:Boolean, groupType:uint, l:uint, z:uint,
+                size:uint, fgWidth:uint, fgHeight:uint):void
+            {
+                for (var i:int = 0; i < container.numElements; i++)
+                {
+                    var el:Object = container.getElementAt(i);
+                    if (el is Group)
+                    {
+                        var grp:Group = el as Group;
+                        if (grp.name && grp.name.indexOf("filmRollFrame_") == 0)
+                        {
+                            // Parse frame index from name
+                            var suffix:String = grp.name.substr(14);
+                            var frameIdx:uint;
+                            var dirPatX:int = -1;
+                            var dirPatY:int = -1;
+                            var uidx:int = suffix.indexOf("_");
+                            if (uidx >= 0)
+                            {
+                                // Multi-direction: "filmRollFrame_D_F"
+                                var dIdx:uint = uint(suffix.substr(0, uidx));
+                                frameIdx = uint(suffix.substr(uidx + 1));
+                                var dirs:Array = getDirectionMappings();
+                                if (dIdx < dirs.length)
+                                {
+                                    dirPatX = dirs[dIdx].patX;
+                                    dirPatY = dirs[dIdx].patY;
+                                }
+                            }
+                            else
+                            {
+                                frameIdx = uint(suffix);
+                            }
+
+                            // Only refresh the frame matching current shift target
+                            var shouldRefresh:Boolean = (frameIdx == targetFrame);
+                            if (isOutfitOrMissile && dirPatX >= 0)
+                                shouldRefresh = shouldRefresh && (dirPatX == _patternX && dirPatY == _patternY);
+
+                            if (shouldRefresh)
+                            {
+                                // Find the Image child and recompose its bitmap
+                                for (var ci:int = 0; ci < grp.numElements; ci++)
+                                {
+                                    var child:Object = grp.getElementAt(ci);
+                                    if (child is Image)
+                                    {
+                                        var frameImg:Image = child as Image;
+                                        var frameBmp:BitmapData = frameImg.source as BitmapData;
+                                        if (!frameBmp) break;
+
+                                        frameBmp.fillRect(frameBmp.rect, 0x00FF00FF);
+
+                                        if (dirPatX >= 0)
+                                        {
+                                            // Outfit/missile: single direction pattern + addon offset
+                                            var addonPatY:int = dirPatY;
+                                            var isOutfitRefresh:Boolean = (_thingData.category == ThingCategory.OUTFIT);
+                                            if (isOutfitRefresh)
+                                                addonPatY = dirPatY + addonsSlider.value;
+                                            for (var w:uint = 0; w < fgWidth; w++)
+                                            {
+                                                for (var h:uint = 0; h < fgHeight; h++)
+                                                {
+                                                    var idx:int = _frameGroup.getSpriteIndex(w, h, l, dirPatX, addonPatY, z, frameIdx);
+                                                    var bmp:BitmapData = _thingBinding.getSpriteBitmap(groupType, idx);
+                                                    if (bmp)
+                                                    {
+                                                        frameBmp.copyPixels(bmp, _rect, new Point((fgWidth - w - 1) * size, (fgHeight - h - 1) * size));
+                                                        bmp.dispose();
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            // Non-outfit: iterate ALL patterns (matches updateFilmRollView)
+                                            var fgPatX:uint = _frameGroup.patternX;
+                                            var fgPatY:uint = _frameGroup.patternY;
+                                            var pixW:int = fgWidth * size;
+                                            var pixH:int = fgHeight * size;
+                                            for (var ry:uint = 0; ry < fgPatY; ry++)
+                                            {
+                                                for (var rx:uint = 0; rx < fgPatX; rx++)
+                                                {
+                                                    for (w = 0; w < fgWidth; w++)
+                                                    {
+                                                        for (h = 0; h < fgHeight; h++)
+                                                        {
+                                                            idx = _frameGroup.getSpriteIndex(w, h, l, rx, ry, z, frameIdx);
+                                                            bmp = _thingBinding.getSpriteBitmap(groupType, idx);
+                                                            if (bmp)
+                                                            {
+                                                                frameBmp.copyPixels(bmp, _rect, new Point(((fgWidth - w - 1) * size) + rx * pixW, ((fgHeight - h - 1) * size) + ry * pixH));
+                                                                bmp.dispose();
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        frameImg.source = null;
+                                        frameImg.source = frameBmp;
+                                        break;
+                                    }
+                                }
+                                // Update button tooltips in this frame
+                                for (ci = 0; ci < grp.numElements; ci++)
+                                {
+                                    child = grp.getElementAt(ci);
+                                    if (child is Button)
+                                    {
+                                        var btn:Button = child as Button;
+                                        var bIdx:int = int(btn.label);
+                                        var sid:uint = (bIdx >= 0 && bIdx < _frameGroup.spriteIndex.length) ? _frameGroup.spriteIndex[bIdx] : 0;
+                                        btn.toolTip = sid.toString();
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            findAndRefreshFrame(grp, targetFrame, isOutfitOrMissile, groupType, l, z, size, fgWidth, fgHeight);
+                        }
+                    }
+                    else if (el is IVisualElementContainer)
+                    {
+                        findAndRefreshFrame(el as IVisualElementContainer, targetFrame, isOutfitOrMissile, groupType, l, z, size, fgWidth, fgHeight);
+                    }
+                }
+            }
+
             private function copyPixels(groupType:uint, index:uint, bitmap:BitmapData, x:uint, y:uint):void
             {
                 var bmp:BitmapData = _thingBinding.getSpriteBitmap(groupType, index);
@@ -1105,6 +1939,7 @@ THE SOFTWARE.
                     _point.x = x;
                     _point.y = y;
                     bitmap.copyPixels(bmp, _rect, _point);
+                    bmp.dispose();
                 }
             }
             
@@ -1167,6 +2002,7 @@ THE SOFTWARE.
                 }
             
                 _direction = button.direction;
+                _currentDirectionLabel = getDirectionLabel(_direction);
                 bonesOffsetXNumericStepper.value = _thingBinding.bonesOffsetX[_direction];
                 bonesOffsetYNumericStepper.value = _thingBinding.bonesOffsetY[_direction];
             
@@ -1212,10 +2048,14 @@ THE SOFTWARE.
             
                 thingView.visible = _previewMode;
                 if (_previewMode)
+                {
                     thingView.play();
-            
+                    // Hide film roll during animation preview
+                    buttonsContainer.removeAllElements();
+                }
+
                 var controlsEnabled:Boolean = !_previewMode;
-                bitmapView.visible = controlsEnabled;
+                bitmapView.visible = controlsEnabled && !(_filmRollMode && _frameGroup && _frameGroup.frames > 1);
                 animationSlider.mouseChildren = controlsEnabled;
                 mountGroup.enabled = controlsEnabled;
                 addonGroup.enabled = controlsEnabled;
@@ -1225,6 +2065,10 @@ THE SOFTWARE.
                 layerGroup.enabled = controlsEnabled;
                 animationTileGroup.enabled = controlsEnabled;
                 frameGroup.enabled = controlsEnabled;
+
+                // Restore film roll view after animation stops
+                if (!_previewMode && _filmRollMode && _frameGroup && _frameGroup.frames > 1)
+                    updatePreview();
             }
             
             private function setAnimationSlide(value:uint):void
@@ -1254,6 +2098,7 @@ THE SOFTWARE.
                 _thingBinding = new BindableThingType();
                 _thingBinding.addEventListener(PropertyChangeEvent.PROPERTY_CHANGE, thingPropertyChangeHandler);
                 _point = new Point();
+                _rect = new Rectangle(0, 0, SpriteExtent.DEFAULT_SIZE, SpriteExtent.DEFAULT_SIZE);
 
                 // Initialize Context Menu
                 initializeSpriteContextMenu();
@@ -1375,9 +2220,46 @@ THE SOFTWARE.
                 var index:int = int(button.label);
                 var groupType:uint = frameGroupSlider.value;
                 _thingBinding.setSprite(groupType, index, spriteData);
-            
-                // Optimized local bitmap update (reuses class-level _rect)
                 button.toolTip = spriteData.id.toString();
+
+                // Film Roll: local bitmap patch — find parent frame Group and update its Image
+                if (_filmRollMode && _frameGroup && _frameGroup.frames > 1)
+                {
+                    _changed = true;
+                    var parentGrp:Group = button.parent as Group;
+                    if (parentGrp)
+                    {
+                        for (var fi:int = 0; fi < parentGrp.numElements; fi++)
+                        {
+                            var child:Object = parentGrp.getElementAt(fi);
+                            if (child is Image)
+                            {
+                                var frameImg:Image = child as Image;
+                                var frameBmp:BitmapData = frameImg.source as BitmapData;
+                                if (frameBmp)
+                                {
+                                    var size:uint = SpriteExtent.DEFAULT_SIZE;
+                                    var clearRect:Rectangle = new Rectangle(button.x, button.y, size, size);
+                                    frameBmp.fillRect(clearRect, 0x00FF00FF);
+                                    var spriteBmp:BitmapData = _thingBinding.getSpriteBitmap(groupType, index);
+                                    if (spriteBmp)
+                                    {
+                                        _rect.x = 0; _rect.y = 0;
+                                        _rect.width = size; _rect.height = size;
+                                        frameBmp.copyPixels(spriteBmp, _rect, new Point(button.x, button.y));
+                                        spriteBmp.dispose();
+                                    }
+                                    frameImg.source = null;
+                                    frameImg.source = frameBmp;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    return;
+                }
+
+                // Optimized local bitmap update (reuses class-level _rect)
                 if (_viewBitmap)
                 {
                     // 1. Set rect to DESTINATION coordinates for clearing
@@ -1855,11 +2737,18 @@ THE SOFTWARE.
                             </s:HGroup>
 
                             <s:Spacer width="100%"/>
+                            <s:Label text="{_currentDirectionLabel}" minWidth="35" fontSize="10" color="0xAAAAAA"/>
+                            <s:Spacer width="100%"/>
 
                             <s:CheckBox id="editPixelsCheckBox"
                                 label="Edit Pixels"
                                 selected="{_editPixelsMode}"
-                                change="{_editPixelsMode = editPixelsCheckBox.selected; if (_editPixelsMode) setFocus();}"/>
+                                change="{_editPixelsMode = editPixelsCheckBox.selected; if (_editPixelsMode) setFocus(); if (_filmRollMode) updatePreview();}"/>
+
+                            <s:CheckBox id="filmRollCheckBox"
+                                label="Film Roll"
+                                selected="{_filmRollMode}"
+                                change="{_filmRollMode = filmRollCheckBox.selected; updatePreview();}"/>
                         </s:HGroup>
 
                         <s:Group width="100%" minHeight="200">
@@ -1876,6 +2765,12 @@ THE SOFTWARE.
                                     </s:stroke>
                                 </s:Rect>
 
+                                <otlib:SurfaceCells id="pixelGrid"
+                                    visible="{_editPixelsMode &amp;&amp; !(_filmRollMode &amp;&amp; _frameGroup != null &amp;&amp; _frameGroup.frames > 1)}"
+                                    cellWidth="4" cellHeight="4"
+                                    lineColor="0xFFFFFF"
+                                    lineAlpha="0.3"/>
+
                                 <s:Image id="bitmapView"/>
 
                                 <otlib:ThingDataView id="thingView"
@@ -1884,15 +2779,7 @@ THE SOFTWARE.
                                     complete="thingViewAnimationCompleteHandler(event)"/>
 
                                 <s:Group id="buttonsContainer"
-                                    updateComplete="drawCropSize()"
-                                    width="{bitmapView.width}"
-                                    height="{bitmapView.height}"/>
-
-                                <otlib:SurfaceCells id="pixelGrid"
-                                    visible="{_editPixelsMode}"
-                                    cellWidth="32" cellHeight="32"
-                                    columns="{_frameGroup ? _frameGroup.width : 1}"
-                                    rows="{_frameGroup ? _frameGroup.height : 1}"/>
+                                    updateComplete="drawCropSize()"/>
 
                             </s:Group>
 
@@ -1903,7 +2790,7 @@ THE SOFTWARE.
                                 toolTip="Shift pixels up"
                                 x="{spriteViewContainer.x + (spriteViewContainer.width * _zoom) / 2 - 11}"
                                 y="{spriteViewContainer.y - 24}"
-                                visible="{_editPixelsMode}"
+                                visible="{_editPixelsMode &amp;&amp; !(_filmRollMode &amp;&amp; _frameGroup != null &amp;&amp; _frameGroup.frames > 1)}"
                                 click="shiftPixels(0, -1)"/>
                             <s:Button width="22" height="22"
                                 skinClass="otlib.components.skins.DirectionButtonSkin"
@@ -1911,7 +2798,7 @@ THE SOFTWARE.
                                 toolTip="Shift pixels down"
                                 x="{spriteViewContainer.x + (spriteViewContainer.width * _zoom) / 2 - 11}"
                                 y="{spriteViewContainer.y + spriteViewContainer.height * _zoom + 2}"
-                                visible="{_editPixelsMode}"
+                                visible="{_editPixelsMode &amp;&amp; !(_filmRollMode &amp;&amp; _frameGroup != null &amp;&amp; _frameGroup.frames > 1)}"
                                 click="shiftPixels(0, 1)"/>
                             <s:Button width="22" height="22"
                                 skinClass="otlib.components.skins.DirectionButtonSkin"
@@ -1919,7 +2806,7 @@ THE SOFTWARE.
                                 toolTip="Shift pixels left"
                                 x="{spriteViewContainer.x - 24}"
                                 y="{spriteViewContainer.y + (spriteViewContainer.height * _zoom) / 2 - 11}"
-                                visible="{_editPixelsMode}"
+                                visible="{_editPixelsMode &amp;&amp; !(_filmRollMode &amp;&amp; _frameGroup != null &amp;&amp; _frameGroup.frames > 1)}"
                                 click="shiftPixels(-1, 0)"/>
                             <s:Button width="22" height="22"
                                 skinClass="otlib.components.skins.DirectionButtonSkin"
@@ -1927,7 +2814,7 @@ THE SOFTWARE.
                                 toolTip="Shift pixels right"
                                 x="{spriteViewContainer.x + spriteViewContainer.width * _zoom + 2}"
                                 y="{spriteViewContainer.y + (spriteViewContainer.height * _zoom) / 2 - 11}"
-                                visible="{_editPixelsMode}"
+                                visible="{_editPixelsMode &amp;&amp; !(_filmRollMode &amp;&amp; _frameGroup != null &amp;&amp; _frameGroup.frames > 1)}"
                                 click="shiftPixels(1, 0)"/>
                         </s:Group>
 

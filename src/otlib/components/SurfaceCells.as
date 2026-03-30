@@ -22,10 +22,6 @@
 
 package otlib.components
 {
-    import flash.display.BlendMode;
-    import flash.display.CapsStyle;
-    import flash.display.LineScaleMode;
-
     import mx.core.UIComponent;
 
     [ExcludeClass]
@@ -40,6 +36,8 @@ package otlib.components
         private var _cellWidth:uint;
         private var _cellHeight:uint;
         private var _subdivisions:Boolean;
+        private var _lineColor:uint = 0;
+        private var _lineAlpha:Number = 1.0;
 
         // --------------------------------------
         // Getters / Setters
@@ -114,18 +112,53 @@ package otlib.components
             }
         }
 
+        public function get lineColor():uint
+        {
+            return _lineColor;
+        }
+        public function set lineColor(value:uint):void
+        {
+            if (_lineColor != value)
+            {
+                _lineColor = value;
+                invalidateDisplayList();
+            }
+        }
+
+        public function get lineAlpha():Number
+        {
+            return _lineAlpha;
+        }
+        public function set lineAlpha(value:Number):void
+        {
+            if (_lineAlpha != value)
+            {
+                _lineAlpha = value;
+                invalidateDisplayList();
+            }
+        }
+
         // --------------------------------------------------------------------------
         // METHODS
         // --------------------------------------------------------------------------
 
         public function SurfaceCells()
         {
-            this.blendMode = BlendMode.INVERT;
         }
 
-        // --------------------------------------------------------------------------
-        // METHODS
-        // --------------------------------------------------------------------------
+        /**
+         * Set columns and rows in a single call to avoid double invalidation.
+         */
+        public function setGridSize(cols:uint, rows:uint):void
+        {
+            if (_columns != cols || _rows != rows)
+            {
+                _columns = cols;
+                _rows = rows;
+                invalidateDisplayList();
+                invalidateSize();
+            }
+        }
 
         // --------------------------------------
         // Override Protected
@@ -155,23 +188,21 @@ package otlib.components
                     x = c * _cellWidth;
                     y = r * _cellHeight;
 
-                    graphics.lineStyle(0.1, 0);
+                    graphics.lineStyle(0.5, _lineColor, _lineAlpha);
                     graphics.beginFill(0, 0);
                     graphics.drawRect(x, y, _cellWidth, _cellHeight);
+                    graphics.endFill();
 
                     if (_subdivisions)
                     {
-                        graphics.endFill();
-                        graphics.lineStyle(0.1, 0, 0.3);
+                        graphics.lineStyle(0.5, _lineColor, _lineAlpha * 0.3);
                         graphics.moveTo(x + halfWidth, y);
                         graphics.lineTo(x + halfWidth, y + _cellHeight);
                         graphics.moveTo(x, y + halfHeight);
                         graphics.lineTo(x + _cellWidth, y + halfHeight);
-                        graphics.endFill();
                     }
                 }
             }
-            graphics.endFill();
         }
     }
 }
