@@ -68,6 +68,8 @@ THE SOFTWARE.
             import spark.events.IndexChangeEvent;
             import spark.formatters.NumberFormatter;
             import flash.events.FocusEvent;
+            import flash.events.KeyboardEvent;
+            import flash.ui.Keyboard;
             
             import otlib.animation.FrameDuration;
             import otlib.animation.FrameGroup;
@@ -106,6 +108,8 @@ THE SOFTWARE.
             private var _thingDataChanged:Boolean;
             private var _changed:Boolean;
             private var _loading:Boolean;
+            [Bindable] private var _editPixelsMode:Boolean = false;
+            private var _pixelsModified:Boolean = false;
             private var _rect:Rectangle;
             private var _point:Point;
             private var _patternX:uint;
@@ -272,6 +276,8 @@ THE SOFTWARE.
                     {
                         // xmlAttributes are already updated by onAttributesEditorChange()
                         _changed = false;
+                        _pixelsModified = false;
+                        _editPixelsMode = false;
                         dispatchEvent(new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, this.thingData));
                         return true;
                     }
@@ -295,6 +301,8 @@ THE SOFTWARE.
 
                 _loading = false;
                 _changed = false;
+                _pixelsModified = false;
+                _editPixelsMode = false;
             }
 
             public function getThingTypeResult():ThingType
@@ -310,6 +318,176 @@ THE SOFTWARE.
                 return null;
             }
             
+            public function get pixelsModified():Boolean
+            {
+                return _pixelsModified;
+            }
+
+            protected function editPixelsKeyHandler(event:KeyboardEvent):void
+            {
+                if (!_editPixelsMode || !_thingData) return;
+
+                switch (event.keyCode)
+                {
+                    case Keyboard.UP:    shiftPixels(0, -1); break;
+                    case Keyboard.DOWN:  shiftPixels(0, 1);  break;
+                    case Keyboard.LEFT:  shiftPixels(-1, 0); break;
+                    case Keyboard.RIGHT: shiftPixels(1, 0);  break;
+                    default: return;
+                }
+                event.preventDefault();
+                event.stopImmediatePropagation();
+            }
+
+            private function isContentPixel(pixel:uint):Boolean
+            {
+                return (pixel >>> 24) > 0 && pixel != 0xFFFF00FF;
+            }
+
+            private function shiftPixels(dx:int, dy:int):void
+            {
+                if (!_thingData || !_frameGroup) return;
+
+                var groupType:uint = frameGroupSlider.value;
+                var size:uint = SpriteExtent.DEFAULT_SIZE;
+                var f:uint = animationSlider.value;
+                var l:uint = layerSlider.value;
+                var patX:uint = _patternX % _frameGroup.patternX;
+                var patY:uint = (_patternY + addonsSlider.value) % _frameGroup.patternY;
+                var z:uint = mountSlider.value;
+                var w:uint;
+                var h:uint;
+                var fgWidth:uint = _frameGroup.width;
+                var fgHeight:uint = _frameGroup.height;
+                var totalW:uint = fgWidth * size;
+                var totalH:uint = fgHeight * size;
+                var rect32:Rectangle = new Rectangle(0, 0, size, size);
+                var index:int;
+                var sd:SpriteData;
+                var bmp:BitmapData;
+                var px:int;
+                var py:int;
+
+                var emptyColor:uint = (_filesInfo && _filesInfo.transparency) ? 0x00000000 : 0xFFFF00FF;
+
+                // Crop boundary (bottom-right aligned)
+                var cropSize:uint = cropSizeNumericStepper.value;
+                var cropW:uint = (cropSize > 0 && cropSize < totalW) ? Math.min(totalW, cropSize) : totalW;
+                var cropH:uint = (cropSize > 0 && cropSize < totalH) ? Math.min(totalH, cropSize) : totalH;
+                var cropX:int = totalW - cropW;
+                var cropY:int = totalH - cropH;
+
+                // 1. Compose all sprites into one large bitmap
+                var composite:BitmapData = new BitmapData(totalW, totalH, true, emptyColor);
+                for (w = 0; w < fgWidth; w++)
+                {
+                    for (h = 0; h < fgHeight; h++)
+                    {
+                        index = _frameGroup.getSpriteIndex(w, h, l, patX, patY, z, f);
+                        sd = _thingBinding.sprites[groupType][index];
+                        if (!sd) continue;
+                        bmp = sd.getBitmap();
+                        if (!bmp) continue;
+                        px = (fgWidth - w - 1) * size;
+                        py = (fgHeight - h - 1) * size;
+                        composite.copyPixels(bmp, rect32, new Point(px, py));
+                        bmp.dispose();
+                    }
+                }
+
+                // 2. Boundary check — getPixel32 on BITMAP edge in shift direction
+                //    Crop is bottom-right aligned: right/bottom bitmap edge = crop edge
+                //    Left/top: check bitmap edge (0, 0) to allow shifting into margin
+                var blocked:Boolean = false;
+
+                if (dx > 0)
+                {
+                    for (var ery:int = 0; ery < totalH; ery++)
+                    {
+                        if (isContentPixel(composite.getPixel32(totalW - 1, ery)))
+                        { blocked = true; break; }
+                    }
+                }
+                else if (dx < 0)
+                {
+                    for (var ely:int = 0; ely < totalH; ely++)
+                    {
+                        if (isContentPixel(composite.getPixel32(0, ely)))
+                        { blocked = true; break; }
+                    }
+                }
+
+                if (dy > 0)
+                {
+                    for (var ebx:int = 0; ebx < totalW; ebx++)
+                    {
+                        if (isContentPixel(composite.getPixel32(ebx, totalH - 1)))
+                        { blocked = true; break; }
+                    }
+                }
+                else if (dy < 0)
+                {
+                    for (var etx:int = 0; etx < totalW; etx++)
+                    {
+                        if (isContentPixel(composite.getPixel32(etx, 0)))
+                        { blocked = true; break; }
+                    }
+                }
+
+                if (blocked)
+                {
+                    composite.dispose();
+                    return;
+                }
+
+                // 3. Shift the composite
+                var shifted:BitmapData = new BitmapData(totalW, totalH, true, emptyColor);
+                shifted.copyPixels(composite, composite.rect, new Point(dx, dy));
+                composite.dispose();
+
+                // 4. Split back into individual 32x32 sprites
+                for (w = 0; w < fgWidth; w++)
+                {
+                    for (h = 0; h < fgHeight; h++)
+                    {
+                        index = _frameGroup.getSpriteIndex(w, h, l, patX, patY, z, f);
+                        px = (fgWidth - w - 1) * size;
+                        py = (fgHeight - h - 1) * size;
+                        var region:Rectangle = new Rectangle(px, py, size, size);
+                        var tile:BitmapData = new BitmapData(size, size, true, emptyColor);
+                        tile.copyPixels(shifted, region, new Point(0, 0));
+                        var tilePixels:ByteArray = tile.getPixels(rect32);
+                        tile.dispose();
+
+                        sd = _thingBinding.sprites[groupType][index];
+                        var origId:uint = _frameGroup.spriteIndex[index];
+                        if (sd && origId != 0)
+                        {
+                            // Existing sprite — clone with SAME ID so worker replaces, not adds
+                            var clonedSd:SpriteData = SpriteData.createSpriteData(uint.MAX_VALUE, tilePixels);
+                            _thingBinding.sprites[groupType][index] = clonedSd;
+                            _frameGroup.spriteIndex[index] = uint.MAX_VALUE;
+                        }
+                        else
+                        {
+                            // Sprite 0 slot — create new only if tile has content
+                            var newSd:SpriteData = SpriteData.createSpriteData(uint.MAX_VALUE, tilePixels);
+                            if (!newSd.isEmpty())
+                            {
+                                _thingBinding.setSprite(groupType, index, newSd);
+                            }
+                        }
+                    }
+                }
+                shifted.dispose();
+
+                _pixelsModified = true;
+                _changed = true;
+                updatePreview();
+                setFocus();
+                dispatchEvent(new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, _thingData));
+            }
+
             public function updateFrameGroupNameLabel():void
             {
                 if (frameGroupSlider.value == 0)
@@ -385,6 +563,10 @@ THE SOFTWARE.
                 {
                     updateView();
                 }
+
+                // Return focus to editor when in edit pixels mode
+                if (_editPixelsMode)
+                    setFocus();
             }
             
             public function invalidateThingData():void
@@ -500,6 +682,8 @@ THE SOFTWARE.
             private function setThingData(thingData:ThingData):void
             {
                 _loading = true;
+                _editPixelsMode = false;
+                _pixelsModified = false;
                 _lastAnimationFrame = 0;
                 _lastPreviewState = null; // Reset cache for updatePreview optimization
             
@@ -517,12 +701,10 @@ THE SOFTWARE.
                 frameGroupSlider.value = 0;
                 updateFrameGroupNameLabel();
             
-                // Reset zoom
-                _zoom = 1.0;
                 if (spriteViewContainer)
                 {
-                    spriteViewContainer.scaleX = 1.0;
-                    spriteViewContainer.scaleY = 1.0;
+                    spriteViewContainer.scaleX = _zoom;
+                    spriteViewContainer.scaleY = _zoom;
                 }
             
                 _thingBinding.settings = settings;
@@ -1072,11 +1254,12 @@ THE SOFTWARE.
                 _thingBinding = new BindableThingType();
                 _thingBinding.addEventListener(PropertyChangeEvent.PROPERTY_CHANGE, thingPropertyChangeHandler);
                 _point = new Point();
-            
+
                 // Initialize Context Menu
                 initializeSpriteContextMenu();
-            
-                // AttributesEditor handles attribute initialization internally
+
+                // Keyboard listener for pixel shifting
+                addEventListener(KeyboardEvent.KEY_DOWN, editPixelsKeyHandler);
             }
             
             /**
@@ -1614,70 +1797,69 @@ THE SOFTWARE.
                             <s:VerticalLayout padding="10" gap="10"/>
                         </mg:layout>
 
-                        <s:HGroup id="directionGroup"
-                            width="100%"
-                            horizontalAlign="center">
-                            <otlib:DirectionButton id="topLeftButton"
-                                top="0" left="0"
-                                direction="{Direction.NORTHWEST}"
-                                toolTip="@Resource(key='northwest', bundle='strings')"
-                                icon="@Embed('/../assets/icons/arrow_top_left.png')"
-                                click="directionButtonClickHandler(event)"/>
-                            <otlib:DirectionButton id="topCenterButton"
-                                top="0" horizontalCenter="0"
-                                direction="{Direction.NORTH}"
-                                toolTip="@Resource(key='north', bundle='strings')"
-                                icon="@Embed('/../assets/icons/arrow_up.png')"
-                                click="directionButtonClickHandler(event)"/>
-                            <otlib:DirectionButton id="topRightButton"
-                                top="0" right="0"
-                                direction="{Direction.NORTHEAST}"
-                                toolTip="@Resource(key='northeast', bundle='strings')"
-                                icon="@Embed('/../assets/icons/arrow_top_right.png')"
-                                click="directionButtonClickHandler(event)"/>
-                            <otlib:DirectionButton id="middleRightButton"
-                                verticalCenter="0" right="0"
-                                direction="{Direction.EAST}"
-                                toolTip="@Resource(key='east', bundle='strings')"
-                                icon="@Embed('/../assets/icons/arrow_right.png')"
-                                click="directionButtonClickHandler(event)"/>
-                            <otlib:DirectionButton id="bottomRightButton"
-                                bottom="0" right="0"
-                                direction="{Direction.SOUTHEAST}"
-                                toolTip="@Resource(key='southeast', bundle='strings')"
-                                icon="@Embed('/../assets/icons/arrow_bottom_right.png')"
-                                click="directionButtonClickHandler(event)"/>
-                            <otlib:DirectionButton id="bottomCenterButton"
-                                bottom="0" horizontalCenter="0"
-                                direction="{Direction.SOUTH}"
-                                toolTip="@Resource(key='south', bundle='strings')"
-                                icon="@Embed('/../assets/icons/arrow_down.png')"
-                                click="directionButtonClickHandler(event)"/>
-                            <otlib:DirectionButton id="bottomLeftButton"
-                                bottom="0" left="0"
-                                direction="{Direction.SOUTHWEST}"
-                                toolTip="@Resource(key='southwest', bundle='strings')"
-                                icon="@Embed('/../assets/icons/arrow_bottom_left.png')"
-                                click="directionButtonClickHandler(event)"/>
-                            <otlib:DirectionButton id="middleLeftButton"
-                                bottom="0" verticalCenter="0"
-                                direction="{Direction.WEST}"
-                                toolTip="@Resource(key='west', bundle='strings')"
-                                icon="@Embed('/../assets/icons/arrow_left.png')"
-                                click="directionButtonClickHandler(event)"/>
-                        </s:HGroup>
-
                         <s:HGroup width="100%" verticalAlign="middle" gap="5">
                             <s:Label text="{resourceManager.getString('strings', 'zoom') + ':'}"/>
                             <s:HSlider id="zoomSlider"
-                                width="100%"
-                                minimum="1"
-                                maximum="8"
-                                stepSize="0.5"
+                                width="100"
+                                minimum="1.0"
+                                maximum="5.0"
+                                stepSize="0.1"
                                 value="{_zoom}"
                                 liveDragging="true"
                                 change="{_zoom = zoomSlider.value; spriteViewContainer.scaleX = _zoom; spriteViewContainer.scaleY = _zoom;}"/>
-                            <s:Label text="{_zoom + 'x'}" minWidth="30"/>
+                            <s:Label text="{_zoom + 'x'}" minWidth="25"/>
+
+                            <s:Spacer width="100%"/>
+
+                            <s:HGroup id="directionGroup" verticalAlign="middle" horizontalAlign="center">
+                                <otlib:DirectionButton id="topLeftButton"
+                                    direction="{Direction.NORTHWEST}"
+                                    toolTip="@Resource(key='northwest', bundle='strings')"
+                                    icon="@Embed('/../assets/icons/arrow_top_left.png')"
+                                    click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="topCenterButton"
+                                    direction="{Direction.NORTH}"
+                                    toolTip="@Resource(key='north', bundle='strings')"
+                                    icon="@Embed('/../assets/icons/arrow_up.png')"
+                                    click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="topRightButton"
+                                    direction="{Direction.NORTHEAST}"
+                                    toolTip="@Resource(key='northeast', bundle='strings')"
+                                    icon="@Embed('/../assets/icons/arrow_top_right.png')"
+                                    click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="middleRightButton"
+                                    direction="{Direction.EAST}"
+                                    toolTip="@Resource(key='east', bundle='strings')"
+                                    icon="@Embed('/../assets/icons/arrow_right.png')"
+                                    click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="bottomRightButton"
+                                    direction="{Direction.SOUTHEAST}"
+                                    toolTip="@Resource(key='southeast', bundle='strings')"
+                                    icon="@Embed('/../assets/icons/arrow_bottom_right.png')"
+                                    click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="bottomCenterButton"
+                                    direction="{Direction.SOUTH}"
+                                    toolTip="@Resource(key='south', bundle='strings')"
+                                    icon="@Embed('/../assets/icons/arrow_down.png')"
+                                    click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="bottomLeftButton"
+                                    direction="{Direction.SOUTHWEST}"
+                                    toolTip="@Resource(key='southwest', bundle='strings')"
+                                    icon="@Embed('/../assets/icons/arrow_bottom_left.png')"
+                                    click="directionButtonClickHandler(event)"/>
+                                <otlib:DirectionButton id="middleLeftButton"
+                                    direction="{Direction.WEST}"
+                                    toolTip="@Resource(key='west', bundle='strings')"
+                                    icon="@Embed('/../assets/icons/arrow_left.png')"
+                                    click="directionButtonClickHandler(event)"/>
+                            </s:HGroup>
+
+                            <s:Spacer width="100%"/>
+
+                            <s:CheckBox id="editPixelsCheckBox"
+                                label="Edit Pixels"
+                                selected="{_editPixelsMode}"
+                                change="{_editPixelsMode = editPixelsCheckBox.selected; if (_editPixelsMode) setFocus();}"/>
                         </s:HGroup>
 
                         <s:Group width="100%" minHeight="200">
@@ -1688,6 +1870,10 @@ THE SOFTWARE.
                                     <s:fill>
                                         <s:SolidColor color="0x636363"/>
                                     </s:fill>
+                                    <s:stroke>
+                                        <s:SolidColorStroke color="{_editPixelsMode ? 0x6CACEC : 0x636363}"
+                                            weight="{_editPixelsMode ? 2 : 0}"/>
+                                    </s:stroke>
                                 </s:Rect>
 
                                 <s:Image id="bitmapView"/>
@@ -1701,7 +1887,48 @@ THE SOFTWARE.
                                     updateComplete="drawCropSize()"
                                     width="{bitmapView.width}"
                                     height="{bitmapView.height}"/>
+
+                                <otlib:SurfaceCells id="pixelGrid"
+                                    visible="{_editPixelsMode}"
+                                    cellWidth="32" cellHeight="32"
+                                    columns="{_frameGroup ? _frameGroup.width : 1}"
+                                    rows="{_frameGroup ? _frameGroup.height : 1}"/>
+
                             </s:Group>
+
+                            <!-- Pixel shift buttons — bound to spriteViewContainer position -->
+                            <s:Button width="22" height="22"
+                                skinClass="otlib.components.skins.DirectionButtonSkin"
+                                icon="@Embed('/../assets/icons/arrow_up.png')"
+                                toolTip="Shift pixels up"
+                                x="{spriteViewContainer.x + (spriteViewContainer.width * _zoom) / 2 - 11}"
+                                y="{spriteViewContainer.y - 24}"
+                                visible="{_editPixelsMode}"
+                                click="shiftPixels(0, -1)"/>
+                            <s:Button width="22" height="22"
+                                skinClass="otlib.components.skins.DirectionButtonSkin"
+                                icon="@Embed('/../assets/icons/arrow_down.png')"
+                                toolTip="Shift pixels down"
+                                x="{spriteViewContainer.x + (spriteViewContainer.width * _zoom) / 2 - 11}"
+                                y="{spriteViewContainer.y + spriteViewContainer.height * _zoom + 2}"
+                                visible="{_editPixelsMode}"
+                                click="shiftPixels(0, 1)"/>
+                            <s:Button width="22" height="22"
+                                skinClass="otlib.components.skins.DirectionButtonSkin"
+                                icon="@Embed('/../assets/icons/arrow_left.png')"
+                                toolTip="Shift pixels left"
+                                x="{spriteViewContainer.x - 24}"
+                                y="{spriteViewContainer.y + (spriteViewContainer.height * _zoom) / 2 - 11}"
+                                visible="{_editPixelsMode}"
+                                click="shiftPixels(-1, 0)"/>
+                            <s:Button width="22" height="22"
+                                skinClass="otlib.components.skins.DirectionButtonSkin"
+                                icon="@Embed('/../assets/icons/arrow_right.png')"
+                                toolTip="Shift pixels right"
+                                x="{spriteViewContainer.x + spriteViewContainer.width * _zoom + 2}"
+                                y="{spriteViewContainer.y + (spriteViewContainer.height * _zoom) / 2 - 11}"
+                                visible="{_editPixelsMode}"
+                                click="shiftPixels(1, 0)"/>
                         </s:Group>
 
                         <nail:ShadowLine width="100%"/>
@@ -1819,6 +2046,7 @@ THE SOFTWARE.
                         <s:CheckBox id="showGridCheckBox"
                             label="@Resource(key='showGrid', bundle='strings')"
                             change="{changeButtonsVisible(showGridCheckBox.selected);}"/>
+
                     </mg:GroupBox>
 
                     <!-- has bones group -->

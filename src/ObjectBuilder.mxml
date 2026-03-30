@@ -2374,28 +2374,59 @@ THE SOFTWARE.
             {
                 if (thingTypeEditor.changed)
                 {
-                    if (thingTypeEditor.saveChanges())
+                    if (thingTypeEditor.pixelsModified)
                     {
-                        var thingData:ThingData = thingTypeEditor.thingData;
-                        // Check if sprites array has content before accessing
-                        if (thingData.sprites && thingData.sprites[0] && thingData.sprites[0].length > 0 && thingData.sprites[0][0].id == uint.MAX_VALUE)
-                        {
-                            Alert.show(
-                                    resourceManager.getString("strings", "wantToReplaceSprites"),
-                                    "",
-                                    Alert.YES | Alert.NO,
-                                    this,
-                                    closeHandler);
-                            return;
-                        }
-            
-                        sendCommand(new UpdateThingCommand(thingData, false));
+                        Alert.show(
+                                "Are you sure you want to save pixel changes?",
+                                resourceManager.getString("strings", "save"),
+                                Alert.YES | Alert.NO,
+                                this,
+                                pixelConfirmHandler);
+                        return;
                     }
+
+                    doSaveThingChanges(false);
                 }
-            
-                function closeHandler(event:CloseEvent):void
+
+                function pixelConfirmHandler(event:CloseEvent):void
                 {
-                    sendCommand(new UpdateThingCommand(thingTypeEditor.thingData, (event.detail == Alert.YES)));
+                    if (event.detail == Alert.YES)
+                        doSaveThingChanges(true);
+                }
+            }
+
+            private function doSaveThingChanges(forceReplaceSprites:Boolean = false):void
+            {
+                if (thingTypeEditor.saveChanges())
+                {
+                    var thingData:ThingData = thingTypeEditor.thingData;
+                    var hasNewSprites:Boolean = thingData.sprites && thingData.sprites[0] &&
+                            thingData.sprites[0].length > 0 && thingData.sprites[0][0].id == uint.MAX_VALUE;
+
+                    if (forceReplaceSprites)
+                    {
+                        sendCommand(new UpdateThingCommand(thingData, true));
+                        return;
+                    }
+
+                    if (hasNewSprites)
+                    {
+                        Alert.show(
+                                resourceManager.getString("strings", "wantToReplaceSprites"),
+                                "",
+                                Alert.YES | Alert.NO,
+                                this,
+                                closeHandler);
+                        return;
+                    }
+
+                    function closeHandler(event:CloseEvent):void
+                    {
+                        if (thingTypeEditor && thingTypeEditor.thingData)
+                            sendCommand(new UpdateThingCommand(thingTypeEditor.thingData, (event.detail == Alert.YES)));
+                    }
+
+                    sendCommand(new UpdateThingCommand(thingData, false));
                 }
             }
             
@@ -2409,14 +2440,23 @@ THE SOFTWARE.
                 if (!clientLoaded || !thingTypeEditor.changed)
                     return;
 
-                if (thingTypeEditor.saveChanges())
+                if (thingTypeEditor.pixelsModified)
                 {
-                    var data:ThingData = thingTypeEditor.thingData;
-                    var replaceSprites:Boolean = false;
-                    if (data.sprites && data.sprites[0] && data.sprites[0].length > 0 && data.sprites[0][0].id == uint.MAX_VALUE)
-                        replaceSprites = true;
+                    Alert.show(
+                            "Are you sure you want to save pixel changes?",
+                            resourceManager.getString("strings", "save"),
+                            Alert.YES | Alert.NO,
+                            this,
+                            pixelQuickSaveHandler);
+                    return;
+                }
 
-                    sendCommand(new UpdateThingCommand(data, replaceSprites));
+                doSaveThingChanges(false);
+
+                function pixelQuickSaveHandler(event:CloseEvent):void
+                {
+                    if (event.detail == Alert.YES)
+                        doSaveThingChanges(true);
                 }
             }
 
