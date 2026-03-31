@@ -167,6 +167,7 @@ THE SOFTWARE.
             import otlib.assets.Assets;
             import otlib.components.ClientVersionsWindow;
             import otlib.components.BulkEditWindow;
+            import otlib.components.CompareWindow;
             import otlib.components.ExportWindow;
             import otlib.components.FindWindow;
             import otlib.components.LookGenerator;
@@ -250,6 +251,7 @@ THE SOFTWARE.
             private var _bulkEditWindow:BulkEditWindow;
             private var _lookGenerator:LookGenerator;
             private var _animationWindow:AnimationEditor;
+            private var _compareWindow:CompareWindow;
             private var _assetStoreWindow:AssetStore;
             private var _autosave:Boolean;
             private var _autosaveChanged:Boolean;
@@ -2946,6 +2948,31 @@ THE SOFTWARE.
                 }
             }
             
+            protected function compareThingHandler(event:Event):void
+            {
+                if (!clientLoaded) return;
+
+                var sourceList:ThingList = event.target as ThingList;
+                if (!sourceList) sourceList = thingList;
+
+                var items:Vector.<ThingListItem> = sourceList.selectedThingItems;
+                if (!items || items.length < 2)
+                {
+                    Alert.show("Select at least 2 objects to compare.", "Compare");
+                    return;
+                }
+
+                if (!_compareWindow || _compareWindow.closed)
+                {
+                    _compareWindow = new CompareWindow();
+                    _compareWindow.open();
+                    WindowUtil.centralizeWindowOnScreen(_compareWindow);
+                }
+
+                _compareWindow.compareItems(items);
+                _compareWindow.activate();
+            }
+
             protected function bulkEditHandler(event:Event):void
             {
                 if (!clientLoaded)
@@ -4396,6 +4423,7 @@ THE SOFTWARE.
                                 duplicate="duplicateThingHandler(event)"
                                 bulkEdit="bulkEditHandler(event)"
                                 edit="editThingHandler(event)"
+                                compare="compareThingHandler(event)"
                                 copyObject="copyObjectHandler(event)"
                                 pasteObject="pasteObjectHandler(event)"
                                 copyProperties="copyPropertiesHandler(event)"
@@ -4434,6 +4462,7 @@ THE SOFTWARE.
                                     duplicate="duplicateThingHandler(event)"
                                     bulkEdit="bulkEditHandler(event)"
                                     edit="editThingHandler(event)"
+                                    compare="compareThingHandler(event)"
                                     copyObject="copyObjectHandler(event)"
                                     pasteObject="pasteObjectHandler(event)"
                                     copyProperties="copyPropertiesHandler(event)"
@@ -4464,6 +4493,7 @@ THE SOFTWARE.
                                 duplicate="duplicateThingHandler(event)"
                                 bulkEdit="bulkEditHandler(event)"
                                 edit="editThingHandler(event)"
+                                compare="compareThingHandler(event)"
                                 copyObject="copyObjectHandler(event)"
                                 pasteObject="pasteObjectHandler(event)"
                                 copyProperties="copyPropertiesHandler(event)"

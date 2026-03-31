@@ -68,6 +68,7 @@ package otlib.events
         public static const PASTE_ATTRIBUTES:String = "pasteAttributes";
         public static const COPY_CLIENT_ID:String = "copyClientId";
         public static const COPY_SERVER_ID:String = "copyServerId";
+        public static const COMPARE:String = "compare";
         public static const DISPLAYING_CONTEXT_MENU:String = "displayingContextMenu";
     }
 }

@@ -55,6 +55,7 @@ package otlib.components
     [Event(name="copyPatterns", type="otlib.events.ThingListEvent")]
     [Event(name="pastePatterns", type="otlib.events.ThingListEvent")]
     [Event(name="remove", type="otlib.events.ThingListEvent")]
+    [Event(name="compare", type="otlib.events.ThingListEvent")]
     [Event(name="displayingContextMenu", type="otlib.events.ThingListEvent")]
 
     public class ThingList extends ListBase
@@ -217,6 +218,9 @@ package otlib.components
                         case ThingListEvent.REMOVE:
                             event = new ThingListEvent(ThingListEvent.REMOVE);
                             break;
+                        case ThingListEvent.COMPARE:
+                            event = new ThingListEvent(ThingListEvent.COMPARE);
+                            break;
                     }
 
                     if (event)
@@ -249,6 +253,8 @@ package otlib.components
                 menu.items[6].enabled = hasClipboardObject; // Paste Object
                 menu.items[8].enabled = hasClipboardPatterns; // Paste Patterns
                 menu.items[10].enabled = hasClipboardProperties; // Paste Properties
+
+                menu.items[12].enabled = true; // Compare (needs 2+)
             }
             else
             {
@@ -262,6 +268,8 @@ package otlib.components
                 menu.items[8].enabled = hasClipboardPatterns; // Paste Patterns
                 menu.items[9].enabled = true; // Copy Properties
                 menu.items[10].enabled = hasClipboardProperties; // Paste Properties
+
+                menu.items[12].enabled = false; // Compare (needs 2+)
             }
         }
 
@@ -326,6 +334,21 @@ package otlib.components
                 return this.selectedItem.thing;
             }
             return null;
+        }
+
+        public function get selectedThingItems():Vector.<ThingListItem>
+        {
+            var result:Vector.<ThingListItem> = new Vector.<ThingListItem>();
+            if (this.selectedIndices)
+            {
+                var length:uint = selectedIndices.length;
+                for (var i:uint = 0; i < length; i++)
+                {
+                    var item:ThingListItem = dataProvider.getItemAt(selectedIndices[i]) as ThingListItem;
+                    if (item) result.push(item);
+                }
+            }
+            return result;
         }
 
         public function get selectedThings():Vector.<ThingType>

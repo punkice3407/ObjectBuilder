@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2014-2023 Object Builder <https://github.com/ottools/ObjectBuilder>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+    xmlns:s="library://ns.adobe.com/flex/spark"
+    xmlns:mx="library://ns.adobe.com/flex/mx"
+    xmlns:nail="library://ns.nail.com/naillib"
+    width="800"
+    height="550"
+    minWidth="500"
+    minHeight="350"
+    backgroundColor="0x494949"
+    showStatusBar="false"
+    fontSize="11"
+    title="Compare Objects">
+
+    <s:layout>
+        <s:VerticalLayout paddingLeft="10" paddingRight="10" paddingTop="10" paddingBottom="10" gap="6"/>
+    </s:layout>
+
+    <fx:Script>
+        <![CDATA[
+            import flash.display.BitmapData;
+
+            import mx.collections.ArrayCollection;
+            import mx.controls.dataGridClasses.DataGridColumn;
+
+            import spark.components.Group;
+            import spark.components.HGroup;
+            import spark.components.Image;
+            import spark.components.Label;
+            import spark.components.VGroup;
+
+            import otlib.things.ThingType;
+            import otlib.animation.FrameGroup;
+            import otlib.things.FrameGroupType;
+            import otlib.utils.ThingListItem;
+
+            // --------------------------------------------------------------------------
+            // PROPERTIES
+            // --------------------------------------------------------------------------
+
+            private var _things:Vector.<ThingType>;
+            private var _items:Vector.<ThingListItem>;
+            private var _numThings:uint = 0;
+
+            [Bindable]
+            private var _diffCount:uint = 0;
+
+            [Bindable]
+            private var _totalRows:uint = 0;
+
+            [Bindable]
+            private var _showOnlyDiffs:Boolean = false;
+
+            [Bindable]
+            private var _gridData:ArrayCollection = new ArrayCollection();
+
+            // Property names in display order
+            private static const PROPERTY_NAMES:Array = [
+                "isGround", "groundSpeed", "isGroundBorder", "isOnBottom", "isOnTop",
+                "isContainer", "stackable", "forceUse", "multiUse", "hasCharges",
+                "writable", "writableOnce", "maxReadWriteChars", "maxReadChars",
+                "isFluidContainer", "isFluid",
+                "isUnpassable", "isUnmoveable", "blockMissile", "blockPathfind", "noMoveAnimation",
+                "pickupable", "hangable", "isVertical", "isHorizontal", "rotatable",
+                "hasLight", "lightLevel", "lightColor",
+                "dontHide", "isTranslucent", "floorChange",
+                "hasOffset", "offsetX", "offsetY",
+                "hasBones",
+                "hasElevation", "elevation",
+                "isLyingObject", "animateAlways",
+                "miniMap", "miniMapColor",
+                "isLensHelp", "lensHelp",
+                "isFullGround", "ignoreLook",
+                "cloth", "clothSlot",
+                "isMarketItem", "marketName", "marketCategory",
+                "marketTradeAs", "marketShowAs", "marketRestrictProfession", "marketRestrictLevel",
+                "hasDefaultAction", "defaultAction",
+                "wrappable", "unwrappable", "topEffect", "usable"
+            ];
+
+            // --------------------------------------------------------------------------
+            // METHODS
+            // --------------------------------------------------------------------------
+
+            public function compareItems(items:Vector.<ThingListItem>):void
+            {
+                _items = items;
+                _numThings = items.length;
+
+                var things:Vector.<ThingType> = new Vector.<ThingType>();
+                for (var i:uint = 0; i < items.length; i++)
+                    things.push(items[i].thing);
+                _things = things;
+
+                // Build header thumbnails
+                headerGroup.removeAllElements();
+                var spacer:Group = new Group();
+                spacer.width = 150;
+                headerGroup.addElement(spacer);
+
+                for (var t:uint = 0; t < items.length; t++)
+                {
+                    var col:VGroup = new VGroup();
+                    col.horizontalAlign = "center";
+                    col.gap = 2;
+                    col.width = 100;
+
+                    var bmp:BitmapData = items[t].getBitmap();
+                    if (bmp)
+                    {
+                        var img:Image = new Image();
+                        img.source = bmp;
+                        img.width = 32;
+                        img.height = 32;
+                        img.smooth = true;
+                        col.addElement(img);
+                    }
+
+                    var thing:ThingType = items[t].thing;
+                    var name:String = "#" + thing.id;
+                    if (thing.marketName && thing.marketName.length > 0)
+                        name = thing.marketName;
+                    else if (thing.name && thing.name.length > 0)
+                        name = thing.name;
+
+                    var idLabel:Label = new Label();
+                    idLabel.text = name;
+                    idLabel.setStyle("color", 0xCCCCCC);
+                    idLabel.setStyle("fontSize", 10);
+                    idLabel.setStyle("fontWeight", "bold");
+                    idLabel.maxDisplayedLines = 1;
+                    idLabel.width = 100;
+                    idLabel.setStyle("textAlign", "center");
+                    col.addElement(idLabel);
+
+                    var catLabel:Label = new Label();
+                    catLabel.text = thing.category + " #" + thing.id;
+                    catLabel.setStyle("color", 0x888888);
+                    catLabel.setStyle("fontSize", 9);
+                    catLabel.width = 100;
+                    catLabel.setStyle("textAlign", "center");
+                    col.addElement(catLabel);
+
+                    headerGroup.addElement(col);
+                }
+
+                // Build DataGrid columns
+                var columns:Array = [];
+                var propCol:DataGridColumn = new DataGridColumn("property");
+                propCol.headerText = "Property";
+                propCol.width = 150;
+                columns.push(propCol);
+
+                for (var c:uint = 0; c < _numThings; c++)
+                {
+                    var dgCol:DataGridColumn = new DataGridColumn("v" + c);
+                    dgCol.headerText = "#" + _things[c].id;
+                    dgCol.width = 100;
+                    columns.push(dgCol);
+                }
+
+                diffGrid.columns = columns;
+
+                buildDiff();
+            }
+
+            private function buildDiff():void
+            {
+                var allRows:Array = [];
+                if (!_things || _things.length < 2)
+                {
+                    _gridData = new ArrayCollection(allRows);
+                    _diffCount = 0;
+                    _totalRows = 0;
+                    return;
+                }
+
+                var count:uint = 0;
+                var numThings:uint = _things.length;
+
+                // Properties
+                for each (var prop:String in PROPERTY_NAMES)
+                {
+                    var row:Object = {property: prop};
+                    var first:String = "";
+                    var allSame:Boolean = true;
+
+                    for (var i:uint = 0; i < numThings; i++)
+                    {
+                        var val:* = _things[i][prop];
+                        var str:String = (val == null) ? "" : String(val);
+                        row["v" + i] = str;
+                        if (i == 0) first = str;
+                        else if (str != first) allSame = false;
+                    }
+
+                    row.same = allSame;
+                    if (!allSame) count++;
+                    allRows.push(row);
+                }
+
+                // FrameGroup properties
+                var fgProps:Array = ["width", "height", "layers", "patternX", "patternY", "patternZ",
+                                     "frames", "animationMode", "loopCount"];
+                for each (var fgProp:String in fgProps)
+                {
+                    var fgRow:Object = {property: fgProp};
+                    var fgFirst:String = "";
+                    var fgSame:Boolean = true;
+
+                    for (var fi:uint = 0; fi < numThings; fi++)
+                    {
+                        var fgStr:String = "-";
+                        if (_things[fi].frameGroups && _things[fi].frameGroups.length > 0)
+                        {
+                            var fg:FrameGroup = _things[fi].getFrameGroup(FrameGroupType.DEFAULT);
+                            if (fg) fgStr = String(fg[fgProp]);
+                        }
+                        fgRow["v" + fi] = fgStr;
+                        if (fi == 0) fgFirst = fgStr;
+                        else if (fgStr != fgFirst) fgSame = false;
+                    }
+
+                    fgRow.same = fgSame;
+                    if (!fgSame) count++;
+                    allRows.push(fgRow);
+                }
+
+                _totalRows = allRows.length;
+                _diffCount = count;
+                applyFilter(allRows);
+            }
+
+            private function applyFilter(allRows:Array = null):void
+            {
+                if (!allRows)
+                {
+                    // Rebuild from grid data source
+                    allRows = [];
+                    // Re-run buildDiff to get unfiltered
+                    buildDiff();
+                    return;
+                }
+
+                if (_showOnlyDiffs)
+                {
+                    var filtered:Array = [];
+                    for each (var row:Object in allRows)
+                    {
+                        if (!row.same) filtered.push(row);
+                    }
+                    _gridData = new ArrayCollection(filtered);
+                }
+                else
+                {
+                    _gridData = new ArrayCollection(allRows);
+                }
+            }
+
+            private function onFilterChange():void
+            {
+                _showOnlyDiffs = showOnlyDiffsCheckBox.selected;
+                buildDiff();
+            }
+        ]]>
+    </fx:Script>
+
+    <!-- Header with thumbnails -->
+    <s:Scroller width="100%" minHeight="75" maxHeight="75">
+        <s:HGroup id="headerGroup" verticalAlign="bottom" gap="0" paddingLeft="0" paddingRight="6"/>
+    </s:Scroller>
+
+    <nail:ShadowLine width="100%"/>
+
+    <s:HGroup width="100%" verticalAlign="middle" gap="10">
+        <s:Label text="{'Differences: ' + _diffCount + ' / ' + _totalRows}"
+            color="{_diffCount > 0 ? 0xDDAA00 : 0x88CC88}" fontSize="11" fontWeight="bold"/>
+        <s:CheckBox id="showOnlyDiffsCheckBox"
+            label="Show only differences"
+            selected="{_showOnlyDiffs}"
+            change="onFilterChange()"/>
+    </s:HGroup>
+
+    <!-- Diff table with proper columns -->
+    <mx:DataGrid id="diffGrid"
+        width="100%" height="100%"
+        dataProvider="{_gridData}"
+        editable="false"
+        showHeaders="true"
+        rowHeight="20"
+        fontSize="10"
+        selectable="true"
+        allowMultipleSelection="false"
+        contentBackgroundColor="0x3A3A3A"
+        alternatingItemColors="[0x3A3A3A, 0x333333]"
+        color="0xCCCCCC"
+        rollOverColor="0x4A4A4A"
+        selectionColor="0x554400"/>
+
+</s:Window>

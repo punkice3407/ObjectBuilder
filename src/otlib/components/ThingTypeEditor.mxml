@@ -49,10 +49,10 @@ THE SOFTWARE.
     <fx:Script>
         <![CDATA[
             import flash.display.Graphics;
-            import flash.events.FocusEvent;
             import flash.events.KeyboardEvent;
             import flash.ui.Keyboard;
             import flash.utils.Dictionary;
+            import flash.utils.setTimeout;
 
             import mx.controls.Spacer;
             import mx.core.DragSource;
@@ -97,10 +97,6 @@ THE SOFTWARE.
             import otlib.core.SpriteDimension;
             import otlib.assets.Assets;
             import ob.settings.ObjectBuilderSettings;
-            import otlib.items.ItemAttribute;
-            import otlib.items.ItemAttributeStorage;
-            import otlib.items.ItemAttributeTemplateStorage;
-            import flash.filesystem.File;
             import flash.events.MouseEvent;
             import mx.collections.ArrayList;
             import flash.ui.ContextMenu;
@@ -119,6 +115,8 @@ THE SOFTWARE.
             private var _loading:Boolean;
             [Bindable] private var _editPixelsMode:Boolean = false;
             [Bindable] private var _filmRollMode:Boolean = false;
+            [Bindable] private var _wrapPixelShift:Boolean = false;
+            private var _shiftBlockedFlash:Boolean = false;
             [Bindable] private var _currentDirectionLabel:String = "South";
             private var _pixelsModified:Boolean = false;
             private var _filmRollBitmaps:Vector.<BitmapData> = new Vector.<BitmapData>();
@@ -602,12 +600,25 @@ THE SOFTWARE.
                     { if (isContentPixel(composite.getPixel32(etx, 0))) { blocked = true; break; } }
                 }
 
-                if (blocked) { composite.dispose(); return false; }
+                if (blocked && !_wrapPixelShift) { composite.dispose(); return false; }
 
-                // 3. Shift the composite
+                // 3. Shift the composite (with optional wrap)
                 var shifted:BitmapData = new BitmapData(totalW, totalH, true, emptyColor);
                 pt.x = dx; pt.y = dy;
                 shifted.copyPixels(composite, composite.rect, pt);
+
+                if (blocked && _wrapPixelShift)
+                {
+                    // Wrap edge pixels to the opposite side
+                    if (dx > 0)
+                        shifted.copyPixels(composite, new Rectangle(totalW - dx, 0, dx, totalH), new Point(0, 0));
+                    else if (dx < 0)
+                        shifted.copyPixels(composite, new Rectangle(0, 0, -dx, totalH), new Point(totalW + dx, 0));
+                    if (dy > 0)
+                        shifted.copyPixels(composite, new Rectangle(0, totalH - dy, totalW, dy), new Point(0, 0));
+                    else if (dy < 0)
+                        shifted.copyPixels(composite, new Rectangle(0, 0, totalW, -dy), new Point(0, totalH + dy));
+                }
                 composite.dispose();
 
                 // 4. Split back into individual sprites
@@ -646,9 +657,21 @@ THE SOFTWARE.
                 return true;
             }
 
+            private function flashShiftBlocked():void
+            {
+                if (previewStroke)
+                {
+                    previewStroke.color = 0xFF4444;
+                    setTimeout(function():void {
+                        if (previewStroke)
+                            previewStroke.color = _editPixelsMode ? 0x6CACEC : 0x636363;
+                    }, 200);
+                }
+            }
+
             private function shiftPixels(dx:int, dy:int):void
             {
-                if (!shiftPixelsCore(dx, dy)) return;
+                if (!shiftPixelsCore(dx, dy)) { flashShiftBlocked(); return; }
 
                 _pixelsModified = true;
                 _changed = true;
@@ -683,12 +706,13 @@ THE SOFTWARE.
                         _patternY = info.dirPatY;
                     }
 
-                    if (isShiftBlocked(dx, dy))
+                    if (!_wrapPixelShift && isShiftBlocked(dx, dy))
                     {
                         // Restore and abort — no frames shifted
                         animationSlider.value = savedF;
                         _patternX = savedPatX;
                         _patternY = savedPatY;
+                        flashShiftBlocked();
                         return;
                     }
                 }
@@ -1009,9 +1033,13 @@ THE SOFTWARE.
                     var isMissile:Boolean = (thingData.category == ThingCategory.MISSILE);
                     directionGroup.visible = (isOutfit || isMissile);
                     topLeftButton.visible = isMissile;
+                    topLeftButton.includeInLayout = isMissile;
                     topRightButton.visible = isMissile;
+                    topRightButton.includeInLayout = isMissile;
                     bottomRightButton.visible = isMissile;
+                    bottomRightButton.includeInLayout = isMissile;
                     bottomLeftButton.visible = isMissile;
+                    bottomLeftButton.includeInLayout = isMissile;
             
                     var thing:ThingType = thingData.thing;
                     thingView.frameGroupType = FrameGroupType.DEFAULT;
@@ -1042,7 +1070,7 @@ THE SOFTWARE.
             
                 _changed = false;
                 _loading = false;
-            
+
                 checkThingOrder();
             }
             
@@ -2331,7 +2359,7 @@ THE SOFTWARE.
             private function propertyChanged(property:String, oldValue:Object, newValue:Object):void
             {
                 _changed = true;
-            
+
                 var evt:ThingEditorEvent = new ThingEditorEvent(ThingEditorEvent.THING_PROPERTY_CHANGE, this.thingData);
                 var label:String = BindableThingType.toLabel(property);
                 evt.property = (label && label.length > 0) ? label : property;
@@ -2357,7 +2385,7 @@ THE SOFTWARE.
                 // Keyboard listener for pixel shifting
                 addEventListener(KeyboardEvent.KEY_DOWN, editPixelsKeyHandler);
             }
-            
+
             /**
              * Handler for AttributesEditor change events - updates ThingData.xmlAttributes.
              */
@@ -2551,7 +2579,7 @@ THE SOFTWARE.
                     }
                 }
             }
-            
+
             protected function checkFrameGroups(event:Event):void
             {
                 if (_thingBinding.groups > 1)
@@ -2607,20 +2635,24 @@ THE SOFTWARE.
             {
                 var oldValue:int = _thingBinding.groups;
                 _thingBinding.groups = frameGroupsNumericStepper.value;
-                propertyChanged("frameGroups", oldValue, _frameGroup.width);
+                propertyChanged("frameGroups", oldValue, _thingBinding.groups);
             }
             
             protected function widthNumericStepperChangeHandler(event:Event):void
             {
                 var oldValue:int = _frameGroup.width;
                 _frameGroup.width = widthNumericStepper.value;
+                if (pixelGrid && _frameGroup)
+                    pixelGrid.setGridSize(_frameGroup.width * 8, _frameGroup.height * 8);
                 propertyChanged("width", oldValue, _frameGroup.width);
             }
-            
+
             protected function heightNumericStepperChangeHandler(event:Event):void
             {
                 var oldValue:int = _frameGroup.height;
                 _frameGroup.height = heightNumericStepper.value;
+                if (pixelGrid && _frameGroup)
+                    pixelGrid.setGridSize(_frameGroup.width * 8, _frameGroup.height * 8);
                 propertyChanged("height", oldValue, _frameGroup.height);
             }
             
@@ -2996,6 +3028,14 @@ THE SOFTWARE.
                                 selected="{_editPixelsMode}"
                                 change="{_editPixelsMode = editPixelsCheckBox.selected; clearMultiSelection(); if (_editPixelsMode) setFocus(); if (_filmRollMode) updatePreview();}"/>
 
+                            <s:CheckBox id="wrapPixelShiftCheckBox"
+                                label="Wrap"
+                                toolTip="Wrap pixels to opposite edge instead of blocking at boundary"
+                                selected="{_wrapPixelShift}"
+                                visible="{_editPixelsMode}"
+                                includeInLayout="{_editPixelsMode}"
+                                change="{_wrapPixelShift = wrapPixelShiftCheckBox.selected;}"/>
+
                             <s:CheckBox id="filmRollCheckBox"
                                 label="Film Roll"
                                 selected="{_filmRollMode}"
@@ -3011,7 +3051,8 @@ THE SOFTWARE.
                                         <s:SolidColor color="0x636363"/>
                                     </s:fill>
                                     <s:stroke>
-                                        <s:SolidColorStroke color="{_editPixelsMode ? 0x6CACEC : 0x636363}"
+                                        <s:SolidColorStroke id="previewStroke"
+                                            color="{_editPixelsMode ? 0x6CACEC : 0x636363}"
                                             weight="{_editPixelsMode ? 2 : 0}"/>
                                     </s:stroke>
                                 </s:Rect>

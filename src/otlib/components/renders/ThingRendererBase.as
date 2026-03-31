@@ -87,6 +87,9 @@ package otlib.components.renders
             var removeMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "remove"));
             removeMenu.data = ThingListEvent.REMOVE;
 
+            var compareMenu:ContextMenuItem = new ContextMenuItem("Compare...", true);
+            compareMenu.data = ThingListEvent.COMPARE;
+
             var copyIdMenu:ContextMenuItem = new ContextMenuItem("Copy Client ID", true);
             copyIdMenu.data = ThingListEvent.COPY_CLIENT_ID;
 
@@ -99,7 +102,7 @@ package otlib.components.renders
                     copyObjectMenu, pasteObjectMenu,
                     copyPatternsMenu, pastePatternsMenu,
                     copyPropertiesMenu, pastePropertiesMenu,
-                    removeMenu, copyIdMenu, copyServerIdMenu
+                    removeMenu, compareMenu, copyIdMenu, copyServerIdMenu
                 ];
 
             return menu;
