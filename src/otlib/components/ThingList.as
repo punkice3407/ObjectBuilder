@@ -40,6 +40,7 @@ package otlib.components
     import otlib.components.renders.ThingGridRenderer;
     import otlib.core.otlib_internal;
     import otlib.events.ThingListEvent;
+    import otlib.things.ThingCategory;
     import otlib.things.ThingType;
     import otlib.utils.ThingListItem;
 
@@ -54,6 +55,8 @@ package otlib.components
     [Event(name="pasteProperties", type="otlib.events.ThingListEvent")]
     [Event(name="copyPatterns", type="otlib.events.ThingListEvent")]
     [Event(name="pastePatterns", type="otlib.events.ThingListEvent")]
+    [Event(name="copyAttributes", type="otlib.events.ThingListEvent")]
+    [Event(name="pasteAttributes", type="otlib.events.ThingListEvent")]
     [Event(name="remove", type="otlib.events.ThingListEvent")]
     [Event(name="compare", type="otlib.events.ThingListEvent")]
     [Event(name="displayingContextMenu", type="otlib.events.ThingListEvent")]
@@ -74,6 +77,8 @@ package otlib.components
         public var hasClipboardObject:Boolean = false;
         public var hasClipboardProperties:Boolean = false;
         public var hasClipboardPatterns:Boolean = false;
+        public var hasClipboardAttributes:Boolean = false;
+        public var otbLoaded:Boolean = false;
 
         // Clipboard action setting (0=object, 1=patterns, 2=properties)
         public var clipboardAction:uint = 0;
@@ -218,6 +223,12 @@ package otlib.components
                         case ThingListEvent.REMOVE:
                             event = new ThingListEvent(ThingListEvent.REMOVE);
                             break;
+                        case ThingListEvent.COPY_ATTRIBUTES:
+                            event = new ThingListEvent(ThingListEvent.COPY_ATTRIBUTES);
+                            break;
+                        case ThingListEvent.PASTE_ATTRIBUTES:
+                            event = new ThingListEvent(ThingListEvent.PASTE_ATTRIBUTES);
+                            break;
                         case ThingListEvent.COMPARE:
                             event = new ThingListEvent(ThingListEvent.COMPARE);
                             break;
@@ -239,37 +250,51 @@ package otlib.components
                 dispatchEvent(new ThingListEvent(ThingListEvent.DISPLAYING_CONTEXT_MENU));
             }
 
+            // Menu indices: 0=replace 1=export 2=edit 3=duplicate 4=bulkEdit
+            // 5=copyObj 6=pasteObj 7=copyPat 8=pastePat 9=copyProp 10=pasteProp
+            // 11=copyAttr 12=pasteAttr 13=remove 14=compare 15=copyId 16=serverId
+
+            // Check if current item is an item category (for attributes)
+            var isItem:Boolean = false;
+            if (index >= 0 && dataProvider && index < dataProvider.length)
+            {
+                var listItem:ThingListItem = dataProvider.getItemAt(index) as ThingListItem;
+                if (listItem && listItem.thing)
+                    isItem = (listItem.thing.category == ThingCategory.ITEM);
+            }
+            var attrEnabled:Boolean = isItem && otbLoaded;
+
             if (this.multipleSelected)
             {
-                menu.items[2].enabled = false; // Edit
-                menu.items[4].enabled = true; // Bulk Edit
+                menu.items[2].enabled = false;  // Edit
+                menu.items[4].enabled = true;   // Bulk Edit
+                menu.items[5].enabled = false;  // Copy Object
+                menu.items[7].enabled = false;  // Copy Patterns
+                menu.items[9].enabled = false;  // Copy Properties
+                menu.items[11].enabled = false; // Copy Attributes
 
-                // Disable Copy when multiple items are selected (copy is for single source)
-                menu.items[5].enabled = false; // Copy Object
-                menu.items[7].enabled = false; // Copy Patterns
-                menu.items[9].enabled = false; // Copy Properties
-
-                // Enable Paste for multi-selection (paste now supports multiple targets)
-                menu.items[6].enabled = hasClipboardObject; // Paste Object
-                menu.items[8].enabled = hasClipboardPatterns; // Paste Patterns
+                menu.items[6].enabled = hasClipboardObject;      // Paste Object
+                menu.items[8].enabled = hasClipboardPatterns;    // Paste Patterns
                 menu.items[10].enabled = hasClipboardProperties; // Paste Properties
+                menu.items[12].enabled = hasClipboardAttributes && attrEnabled; // Paste Attributes
 
-                menu.items[12].enabled = true; // Compare (needs 2+)
+                menu.items[14].enabled = true;  // Compare (needs 2+)
             }
             else
             {
                 this.setSelectedIndex(index, true);
-                menu.items[4].enabled = false; // Bulk Edit
+                menu.items[4].enabled = false;  // Bulk Edit
 
-                // Enable Copy/Paste for single selection
-                menu.items[5].enabled = true; // Copy Object
-                menu.items[6].enabled = hasClipboardObject; // Paste Object
-                menu.items[7].enabled = true; // Copy Patterns
-                menu.items[8].enabled = hasClipboardPatterns; // Paste Patterns
-                menu.items[9].enabled = true; // Copy Properties
+                menu.items[5].enabled = true;   // Copy Object
+                menu.items[6].enabled = hasClipboardObject;      // Paste Object
+                menu.items[7].enabled = true;   // Copy Patterns
+                menu.items[8].enabled = hasClipboardPatterns;    // Paste Patterns
+                menu.items[9].enabled = true;   // Copy Properties
                 menu.items[10].enabled = hasClipboardProperties; // Paste Properties
+                menu.items[11].enabled = attrEnabled;            // Copy Attributes
+                menu.items[12].enabled = hasClipboardAttributes && attrEnabled; // Paste Attributes
 
-                menu.items[12].enabled = false; // Compare (needs 2+)
+                menu.items[14].enabled = false; // Compare (needs 2+)
             }
         }
 

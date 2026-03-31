@@ -280,6 +280,8 @@ THE SOFTWARE.
             private var _copiedThingData:ThingData; // For copy/paste object (sprites + properties + patterns)
             private var _copiedThingType:ThingType; // For copy/paste properties
             private var _copiedPatternsThingType:ThingType; // For copy/paste patterns
+            private var _copiedAttributes:Object; // For copy/paste item attributes
+            private var _copiedAttributesSourceId:uint;
             private var _copiedSourceId:uint; // Source ID for delete-after-paste
             private var _copiedSourceCategory:String; // Source category for delete-after-paste
             private var _pendingCopyObject:Boolean = false;
@@ -1576,7 +1578,10 @@ THE SOFTWARE.
                 _clientIsTemporary = info.isTemporary;
                 _clientLoaded = info.loaded;
                 _otbLoaded = info.otbLoaded;
-            
+                thingList.otbLoaded = _otbLoaded;
+                thingGridList.otbLoaded = _otbLoaded;
+                foundThingsList.otbLoaded = _otbLoaded;
+
                 infoPanel.setFilesInfo(info);
                 thingTypeEditor.filesInfo = info;
             
@@ -1606,7 +1611,7 @@ THE SOFTWARE.
                     _pendingCopyObject = false;
                     _copiedThingData = thingData;
                     _copiedThingType = thingData.thing.clone();
-                    thingList.hasClipboardObject = true;
+                    setClipboardFlag("hasClipboardObject", true);
                     appendLog(StringUtil.format(resourceManager.getString('strings', 'objectCopied'), resourceManager.getString('strings', thingData.category), thingData.id));
                 }
             
@@ -3020,51 +3025,60 @@ THE SOFTWARE.
             
             protected function copyObjectHandler(event:Event):void
             {
-                if (clientLoaded && thingList && thingList.selectedThing)
-                {
-                    copyThingToClipboard(thingList.selectedThing);
-                }
+                var src:ThingList = event.target as ThingList || thingList;
+                if (clientLoaded && src.selectedThing)
+                    copyThingToClipboard(src.selectedThing);
             }
-            
+
             protected function pasteObjectHandler(event:Event):void
             {
-                if (clientLoaded && thingList && thingList.selectedThings && thingList.selectedThings.length > 0)
-                {
-                    pasteThingFromClipboard(thingList.selectedThings);
-                }
+                var src:ThingList = event.target as ThingList || thingList;
+                if (clientLoaded && src.selectedThings && src.selectedThings.length > 0)
+                    pasteThingFromClipboard(src.selectedThings);
             }
-            
+
             protected function copyPropertiesHandler(event:Event):void
             {
-                if (clientLoaded && thingList && thingList.selectedThing)
-                {
-                    copyPropertiesToClipboard(thingList.selectedThing);
-                }
+                var src:ThingList = event.target as ThingList || thingList;
+                if (clientLoaded && src.selectedThing)
+                    copyPropertiesToClipboard(src.selectedThing);
             }
-            
+
             protected function pastePropertiesHandler(event:Event):void
             {
-                if (clientLoaded && thingList && thingList.selectedThings && thingList.selectedThings.length > 0)
-                {
-                    pastePropertiesFromClipboard(thingList.selectedThings);
-                }
+                var src:ThingList = event.target as ThingList || thingList;
+                if (clientLoaded && src.selectedThings && src.selectedThings.length > 0)
+                    pastePropertiesFromClipboard(src.selectedThings);
             }
-            
+
             protected function copyPatternsHandler(event:Event):void
             {
-                if (clientLoaded && thingList && thingList.selectedThing)
-                {
-                    copyPatternsToClipboard(thingList.selectedThing);
-                }
+                var src:ThingList = event.target as ThingList || thingList;
+                if (clientLoaded && src.selectedThing)
+                    copyPatternsToClipboard(src.selectedThing);
             }
-            
+
             protected function pastePatternsHandler(event:Event):void
             {
-                if (clientLoaded && thingList && thingList.selectedThings && thingList.selectedThings.length > 0)
-                {
-                    pastePatternsFromClipboard(thingList.selectedThings);
-                }
+                var src:ThingList = event.target as ThingList || thingList;
+                if (clientLoaded && src.selectedThings && src.selectedThings.length > 0)
+                    pastePatternsFromClipboard(src.selectedThings);
             }
+
+            protected function copyAttributesHandler(event:Event):void
+            {
+                var src:ThingList = event.target as ThingList || thingList;
+                if (clientLoaded && _otbLoaded && src.selectedThing)
+                    copyAttributesToClipboard(src.selectedThing);
+            }
+
+            protected function pasteAttributesHandler(event:Event):void
+            {
+                var src:ThingList = event.target as ThingList || thingList;
+                if (clientLoaded && _otbLoaded && src.selectedThings && src.selectedThings.length > 0)
+                    pasteAttributesFromClipboard(src.selectedThings);
+            }
+
             protected function editThingHandler(event:Event):void
             {
                 if (!clientLoaded || thingTypeEditor.thingData == thingData)
@@ -3956,7 +3970,14 @@ THE SOFTWARE.
             {
                 return thingList && thingList.hasClipboardPatterns;
             }
-            
+
+            private function setClipboardFlag(flag:String, value:Boolean):void
+            {
+                if (thingList) thingList[flag] = value;
+                if (thingGridList) thingGridList[flag] = value;
+                if (foundThingsList) foundThingsList[flag] = value;
+            }
+
             public function requestEditThing(id:uint, category:String):void
             {
                 if (!clientLoaded)
@@ -4030,9 +4051,8 @@ THE SOFTWARE.
                 {
                     _copiedThingData = thingData;
                     _copiedThingType = thingData.thing.clone();
-            
-                    if (thingList)
-                        thingList.hasClipboardObject = true;
+
+                    setClipboardFlag("hasClipboardObject", true);
                     appendLog(StringUtil.format(resourceManager.getString('strings', 'objectCopied'), resourceManager.getString('strings', thingData.category), thingData.id));
                 }
                 else
@@ -4111,8 +4131,7 @@ THE SOFTWARE.
                 }
             
                 _copiedThingType = thing.clone();
-                if (thingList)
-                    thingList.hasClipboardProperties = true;
+                setClipboardFlag("hasClipboardProperties", true);
                 appendLog(StringUtil.format(resourceManager.getString('strings', 'propertiesCopied'), resourceManager.getString('strings', thing.category), thing.id));
             }
             
@@ -4157,8 +4176,7 @@ THE SOFTWARE.
                 }
             
                 _copiedPatternsThingType = thing.clone();
-                if (thingList)
-                    thingList.hasClipboardPatterns = true;
+                setClipboardFlag("hasClipboardPatterns", true);
                 appendLog(StringUtil.format(resourceManager.getString('strings', 'patternsCopied'), resourceManager.getString('strings', thing.category), thing.id));
             }
             
@@ -4192,6 +4210,74 @@ THE SOFTWARE.
                 }
             }
             
+            public function copyAttributesToClipboard(thing:ThingType):void
+            {
+                if (!clientLoaded || !_otbLoaded || !thing)
+                    return;
+
+                if (thing.category != ThingCategory.ITEM)
+                    return;
+
+                // Get attributes from the currently loaded ThingData
+                var td:ThingData = this.thingData;
+                if (!td || td.thing.id != thing.id || !td.xmlAttributes)
+                {
+                    appendLog("No attributes to copy (object not loaded or has no attributes).");
+                    return;
+                }
+
+                // Deep copy attributes
+                _copiedAttributes = {};
+                for (var key:String in td.xmlAttributes)
+                    _copiedAttributes[key] = td.xmlAttributes[key];
+                _copiedAttributesSourceId = thing.id;
+
+                setClipboardFlag("hasClipboardAttributes", true);
+
+                appendLog(StringUtil.format(resourceManager.getString('strings', 'attributesCopied'), resourceManager.getString('strings', thing.category), thing.id));
+            }
+
+            public function pasteAttributesFromClipboard(targets:Vector.<ThingType>):void
+            {
+                if (!clientLoaded || !_otbLoaded || !_copiedAttributes || !targets || targets.length == 0)
+                    return;
+
+                // Only paste to items
+                for each (var check:ThingType in targets)
+                {
+                    if (check.category != ThingCategory.ITEM) return;
+                }
+
+                var confirmMessage:String = targets.length > 1
+                    ? resourceManager.getString('strings', 'confirmPasteAttributes') + " (" + targets.length + " items)"
+                    : resourceManager.getString('strings', 'confirmPasteAttributes');
+
+                Alert.show(
+                        confirmMessage,
+                        resourceManager.getString('strings', 'confirm'),
+                        Alert.YES | Alert.NO,
+                        this,
+                        confirmPasteAttributesHandler
+                    );
+
+                function confirmPasteAttributesHandler(e:CloseEvent):void
+                {
+                    if (e.detail == Alert.YES)
+                    {
+                        // Create a temporary ThingType to carry attributes via PasteThingDataCommand
+                        var sourceThing:ThingType = new ThingType();
+                        sourceThing.id = _copiedAttributesSourceId;
+                        sourceThing.category = ThingCategory.ITEM;
+
+                        for each (var target:ThingType in targets)
+                        {
+                            sendCommand(new PasteThingDataCommand(target.id, target.category, sourceThing, ThingListEvent.PASTE_ATTRIBUTES));
+                        }
+                        appendLog(StringUtil.format(resourceManager.getString('strings', 'attributesPasted'), resourceManager.getString('strings', targets[0].category), _copiedAttributesSourceId, targets.length > 1 ? targets.length + " items" : targets[0].id));
+                    }
+                }
+            }
+
             public function exportSpriteList(sprites:Vector.<SpriteData>):void
             {
                 if (!sprites || sprites.length == 0)
@@ -4430,6 +4516,8 @@ THE SOFTWARE.
                                 pasteProperties="pastePropertiesHandler(event)"
                                 copyPatterns="copyPatternsHandler(event)"
                                 pastePatterns="pastePatternsHandler(event)"
+                                copyAttributes="copyAttributesHandler(event)"
+                                pasteAttributes="pasteAttributesHandler(event)"
                                 remove="removeThingHandler(event)"
                                 doubleClick="thingListDoubleClickHandler(event)"
                                 change="thingListChangeHandler(event)"
@@ -4469,6 +4557,8 @@ THE SOFTWARE.
                                     pasteProperties="pastePropertiesHandler(event)"
                                     copyPatterns="copyPatternsHandler(event)"
                                     pastePatterns="pastePatternsHandler(event)"
+                                    copyAttributes="copyAttributesHandler(event)"
+                                    pasteAttributes="pasteAttributesHandler(event)"
                                     remove="removeThingHandler(event)"
                                     doubleClick="thingListDoubleClickHandler(event)"
                                     change="thingGridListChangeHandler(event)"
@@ -4500,6 +4590,8 @@ THE SOFTWARE.
                                 pasteProperties="pastePropertiesHandler(event)"
                                 copyPatterns="copyPatternsHandler(event)"
                                 pastePatterns="pastePatternsHandler(event)"
+                                copyAttributes="copyAttributesHandler(event)"
+                                pasteAttributes="pasteAttributesHandler(event)"
                                 remove="removeThingHandler(event)"
                                 doubleClick="thingListDoubleClickHandler(event)"
                                 change="foundThingsListChangeHandler(event)"

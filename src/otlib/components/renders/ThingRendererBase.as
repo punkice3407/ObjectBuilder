@@ -84,6 +84,12 @@ package otlib.components.renders
             var pastePropertiesMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "pasteProperties"));
             pastePropertiesMenu.data = ThingListEvent.PASTE_PROPERTIES;
 
+            var copyAttributesMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "copyAttributes"));
+            copyAttributesMenu.data = ThingListEvent.COPY_ATTRIBUTES;
+
+            var pasteAttributesMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "pasteAttributes"));
+            pasteAttributesMenu.data = ThingListEvent.PASTE_ATTRIBUTES;
+
             var removeMenu:ContextMenuItem = new ContextMenuItem(resource.getString("strings", "remove"));
             removeMenu.data = ThingListEvent.REMOVE;
 
@@ -102,6 +108,7 @@ package otlib.components.renders
                     copyObjectMenu, pasteObjectMenu,
                     copyPatternsMenu, pastePatternsMenu,
                     copyPropertiesMenu, pastePropertiesMenu,
+                    copyAttributesMenu, pasteAttributesMenu,
                     removeMenu, compareMenu, copyIdMenu, copyServerIdMenu
                 ];
 

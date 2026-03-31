@@ -2341,9 +2341,23 @@ package
                     targetThing.copyPatternsFrom(sourceThingType);
                     break;
                 case ThingListEvent.PASTE_ATTRIBUTES:
-                    // TODO: Implement attributes paste when needed
-                    Log.info(Resources.getString("notImplemented", "Paste Attributes"));
-                    return;
+                    if (category == ThingCategory.ITEM && otbLoaded)
+                    {
+                        var sourceItem:ServerItem = _items.getItemByClientId(sourceThingType.id);
+                        var targetItem:ServerItem = _items.getItemByClientId(targetId);
+                        if (sourceItem && targetItem)
+                        {
+                            var srcAttrs:flash.utils.Dictionary = sourceItem.getXmlAttributes();
+                            if (srcAttrs)
+                            {
+                                var attrsObj:Object = {};
+                                for (var attrKey:String in srcAttrs)
+                                    attrsObj[attrKey] = srcAttrs[attrKey];
+                                targetItem.setXmlAttributesFromObject(attrsObj);
+                            }
+                        }
+                    }
+                    break;
             }
 
             // Mark as changed
