@@ -1755,13 +1755,15 @@ THE SOFTWARE.
                 var extra:String = "";
                 if (format == OTFormat.OBD)
                     extra = clientVersion.toString() + "-v" + obdVersion.toString().substring(0, 1);
-            
+
+                var suffix:String = extra ? "_" + extra.replace(" ", "").replace(".", "") : "";
+
                 var length:uint = things.length;
                 for (var i:uint = 0; i < length; i++)
                 {
                     var id:uint = things[i].id;
-            
-                    queue.addFile(id, fileName + "_" + id.toString() + "_" + extra.replace(" ", "").replace(".", ""), format, directory);
+
+                    queue.addFile(id, fileName + "_" + id.toString() + suffix, format, directory);
                 }
                 queue.start();
             
