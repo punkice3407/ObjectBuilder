@@ -1805,15 +1805,20 @@ THE SOFTWARE.
             
             private function selectSprite(id:uint):void
             {
-                // Return if id is current selected.
-                if (!clientLoaded || spritesList.selectedId == id)
+                if (!clientLoaded)
                     return;
-            
+
+                var src:SpriteList = activeSpriteList;
+
+                // Return if id is current selected.
+                if (src.selectedId == id)
+                    return;
+
                 // Search index if id is in range of loaded list.
-                if (id >= spritesList.minId && id <= spritesList.maxId)
+                if (id >= src.minId && id <= src.maxId)
                 {
-                    spritesList.ensureIdIsVisible(id);
-                    spritesList.selectedId = id;
+                    src.ensureIdIsVisible(id);
+                    src.selectedId = id;
                 }
                 else
                 {
@@ -2752,15 +2757,16 @@ THE SOFTWARE.
             {
                 if (!clientLoaded)
                     return;
-            
+
+                var src:ThingList = (event.target as ThingList) || getActiveThingList();
                 var filter:FileFilter = new FileFilter("Object Builder Data", "*.obd;");
                 var file:File = _settings.getIODirectory() || File.userDirectory;
                 file.addEventListener(FileListEvent.SELECT_MULTIPLE, selectMultipleHandler);
                 file.browseForOpenMultiple(resourceManager.getString("strings", "selectFiles"), [filter]);
-            
+
                 function selectMultipleHandler(event:FileListEvent):void
                 {
-                    var selectedIds:Vector.<uint> = thingList.selectedIds;
+                    var selectedIds:Vector.<uint> = src.selectedIds;
                     var files:Array = event.files;
                     var length:uint = files.length;
                     var list:Vector.<PathHelper> = new Vector.<PathHelper>(length, true);
@@ -2820,8 +2826,9 @@ THE SOFTWARE.
             {
                 if (!clientLoaded || _locked)
                     return;
-            
-                var things:Vector.<ThingType> = thingList.selectedThings;
+
+                var src:ThingList = (event.target as ThingList) || getActiveThingList();
+                var things:Vector.<ThingType> = src.selectedThings;
                 if (things.length == 0)
                     return;
             
@@ -2945,8 +2952,9 @@ THE SOFTWARE.
             {
                 if (!clientLoaded)
                     return;
-            
-                var things:Vector.<uint> = thingList.selectedIds;
+
+                var src:ThingList = (event.target as ThingList) || getActiveThingList();
+                var things:Vector.<uint> = src.selectedIds;
                 if (things && things.length > 0)
                 {
                     duplicateThings(things, currentCategory);
@@ -2957,8 +2965,7 @@ THE SOFTWARE.
             {
                 if (!clientLoaded) return;
 
-                var sourceList:ThingList = event.target as ThingList;
-                if (!sourceList) sourceList = thingList;
+                var sourceList:ThingList = (event.target as ThingList) || getActiveThingList();
 
                 var items:Vector.<ThingListItem> = sourceList.selectedThingItems;
                 if (!items || items.length < 2)
@@ -2983,7 +2990,8 @@ THE SOFTWARE.
                 if (!clientLoaded)
                     return;
 
-                var selectedIds:Vector.<uint> = thingList.selectedIds;
+                var src:ThingList = (event.target as ThingList) || getActiveThingList();
+                var selectedIds:Vector.<uint> = src.selectedIds;
                 if (!selectedIds || selectedIds.length < 2)
                     return;
 
@@ -3025,56 +3033,56 @@ THE SOFTWARE.
             
             protected function copyObjectHandler(event:Event):void
             {
-                var src:ThingList = event.target as ThingList || thingList;
+                var src:ThingList = (event.target as ThingList) || getActiveThingList();
                 if (clientLoaded && src.selectedThing)
                     copyThingToClipboard(src.selectedThing);
             }
 
             protected function pasteObjectHandler(event:Event):void
             {
-                var src:ThingList = event.target as ThingList || thingList;
+                var src:ThingList = (event.target as ThingList) || getActiveThingList();
                 if (clientLoaded && src.selectedThings && src.selectedThings.length > 0)
                     pasteThingFromClipboard(src.selectedThings);
             }
 
             protected function copyPropertiesHandler(event:Event):void
             {
-                var src:ThingList = event.target as ThingList || thingList;
+                var src:ThingList = (event.target as ThingList) || getActiveThingList();
                 if (clientLoaded && src.selectedThing)
                     copyPropertiesToClipboard(src.selectedThing);
             }
 
             protected function pastePropertiesHandler(event:Event):void
             {
-                var src:ThingList = event.target as ThingList || thingList;
+                var src:ThingList = (event.target as ThingList) || getActiveThingList();
                 if (clientLoaded && src.selectedThings && src.selectedThings.length > 0)
                     pastePropertiesFromClipboard(src.selectedThings);
             }
 
             protected function copyPatternsHandler(event:Event):void
             {
-                var src:ThingList = event.target as ThingList || thingList;
+                var src:ThingList = (event.target as ThingList) || getActiveThingList();
                 if (clientLoaded && src.selectedThing)
                     copyPatternsToClipboard(src.selectedThing);
             }
 
             protected function pastePatternsHandler(event:Event):void
             {
-                var src:ThingList = event.target as ThingList || thingList;
+                var src:ThingList = (event.target as ThingList) || getActiveThingList();
                 if (clientLoaded && src.selectedThings && src.selectedThings.length > 0)
                     pastePatternsFromClipboard(src.selectedThings);
             }
 
             protected function copyAttributesHandler(event:Event):void
             {
-                var src:ThingList = event.target as ThingList || thingList;
+                var src:ThingList = (event.target as ThingList) || getActiveThingList();
                 if (clientLoaded && _otbLoaded && src.selectedThing)
                     copyAttributesToClipboard(src.selectedThing);
             }
 
             protected function pasteAttributesHandler(event:Event):void
             {
-                var src:ThingList = event.target as ThingList || thingList;
+                var src:ThingList = (event.target as ThingList) || getActiveThingList();
                 if (clientLoaded && _otbLoaded && src.selectedThings && src.selectedThings.length > 0)
                     pasteAttributesFromClipboard(src.selectedThings);
             }
@@ -3153,10 +3161,11 @@ THE SOFTWARE.
             {
                 if (clientLoaded)
                 {
-                    var selectedIds:Vector.<uint> = thingList.selectedIds;
+                    var src:ThingList = (event.target as ThingList) || getActiveThingList();
+                    var selectedIds:Vector.<uint> = src.selectedIds;
                     if (selectedIds && selectedIds.length > 0)
                     {
-                        var thing:ThingType = thingList.selectedThing;
+                        var thing:ThingType = src.selectedThing;
                         var currentCategory:String = thing ? thing.category : _category;
             
                         if (currentCategory != _category)
