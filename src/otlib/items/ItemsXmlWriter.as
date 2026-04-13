@@ -236,6 +236,8 @@ package otlib.items
             for each (var tagKey:String in _tagAttributeKeys)
             {
                 var tagValue:String = getAttributeValue(item, tagKey, attrs);
+                if (tagValue != null)
+                    tagValue = tagValue.replace(/^\s+|\s+$/g, "");
                 if (tagValue !== null && (tagValue.length > 0 || tagKey == "name"))
                 {
                     xml += ' ' + tagKey + '="' + escapeXml(tagValue) + '"';
@@ -350,7 +352,8 @@ package otlib.items
                     var valueStr:String = "";
                     if (nestedDict["_parentValue"])
                     {
-                        valueStr = ' value="' + escapeXml(String(nestedDict["_parentValue"])) + '"';
+                        var pv:String = String(nestedDict["_parentValue"]).replace(/^\s+|\s+$/g, "");
+                        valueStr = ' value="' + escapeXml(pv) + '"';
                     }
 
                     xml = indent + '<attribute key="' + key + '"' + valueStr + '>\n';
@@ -363,7 +366,8 @@ package otlib.items
                 else
                 {
                     // Simple attribute
-                    xml = indent + '<attribute key="' + key + '" value="' + escapeXml(String(value)) + '" />\n';
+                    var sv:String = String(value).replace(/^\s+|\s+$/g, "");
+                    xml = indent + '<attribute key="' + key + '" value="' + escapeXml(sv) + '" />\n';
                     writeString(stream, xml);
                 }
             }

@@ -907,15 +907,15 @@
             {
                 // Always copy basic fields to _activeItemAttributes so they get saved
                 if (articleInput && articleInput.selectedItem)
-                    _activeItemAttributes["article"] = String(articleInput.selectedItem);
+                    _activeItemAttributes["article"] = String(articleInput.selectedItem).replace(/^\s+|\s+$/g, "");
                 if (nameInput)
-                    _activeItemAttributes["name"] = nameInput.text;
+                    _activeItemAttributes["name"] = nameInput.text.replace(/^\s+|\s+$/g, "");
                 if (pluralInput)
-                    _activeItemAttributes["plural"] = pluralInput.text;
-            
+                    _activeItemAttributes["plural"] = pluralInput.text.replace(/^\s+|\s+$/g, "");
+
                 if (descriptionInput)
-                    _activeItemAttributes["description"] = descriptionInput.text;
-            
+                    _activeItemAttributes["description"] = descriptionInput.text.replace(/^\s+|\s+$/g, "");
+
                 markDirty();
             }
             
@@ -1193,17 +1193,12 @@
                     return;
             
                 var basicInfo:Object = {};
-            
-                if (nameInput && nameInput.text.length > 0)
-                    basicInfo.name = nameInput.text;
+
                 if (pluralInput && pluralInput.text.length > 0)
                     basicInfo.plural = pluralInput.text;
                 if (articleInput && articleInput.selectedIndex > 0 && articleInput.selectedItem)
                     basicInfo.article = articleInput.selectedItem;
-            
-                if (descriptionInput && descriptionInput.text.length > 0)
-                    basicInfo.description = descriptionInput.text;
-            
+
                 _templateManager.createTemplate(templateName, basicInfo, _activeItemAttributes);
                 refreshTemplateList();
             }
@@ -1219,14 +1214,10 @@
                     return;
             
                 var basicInfo:Object = data.basicInfo;
-            
-                if (nameInput)
-                    nameInput.text = basicInfo.name || "";
+
                 if (pluralInput)
                     pluralInput.text = basicInfo.plural || "";
-            
-                if (descriptionInput)
-                    descriptionInput.text = basicInfo.description || "";
+
                 if (articleInput)
                 {
                     var article:String = basicInfo.article || "";
