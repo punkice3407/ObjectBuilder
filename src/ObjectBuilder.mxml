@@ -4463,7 +4463,7 @@ THE SOFTWARE.
 
             <!-- thing list container -->
             <s:BorderContainer id="thingsPanel"
-                minWidth="190" maxWidth="400" width="290" height="100%"
+                minWidth="190" maxWidth="1340" width="290" height="100%"
                 fontSize="11"
                 skinClass="nail.components.skins.BorderContainerSkin">
                 <s:layout>
@@ -4541,7 +4541,7 @@ THE SOFTWARE.
                                 <s:HGroup width="100%" verticalAlign="middle" paddingLeft="5" paddingRight="5">
                                     <s:Label text="Columns:"/>
                                     <s:NumericStepper id="gridColumnsStepper"
-                                        minimum="2" maximum="16" value="4"
+                                        minimum="2" maximum="20" value="4"
                                         width="50" height="20"
                                         change="gridColumnsChangeHandler(event)"/>
                                 </s:HGroup>
@@ -4728,7 +4728,7 @@ THE SOFTWARE.
             <!-- sprites container -->
             <s:BorderContainer id="spritesPanel"
                 minWidth="190"
-                maxWidth="400"
+                maxWidth="900"
                 width="190"
                 height="100%"
                 skinClass="nail.components.skins.BorderContainerSkin">
@@ -4784,7 +4784,7 @@ THE SOFTWARE.
                                 <s:HGroup width="100%" verticalAlign="middle" paddingLeft="5" paddingRight="5">
                                     <s:Label text="Columns:"/>
                                     <s:NumericStepper id="spriteGridColumnsStepper"
-                                        minimum="2" maximum="16" value="5"
+                                        minimum="2" maximum="20" value="5"
                                         width="50" height="20"
                                         change="spriteGridColumnsChangeHandler(event)"/>
                                 </s:HGroup>
