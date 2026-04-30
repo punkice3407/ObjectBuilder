@@ -43,6 +43,9 @@ package otlib.utils
         /** Server ID from items.otb (if loaded), 0 if not available */
         public var serverId:uint;
 
+        /** Cached cropped bitmap for grid renderer (cropped to non-transparent bounds) */
+        public var croppedBitmap:BitmapData;
+
         private var _bitmap:BitmapData;
 
         // --------------------------------------
@@ -100,6 +103,11 @@ package otlib.utils
             {
                 _bitmap.dispose();
                 _bitmap = null;
+            }
+            if (croppedBitmap)
+            {
+                croppedBitmap.dispose();
+                croppedBitmap = null;
             }
             if (pixels)
             {

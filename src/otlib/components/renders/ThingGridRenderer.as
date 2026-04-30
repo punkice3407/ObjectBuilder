@@ -30,6 +30,9 @@ package otlib.components.renders
     import flash.events.MouseEvent;
 
     import mx.events.FlexEvent;
+    import mx.graphics.BitmapFillMode;
+    import mx.graphics.BitmapScaleMode;
+    import mx.graphics.BitmapSmoothingQuality;
     import mx.graphics.SolidColor;
     import mx.graphics.SolidColorStroke;
 
@@ -45,6 +48,7 @@ package otlib.components.renders
     import otlib.components.ListBase;
     import otlib.core.otlib_internal;
     import otlib.things.ThingType;
+    import otlib.utils.BitmapUtils;
     import otlib.utils.ThingListItem;
 
     use namespace otlib_internal;
@@ -58,6 +62,7 @@ package otlib.components.renders
         private var _imageDisplay:BitmapImage;
         private var _idLabel:Label;
         private var _hovered:Boolean = false;
+        private var _iconSize:uint = DEFAULT_ICON_SIZE;
 
         // Background elements
         private var _fill:Rect;
@@ -71,6 +76,16 @@ package otlib.components.renders
         private static const COLOR_BORDER:uint = 0x272727;
         private static const COLOR_IMAGE_BG:uint = 0x636363;
 
+        // Layout: outer cell padding around icon (4px sides, 3px top + 12px label-area below)
+        public static const OUTER_WIDTH_PADDING:uint = 10;
+        public static const OUTER_HEIGHT_PADDING:uint = 17;
+        public static const IMAGE_BG_PADDING:uint = 2;
+        public static const MIN_ICON_SIZE:uint = 16;
+        public static const DEFAULT_ICON_SIZE:uint = 54;
+
+        /** Latest iconSize selected by user. Pooled renderers pick this up in set data(). */
+        public static var sharedIconSize:uint = DEFAULT_ICON_SIZE;
+
         // --------------------------------------------------------------------------
         // CONSTRUCTOR
         // --------------------------------------------------------------------------
@@ -78,10 +93,35 @@ package otlib.components.renders
         public function ThingGridRenderer()
         {
             super();
-            this.width = 64;
-            this.height = 71;
+            this.width = _iconSize + OUTER_WIDTH_PADDING;
+            this.height = _iconSize + OUTER_HEIGHT_PADDING;
             this.autoDrawBackground = false; // We draw our own background
             this.setStyle("fontSize", 9);
+        }
+
+        public function get iconSize():uint
+        {
+            return _iconSize;
+        }
+
+        public function set iconSize(value:uint):void
+        {
+            if (value < MIN_ICON_SIZE) value = MIN_ICON_SIZE;
+            _iconSize = value;
+            this.width = value + OUTER_WIDTH_PADDING;
+            this.height = value + OUTER_HEIGHT_PADDING;
+            if (_imageBackground)
+            {
+                _imageBackground.width = value + IMAGE_BG_PADDING;
+                _imageBackground.height = value + IMAGE_BG_PADDING;
+            }
+            if (_imageDisplay)
+            {
+                _imageDisplay.width = value;
+                _imageDisplay.height = value;
+            }
+            invalidateSize();
+            invalidateDisplayList();
         }
 
         // --------------------------------------------------------------------------
@@ -114,8 +154,8 @@ package otlib.components.renders
             _imageBackground = new Rect();
             _imageBackground.horizontalCenter = 0;
             _imageBackground.top = 3;
-            _imageBackground.width = 56;
-            _imageBackground.height = 56;
+            _imageBackground.width = _iconSize + IMAGE_BG_PADDING;
+            _imageBackground.height = _iconSize + IMAGE_BG_PADDING;
             _imageBackground.fill = new SolidColor(COLOR_IMAGE_BG);
             _imageBackground.stroke = new SolidColorStroke(COLOR_BORDER);
             addElement(_imageBackground);
@@ -124,10 +164,12 @@ package otlib.components.renders
             _imageDisplay = new BitmapImage();
             _imageDisplay.horizontalCenter = 0;
             _imageDisplay.top = 4;
-            _imageDisplay.width = 54;
-            _imageDisplay.height = 54;
-            _imageDisplay.fillMode = "scale";
-            _imageDisplay.scaleMode = "letterbox";
+            _imageDisplay.width = _iconSize;
+            _imageDisplay.height = _iconSize;
+            _imageDisplay.fillMode = BitmapFillMode.SCALE;
+            _imageDisplay.scaleMode = BitmapScaleMode.LETTERBOX;
+            _imageDisplay.smooth = true;
+            _imageDisplay.smoothingQuality = BitmapSmoothingQuality.HIGH;
             addElement(_imageDisplay);
 
             // 5. ID Label
@@ -197,6 +239,10 @@ package otlib.components.renders
         {
             super.data = value;
 
+            // Sync size for pooled renderers reused after a Size change
+            if (_iconSize != sharedIconSize)
+                iconSize = sharedIconSize;
+
             var item:ThingListItem = value as ThingListItem;
             if (item)
             {
@@ -205,10 +251,14 @@ package otlib.components.renders
                 // ID text
                 _idLabel.text = thing.id.toString();
 
-                // Image
+                // Image — auto-cropped to non-transparent bounds for uniform fill
                 try
                 {
-                    _imageDisplay.source = item.getBitmap();
+                    if (!item.croppedBitmap)
+                    {
+                        item.croppedBitmap = BitmapUtils.cropToTransparency(item.getBitmap());
+                    }
+                    _imageDisplay.source = item.croppedBitmap;
                 }
                 catch (error:Error)
                 {

@@ -69,6 +69,7 @@ package otlib.components
 
         private var _viewMode:String = VIEW_MODE_LIST;
         private var _gridColumns:uint = 4;
+        private var _iconSize:uint = ThingGridRenderer.DEFAULT_ICON_SIZE;
 
         public static const VIEW_MODE_LIST:String = "list";
         public static const VIEW_MODE_GRID:String = "grid";
@@ -125,6 +126,50 @@ package otlib.components
             }
         }
 
+        public function get iconSize():uint
+        {
+            return _iconSize;
+        }
+
+        public function set iconSize(value:uint):void
+        {
+            if (value < ThingGridRenderer.MIN_ICON_SIZE) value = ThingGridRenderer.MIN_ICON_SIZE;
+            _iconSize = value;
+
+            // Pooled renderers (off-screen, recycled) read this on next set data()
+            ThingGridRenderer.sharedIconSize = value;
+
+            // Update factory properties so newly created renderers (after scroll) use this size
+            if (this.itemRenderer is ClassFactory)
+            {
+                var factory:ClassFactory = ClassFactory(this.itemRenderer);
+                if (!factory.properties) factory.properties = {};
+                factory.properties.iconSize = value;
+            }
+
+            if (this.dataGroup)
+            {
+                // Force tile size on layout — without this, TileLayout caches the max-seen
+                // measured size and won't shrink when iconSize decreases.
+                if (this.dataGroup.layout is TileLayout)
+                {
+                    var tl:TileLayout = TileLayout(this.dataGroup.layout);
+                    tl.columnWidth = value + ThingGridRenderer.OUTER_WIDTH_PADDING;
+                    tl.rowHeight = value + ThingGridRenderer.OUTER_HEIGHT_PADDING;
+                }
+
+                // Update existing renderers in viewport
+                var n:int = this.dataGroup.numElements;
+                for (var i:int = 0; i < n; i++)
+                {
+                    var r:Object = this.dataGroup.getElementAt(i);
+                    if (r && "iconSize" in r)
+                        r.iconSize = value;
+                }
+                this.dataGroup.invalidateDisplayList();
+            }
+        }
+
         private function updateViewMode():void
         {
             if (_viewMode == VIEW_MODE_GRID)
@@ -137,11 +182,16 @@ package otlib.components
                 tileLayout.verticalGap = 1;
                 tileLayout.requestedColumnCount = _gridColumns;
                 tileLayout.useVirtualLayout = true;
+                tileLayout.columnWidth = _iconSize + ThingGridRenderer.OUTER_WIDTH_PADDING;
+                tileLayout.rowHeight = _iconSize + ThingGridRenderer.OUTER_HEIGHT_PADDING;
 
                 if (this.dataGroup)
                     this.dataGroup.layout = tileLayout;
 
-                this.itemRenderer = new ClassFactory(ThingGridRenderer);
+                ThingGridRenderer.sharedIconSize = _iconSize;
+                var gridFactory:ClassFactory = new ClassFactory(ThingGridRenderer);
+                gridFactory.properties = { iconSize: _iconSize };
+                this.itemRenderer = gridFactory;
             }
             else
             {

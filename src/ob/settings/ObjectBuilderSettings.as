@@ -90,8 +90,10 @@ package ob.settings
         public var largerWindowsFor4K:Boolean = false;
         public var previewZoom:Number = 1.0;
         public var objectsGridColumns:uint = 4;
+        public var objectsGridIconSize:uint = 54;
         public var objectsActiveTab:uint = 0;
         public var spritesGridColumns:uint = 5;
+        public var spritesGridIconSize:uint = 33;
         public var spritesActiveTab:uint = 0;
         public var exportBatchSize:uint = 50;
 

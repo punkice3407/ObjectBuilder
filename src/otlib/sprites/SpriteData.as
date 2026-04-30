@@ -43,6 +43,9 @@ package otlib.sprites
         private var _rect:Rectangle;
         private var _bitmapData:BitmapData;
 
+        /** Cached cropped bitmap for grid renderer (cropped to non-transparent bounds) */
+        public var croppedBitmap:BitmapData;
+
         // --------------------------------------
         // Getters / Setters
         // --------------------------------------
@@ -62,6 +65,12 @@ package otlib.sprites
         public function set pixels(value:ByteArray):void
         {
             _pixels = value;
+            // Pixels mutated — invalidate cached cropped bitmap
+            if (croppedBitmap)
+            {
+                croppedBitmap.dispose();
+                croppedBitmap = null;
+            }
         }
 
         // --------------------------------------------------------------------------
@@ -140,6 +149,25 @@ package otlib.sprites
             var buffer:BitmapData = ensureBitmapData();
             buffer.setPixels(_rect, pixels);
             return SpriteUtils.isEmpty(buffer);
+        }
+
+        public function dispose():void
+        {
+            if (_pixels)
+            {
+                _pixels.clear();
+                _pixels = null;
+            }
+            if (_bitmapData)
+            {
+                _bitmapData.dispose();
+                _bitmapData = null;
+            }
+            if (croppedBitmap)
+            {
+                croppedBitmap.dispose();
+                croppedBitmap = null;
+            }
         }
 
         public function clone():SpriteData

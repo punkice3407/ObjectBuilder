@@ -29,6 +29,9 @@ package otlib.components
 
     import mx.core.ClassFactory;
 
+    import spark.layouts.TileLayout;
+
+    import otlib.components.renders.SpriteGridRenderer;
     import otlib.components.renders.SpriteListRenderer;
     import otlib.core.otlib_internal;
     import otlib.events.SpriteListEvent;
@@ -48,9 +51,51 @@ package otlib.components
         // PROPERTIES
         // --------------------------------------------------------------------------
 
+        private var _iconSize:uint = SpriteGridRenderer.DEFAULT_ICON_SIZE;
+
         // --------------------------------------
         // Getters / Setters
         // --------------------------------------
+
+        public function get iconSize():uint
+        {
+            return _iconSize;
+        }
+
+        public function set iconSize(value:uint):void
+        {
+            if (value < SpriteGridRenderer.MIN_ICON_SIZE) value = SpriteGridRenderer.MIN_ICON_SIZE;
+            _iconSize = value;
+
+            // Pooled renderers (off-screen, recycled) read this on next set data()
+            SpriteGridRenderer.sharedIconSize = value;
+
+            if (this.itemRenderer is ClassFactory)
+            {
+                var factory:ClassFactory = ClassFactory(this.itemRenderer);
+                if (!factory.properties) factory.properties = {};
+                factory.properties.iconSize = value;
+            }
+
+            if (this.dataGroup)
+            {
+                if (this.dataGroup.layout is TileLayout)
+                {
+                    var tl:TileLayout = TileLayout(this.dataGroup.layout);
+                    tl.columnWidth = value + SpriteGridRenderer.OUTER_WIDTH_PADDING;
+                    tl.rowHeight = value + SpriteGridRenderer.OUTER_HEIGHT_PADDING;
+                }
+
+                var n:int = this.dataGroup.numElements;
+                for (var i:int = 0; i < n; i++)
+                {
+                    var r:Object = this.dataGroup.getElementAt(i);
+                    if (r && "iconSize" in r)
+                        r.iconSize = value;
+                }
+                this.dataGroup.invalidateDisplayList();
+            }
+        }
 
         public function get selectedSprite():SpriteData
         {

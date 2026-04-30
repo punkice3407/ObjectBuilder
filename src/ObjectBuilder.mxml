@@ -1412,6 +1412,11 @@ THE SOFTWARE.
                     gridColumnsStepper.value = _settings.objectsGridColumns;
                     thingGridList.gridColumns = _settings.objectsGridColumns;
                 }
+                if (_settings.objectsGridIconSize >= 16)
+                {
+                    gridIconSizeStepper.value = _settings.objectsGridIconSize;
+                    thingGridList.iconSize = _settings.objectsGridIconSize;
+                }
                 if (_settings.spritesActiveTab < spritesViewStack.numChildren)
                     setSpritesView(_settings.spritesActiveTab);
                 if (_settings.spritesGridColumns >= 2)
@@ -1419,6 +1424,11 @@ THE SOFTWARE.
                     spriteGridColumnsStepper.value = _settings.spritesGridColumns;
                     if (spritesGridList && spritesGridList.dataGroup && spritesGridList.dataGroup.layout is TileLayout)
                         TileLayout(spritesGridList.dataGroup.layout).requestedColumnCount = _settings.spritesGridColumns;
+                }
+                if (_settings.spritesGridIconSize >= 16)
+                {
+                    spriteGridIconSizeStepper.value = _settings.spritesGridIconSize;
+                    if (spritesGridList) spritesGridList.iconSize = _settings.spritesGridIconSize;
                 }
                 if (_settings.previewZoom > 0)
                     callLater(setPreviewZoom, [_settings.previewZoom]);
@@ -3236,6 +3246,13 @@ THE SOFTWARE.
                 thingGridList.gridColumns = cols;
             }
 
+            protected function gridIconSizeChangeHandler(event:Event):void
+            {
+                var size:uint = gridIconSizeStepper.value;
+                _settings.objectsGridIconSize = size;
+                thingGridList.iconSize = size;
+            }
+
             protected function thingGridListChangeHandler(event:IndexChangeEvent):void
             {
                 if (!clientLoaded)
@@ -3298,6 +3315,14 @@ THE SOFTWARE.
                 {
                     TileLayout(spritesGridList.dataGroup.layout).requestedColumnCount = cols;
                 }
+            }
+
+            protected function spriteGridIconSizeChangeHandler(event:Event):void
+            {
+                var size:uint = spriteGridIconSizeStepper.value;
+                _settings.spritesGridIconSize = size;
+                if (spritesGridList)
+                    spritesGridList.iconSize = size;
             }
 
             protected function getLastDisplayedThingId():uint
@@ -4544,6 +4569,11 @@ THE SOFTWARE.
                                         minimum="2" maximum="20" value="4"
                                         width="50" height="20"
                                         change="gridColumnsChangeHandler(event)"/>
+                                    <s:Label text="Size:"/>
+                                    <s:NumericStepper id="gridIconSizeStepper"
+                                        minimum="16" maximum="128" value="54" stepSize="2"
+                                        width="60" height="20"
+                                        change="gridIconSizeChangeHandler(event)"/>
                                 </s:HGroup>
 
                                 <otlib:ThingList id="thingGridList"
@@ -4787,6 +4817,11 @@ THE SOFTWARE.
                                         minimum="2" maximum="20" value="5"
                                         width="50" height="20"
                                         change="spriteGridColumnsChangeHandler(event)"/>
+                                    <s:Label text="Size:"/>
+                                    <s:NumericStepper id="spriteGridIconSizeStepper"
+                                        minimum="16" maximum="128" value="33" stepSize="1"
+                                        width="60" height="20"
+                                        change="spriteGridIconSizeChangeHandler(event)"/>
                                 </s:HGroup>
                                 <otlib:SpriteList id="spritesGridList"
                                     width="100%"
