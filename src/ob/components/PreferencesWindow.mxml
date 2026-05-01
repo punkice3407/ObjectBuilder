@@ -135,6 +135,7 @@ THE SOFTWARE.
                 clipboardActionDropDown.selectedIndex = settings.thingListClipboardAction;
                 deleteAfterPasteCheckBox.selected = settings.deleteAfterPaste;
                 syncOtbOnAddCheckBox.selected = settings.syncOtbOnAdd;
+                duplicateCopiesServerItemCheckBox.selected = settings.duplicateCopiesServerItem;
                 largerWindowsFor4KCheckBox.selected = settings.largerWindowsFor4K;
             }
             
@@ -222,6 +223,7 @@ THE SOFTWARE.
                 _settings.thingListClipboardAction = clipboardActionDropDown.selectedIndex;
                 _settings.deleteAfterPaste = deleteAfterPasteCheckBox.selected;
                 _settings.syncOtbOnAdd = syncOtbOnAddCheckBox.selected;
+                _settings.duplicateCopiesServerItem = duplicateCopiesServerItemCheckBox.selected;
                 _settings.largerWindowsFor4K = largerWindowsFor4KCheckBox.selected;
                 close();
             }
@@ -389,6 +391,8 @@ THE SOFTWARE.
 
                 <s:CheckBox id="syncOtbOnAddCheckBox"
                     label="@Resource(key='autoCreateMissingServerItems', bundle='strings')"/>
+                <s:CheckBox id="duplicateCopiesServerItemCheckBox"
+                    label="@Resource(key='duplicateCopiesServerItem', bundle='strings')"/>
             </mg:GroupBox>
         </s:NavigatorContent>
     </mx:ViewStack>

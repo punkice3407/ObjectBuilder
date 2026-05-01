@@ -209,6 +209,9 @@ package otlib.items
             item.minimapColor = minimapColor;
             item.tradeAs = tradeAs;
 
+            // Deep-clone XML attributes (handles nested Dictionary/Array from Canary-style nested <attribute>)
+            item.copyXmlAttributesFrom(this);
+
             return item;
         }
 
@@ -382,6 +385,57 @@ package otlib.items
             {
                 _xmlAttributes[key] = attrsObj[key];
             }
+        }
+
+        /**
+         * Deep-copies all XML attributes from another ServerItem, replacing any existing
+         * attributes. Handles nested Dictionary / Array values (e.g. Canary-style nested
+         * <attribute> elements such as `abilities`).
+         *
+         * Used by clone() (Duplicate flow) and PASTE_ATTRIBUTES handler.
+         */
+        public function copyXmlAttributesFrom(source:ServerItem):void
+        {
+            if (!source)
+                return;
+
+            var srcAttrs:Dictionary = source.getXmlAttributes();
+            if (!srcAttrs)
+            {
+                _xmlAttributes = null;
+                return;
+            }
+
+            _xmlAttributes = new Dictionary();
+            for (var key:String in srcAttrs)
+            {
+                _xmlAttributes[key] = deepCopyAttributeValue(srcAttrs[key]);
+            }
+        }
+
+        /**
+         * Recursively copies an XML attribute value. Dictionary and Array containers
+         * are duplicated (no shared references); primitives are passed by value.
+         */
+        private static function deepCopyAttributeValue(value:*):*
+        {
+            if (value is Dictionary)
+            {
+                var dictCopy:Dictionary = new Dictionary();
+                for (var k:String in value)
+                    dictCopy[k] = deepCopyAttributeValue(value[k]);
+                return dictCopy;
+            }
+            if (value is Array)
+            {
+                var arr:Array = value as Array;
+                var arrCopy:Array = new Array(arr.length);
+                for (var i:int = 0; i < arr.length; i++)
+                    arrCopy[i] = deepCopyAttributeValue(arr[i]);
+                return arrCopy;
+            }
+            // Primitives (String/Number/int/uint/Boolean) — by value
+            return value;
         }
 
         /**

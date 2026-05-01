@@ -1739,9 +1739,24 @@ package
 
             list.sort(Array.NUMERIC);
 
+            // Should we deep-clone source ServerItems (preserves XML + OTB attrs)?
+            var deepCloneServerItem:Boolean = otbLoaded
+                    && category == ThingCategory.ITEM
+                    && _settings.duplicateCopiesServerItem;
+
+            // Capture source ServerItems BEFORE addThings() is called.
+            // Parallel to `list[i]`. Null entries fall back to default sync.
+            var sourceServerItems:Vector.<ServerItem> = null;
+            if (deepCloneServerItem)
+            {
+                sourceServerItems = new Vector.<ServerItem>(length, true);
+                for (var i:uint = 0; i < length; i++)
+                    sourceServerItems[i] = _items.getItemByClientId(list[i]);
+            }
+
             var thingsCopyList:Vector.<ThingType> = new Vector.<ThingType>();
 
-            for (var i:uint = 0; i < length; i++)
+            for (i = 0; i < length; i++)
             {
                 var thing:ThingType = _things.getThingType(list[i], category);
                 if (!thing)
@@ -1773,10 +1788,56 @@ package
                 thingIds[i] = addedThings[i].id;
             }
 
-            thingIds.sort(Array.NUMERIC);
+            // ============================================================================
+            // OTB sync
+            if (deepCloneServerItem)
+            {
+                // Deep-clone source ServerItem (XML attrs + OTB attrs + user-edited
+                // binary fields like name/tradeAs). Bumps server ID per item.
+                var anyAdded:Boolean = false;
+                for (i = 0; i < length; i++)
+                {
+                    var newClientId:uint = addedThings[i].id;
+                    var srcItem:ServerItem = sourceServerItems[i];
 
-            // Sync with OTB first (before sending list to UI)
-            syncItemsHelper(thingIds, category);
+                    if (srcItem)
+                    {
+                        var newServerItem:ServerItem = srcItem.clone();
+                        newServerItem.id = _items.items.maxId + 1;  // bump server ID
+                        newServerItem.clientId = newClientId;
+                        newServerItem.previousClientId = 0;
+                        newServerItem.isCustomCreated = true;
+                        _items.items.add(newServerItem);  // updates _maxId; next iter gets +1
+                        anyAdded = true;
+                    }
+                    else
+                    {
+                        // No source ServerItem (rare — e.g. duplicating an item that was
+                        // added via New Thing while syncOtbOnAdd was off). Force-create
+                        // a fresh ServerItem from the new ThingType. This honors the user's
+                        // explicit opt-in (`duplicateCopiesServerItem`) and bypasses the
+                        // `syncOtbOnAdd` gate, which is the broader auto-sync setting.
+                        var newThing:ThingType = addedThings[i] as ThingType;
+                        if (newThing)
+                        {
+                            var freshItem:ServerItem = OtbSync.createFromThingType(
+                                    newThing, _items.items.maxId + 1, _version.value, _sprites);
+                            _items.items.add(freshItem);
+                            anyAdded = true;
+                        }
+                    }
+                }
+                if (anyAdded)
+                    _items.invalidate();
+            }
+            else
+            {
+                // Setting OFF or non-ITEM/no OTB — legacy sync (creates fresh from DAT
+                // when syncOtbOnAdd allows; no-op for non-ITEM categories).
+                syncItemsHelper(thingIds, category);
+            }
+
+            thingIds.sort(Array.NUMERIC);
 
             // Now send updated list to UI
             sendClientInfo();
@@ -2347,14 +2408,10 @@ package
                         var targetItem:ServerItem = _items.getItemByClientId(targetId);
                         if (sourceItem && targetItem)
                         {
-                            var srcAttrs:flash.utils.Dictionary = sourceItem.getXmlAttributes();
-                            if (srcAttrs)
-                            {
-                                var attrsObj:Object = {};
-                                for (var attrKey:String in srcAttrs)
-                                    attrsObj[attrKey] = srcAttrs[attrKey];
-                                targetItem.setXmlAttributesFromObject(attrsObj);
-                            }
+                            // Deep copy — handles nested Canary-style <attribute> dictionaries
+                            // without shared references between source and target.
+                            targetItem.copyXmlAttributesFrom(sourceItem);
+                            _items.invalidate();
                         }
                     }
                     break;

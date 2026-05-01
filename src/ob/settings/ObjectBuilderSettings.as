@@ -86,6 +86,7 @@ package ob.settings
         public var deleteAfterPaste:Boolean = false;
         public var lastAttributeServer:String = "tfs1.4";
         public var syncOtbOnAdd:Boolean = true;
+        public var duplicateCopiesServerItem:Boolean = true;
         public var showLogPanel:Boolean = true;
         public var largerWindowsFor4K:Boolean = false;
         public var previewZoom:Number = 1.0;
