@@ -3099,6 +3099,67 @@ THE SOFTWARE.
                     pasteAttributesFromClipboard(src.selectedThings);
             }
 
+            public function replaceOBDFromFolder():void
+            {
+                if (!clientLoaded)
+                    return;
+
+                var directory:File = _settings.getIODirectory() || File.userDirectory;
+                directory.addEventListener(Event.SELECT, directorySelectHandler);
+                directory.browseForDirectory(resourceManager.getString("strings", "selectFolder"));
+
+                function directorySelectHandler(event:Event):void
+                {
+                    var folder:File = event.target as File;
+                    _settings.setIODirectory(folder);
+                    
+                    var files:Array = folder.getDirectoryListing();
+                    var list:Vector.<PathHelper> = new Vector.<PathHelper>();
+                    var pattern:RegExp = /^([a-z]+)_(\d+)/i;
+                    
+                    for each (var file:File in files)
+                    {
+                        if (file.isDirectory || file.extension != OTFormat.OBD)
+                            continue;
+                        
+                        var match:Array = file.name.match(pattern);
+                        if (match && match.length >= 3)
+                        {
+                            var categoryStr:String = match[1].toLowerCase();
+                            var id:uint = uint(match[2]);
+                            
+                            // Check if category matches current category or handle multiple?
+                            // The user said "substituir o mesmo item", implying it should match.
+                            // However, replaceThingsFromFilesCommand usually expects items that match the current category 
+                            // or it might handle it. Let's assume it should match current category for safety, 
+                            // or just pass the ID and let the command handle it.
+                            
+                            // Convert category string to ThingCategory
+                            var category:String = "";
+                            if (categoryStr == "item") category = ThingCategory.ITEM;
+                            else if (categoryStr == "outfit") category = ThingCategory.OUTFIT;
+                            else if (categoryStr == "effect") category = ThingCategory.EFFECT;
+                            else if (categoryStr == "missile") category = ThingCategory.MISSILE;
+                            
+                            if (category == _category)
+                            {
+                                list.push(new PathHelper(file.nativePath, id));
+                            }
+                        }
+                    }
+                    
+                    if (list.length > 0)
+                    {
+                        replaceThingsFromFiles(list);
+                        appendLog(StringUtil.format(resourceManager.getString("strings", "replacedFromFolder"), list.length));
+                    }
+                    else
+                    {
+                        Alert.show(resourceManager.getString("strings", "noMatchingOBDFound"), resourceManager.getString("strings", "warning"));
+                    }
+                }
+            }
+
             protected function editThingHandler(event:Event):void
             {
                 if (!clientLoaded || thingTypeEditor.thingData == thingData)
@@ -3887,6 +3948,10 @@ THE SOFTWARE.
             
                     case Menu.FILE_MERGE:
                         mergeProject();
+                        break;
+            
+                    case Menu.FILE_REPLACE_OBD_FROM_FOLDER:
+                        replaceOBDFromFolder();
                         break;
             
                     case Menu.FILE_PREFERENCES:
