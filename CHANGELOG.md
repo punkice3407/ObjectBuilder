@@ -1,3 +1,24 @@
+### 0.6.0
+
+Features:
+
+* Compare Objects window - select two or more objects and open a side-by-side comparison window from the context menu.
+* Copy/Paste Attributes for items - copy server item attributes from one object and paste them onto another, with a confirmation prompt before overwriting.
+* "Wrap" pixel shift mode in the sprite editor - wrap edge pixels to the opposite side instead of blocking the shift at the sprite boundary.
+* Size stepper in Grid view - adjust thumbnail size for the Objects and Sprites grids, with automatic cropping and bitmap smoothing.
+* New "Duplicate copies server item attributes (items.xml + .otb)" preference - duplicating an object can also carry over its server item attributes.
+* Wider Objects/Sprites panels with more grid columns.
+
+Bug Fixes:
+
+* Fixed copy/paste of objects not working consistently across List, Grid, and Found view modes.
+* Fixed multi-select operations (delete, export, etc.) not respecting the active List/Grid/Found view.
+* Fixed sprite grid not refreshing when jumping to a page; extracted a shared ListViewPager used by both lists.
+* Fixed trailing underscore in exported thing filenames.
+* Fixed a shallow-copy bug when pasting item attributes - nested (Canary-style) attribute dictionaries are now deep-copied, so source and target objects no longer share references.
+* Trimmed whitespace in items.xml output and stopped writing name/description into item templates.
+* Reduced film roll selection border from 2px to 1px.
+
 ### 0.5.9
 
 Features:
