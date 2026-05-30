@@ -149,6 +149,7 @@ THE SOFTWARE.
             import ob.components.MergeAssetsWindow;
             import ob.components.OpenAssetsWindow;
             import ob.components.ImportSelectionWindow;
+            import ob.components.ListViewPager;
             import ob.components.PreferencesWindow;
             import ob.components.SplashScreen;
             import ob.components.SpritesOptimizerWindow;
@@ -173,6 +174,7 @@ THE SOFTWARE.
             import otlib.components.LookGenerator;
             import otlib.components.renders.ThingListRenderer;
             import otlib.components.renders.ThingGridRenderer;
+            import otlib.components.ListBase;
             import otlib.components.SpriteList;
             import otlib.components.ThingList;
             import ob.components.BulkReplaceWindow;
@@ -277,6 +279,8 @@ THE SOFTWARE.
             private var _pendingThingCategory:String;
             private var _currentPrevPageId:int = -1;
             private var _currentNextPageId:int = -1;
+            private var _spritePager:ListViewPager;
+            private var _thingPager:ListViewPager;
             private var _copiedThingData:ThingData; // For copy/paste object (sprites + properties + patterns)
             private var _copiedThingType:ThingType; // For copy/paste properties
             private var _copiedPatternsThingType:ThingType; // For copy/paste patterns
@@ -1511,7 +1515,11 @@ THE SOFTWARE.
                 thingStepper.firstDisplayedIdCallback = getFirstDisplayedThingId;
                 thingStepper.prevDisplayedIdCallback = getPrevDisplayedThingId;
                 thingStepper.nextDisplayedIdCallback = getNextDisplayedThingId;
-            
+
+                _spritePager = new ListViewPager(spritesList, spritesGridList,
+                    function():ListBase { return (spritesViewStack && spritesViewStack.selectedIndex == 1) ? spritesGridList : spritesList; });
+                _thingPager = new ListViewPager(thingList, thingGridList, getActiveThingList);
+
                 sendCommand(new SettingsCommand(_settings));
             
                 _splashScreen.status = resourceManager.getString("strings", "loadingSettings") + "...";
@@ -1665,23 +1673,7 @@ THE SOFTWARE.
                 _currentPrevPageId = prevPageId;
                 _currentNextPageId = nextPageId;
             
-                thingList.rememberScroll();
-                if (forceUpdate)
-                {
-                    thingList.removeAll();
-                    thingGridList.removeAll();
-                }
-
-                thingList.setListObjects(things);
-                thingList.selectedIds = selectedIds;
-                if (selectedIds && selectedIds.length > 0)
-                {
-                    thingList.ensureIdIsVisible(selectedIds[0]);
-                }
-
-                // Sync grid tab data
-                thingGridList.setListObjects(things);
-                thingGridList.selectedIds = selectedIds;
+                _thingPager.applyPage(selectedIds, things, forceUpdate);
 
                 getActiveThingList().setFocus();
             
@@ -1710,23 +1702,7 @@ THE SOFTWARE.
                     throw new NullArgumentError("sprites");
                 }
             
-                spritesList.rememberScroll();
-                if (forceUpdate)
-                {
-                    spritesList.forceNextUpdate();
-                }
-                spritesList.setListObjects(sprites);
-                if (selectedIds.length > 0)
-                {
-                    spritesList.ensureIdIsVisible(selectedIds[0]);
-                }
-                spritesList.selectedIds = selectedIds;
-
-                // Sync sprite grid data
-                if (spritesGridList)
-                {
-                    spritesGridList.dataProvider = spritesList.dataProvider;
-                }
+                _spritePager.applyPage(selectedIds, sprites, forceUpdate);
             }
 
             private function needToReloadCallback(features:ClientFeatures):void
@@ -1820,28 +1796,14 @@ THE SOFTWARE.
                 if (!clientLoaded)
                     return;
 
-                var src:SpriteList = activeSpriteList;
-
-                // Return if id is current selected.
-                if (src.selectedId == id)
-                    return;
-
-                // Search index if id is in range of loaded list.
-                if (id >= src.minId && id <= src.maxId)
-                {
-                    src.ensureIdIsVisible(id);
-                    src.selectedId = id;
-                }
-                else
-                {
-                    // Request new list by target id.
+                // The pager handles in-range selection; otherwise request the page from the worker.
+                if (!_spritePager.trySelect(id))
                     sendCommand(new GetSpriteListCommand(id));
-                }
             }
             
             private function get activeSpriteList():SpriteList
             {
-                return (spritesViewStack && spritesViewStack.selectedIndex == 1) ? spritesGridList : spritesList;
+                return (_spritePager ? _spritePager.active : spritesList) as SpriteList;
             }
 
             private function onCopySprite():void
