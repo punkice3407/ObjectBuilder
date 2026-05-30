@@ -165,6 +165,12 @@ package ob.menu
             fileMergeMenu.controlKey = true;
             fileMenu.addMenuItem(fileMergeMenu);
 
+            // File > Replace OBD from a folder
+            var fileReplaceOBDMenu:MenuItem = new MenuItem();
+            fileReplaceOBDMenu.label = Resources.getString("menu.replaceOBDFromFolder");
+            fileReplaceOBDMenu.data = FILE_REPLACE_OBD_FROM_FOLDER;
+            fileMenu.addMenuItem(fileReplaceOBDMenu);
+
             // Separator
             if (!m_isMac)
                 fileMenu.addMenuItem(separator);
@@ -404,6 +410,9 @@ package ob.menu
                 // menu File > Merge
                 nativeMenu.items[1].submenu.items[8].enabled = m_application.clientLoaded;
 
+                // menu File > Replace OBD from a folder
+                nativeMenu.items[1].submenu.items[9].enabled = m_application.clientLoaded;
+
                 // menu View > Show Preview Panel
                 nativeMenu.items[2].submenu.items[0].checked = m_application.showPreviewPanel;
 
@@ -438,6 +447,9 @@ package ob.menu
 
                 // menu File > Merge
                 nativeMenu.items[0].submenu.items[8].enabled = m_application.clientLoaded;
+
+                // menu File > Replace OBD from a folder
+                nativeMenu.items[0].submenu.items[9].enabled = m_application.clientLoaded;
 
                 // menu View > Show Preview Panel
                 nativeMenu.items[1].submenu.items[0].checked = m_application.showPreviewPanel;
@@ -591,5 +603,6 @@ package ob.menu
         public static const TOOLS_CREATE_MISSING_ITEMS:String = "toolsCreateMissingItems";
         public static const TOOLS_RELOAD_ITEM_ATTRIBUTES:String = "toolsReloadItemAttributes";
         public static const FILE_NEW_WINDOW:String = "fileNewWindow";
+        public static const FILE_REPLACE_OBD_FROM_FOLDER:String = "fileReplaceOBDFromFolder";
     }
 }
